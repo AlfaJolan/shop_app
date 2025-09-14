@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Заказ принят</h2>
+<p>Спасибо! Ваш заказ № <b>{{ order.id }}</b> от {{ order.created_at.strftime("%Y-%m-%d %H:%M") }}.</p>
+
+{# --- Блок накладной (покажется, если есть данные) --- #}
+{% if invoice_id and invoice_pkey %}
+  <div style="margin:14px 0; padding:12px; border:1px solid #e6f4ff; background:#f5faff; border-radius:10px;">
+    <div style="font-weight:700; margin-bottom:8px;">Накладная сформирована</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+      <a href="/invoice/{{ invoice_id }}?pkey={{ invoice_pkey }}" target="_blank"
+         style="display:inline-flex; align-items:center; gap:8px; background:#1677ff; color:#fff; text-decoration:none; padding:8px 12px; border-radius:8px; font-weight:600; box-shadow:0 4px 12px rgba(22,119,255,.25);">
+        📄 Открыть накладную
+      </a>
+      <button type="button" onclick="copyInvoiceLink()"
+              style="display:inline-flex; align-items:center; gap:8px; background:#fff; color:#1677ff; border:1px solid #91caff; padding:8px 12px; border-radius:8px; cursor:pointer;">
+        🔗 Скопировать ссылку
+      </button>
+      <span id="copy-status" style="font-size:12px; color:#52c41a; display:none;">Ссылка скопирована</span>
+    </div>
+    <script>
+      function copyInvoiceLink() {
+        const url = `${window.location.origin}/invoice/{{ invoice_id }}?pkey={{ invoice_pkey }}`;
+        navigator.clipboard.writeText(url).then(() => {
+          const el = document.getElementById('copy-status');
+          el.style.display = 'inline';
+          setTimeout(() => el.style.display = 'none', 2000);
+        });
+      }
+    </script>
+  </div>
+{% endif %}
+
+<h3>Состав заказа</h3>
+<div style="overflow-x:auto;">
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Наименование</th>
+        <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Цена</th>
+        <th style="text-align:center; border-bottom:1px solid #eee; padding:8px;">Кол-во</th>
+        <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Сумма</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for l in lines %}
+      <tr>
+        <td style="padding:8px;">
+          <div style="font-weight:600;">{{ l.product_name }}</div>
+          <div style="font-size:12px; color:#666;">{{ l.variant_name }}</div>
+        </td>
+        <td style="padding:8px; text-align:right;">{{ "%.2f"|format(l.unit_price) }} ₸</td>
+        <td style="padding:8px; text-align:center;">{{ l.qty }}</td>
+        <td style="padding:8px; text-align:right; font-weight:600;">{{ "%.2f"|format(l.line_total) }} ₸</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" style="padding:8px; text-align:right; font-weight:700;">Итого:</td>
+        <td style="padding:8px; text-align:right; font-weight:700;">{{ "%.2f"|format(total) }} ₸</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<h3 style="margin-top:16px;">Контакты</h3>
+<ul>
+  <li>Имя: {{ order.customer_name or "—" }}</li>
+  <li>Телефон: {{ order.phone or "—" }}</li>
+  <li>Комментарий: {{ order.comment or "—" }}</li>
+</ul>
+
+<p style="margin-top:12px;"><a href="/">Вернуться в каталог</a></p>
+{% endblock %}

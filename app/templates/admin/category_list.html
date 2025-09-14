@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Категории</h2>
+
+<form method="get" action="/admin/catalog/categories" style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
+  <input name="q" value="{{ q }}" placeholder="Поиск по названию/slug"
+         style="padding:8px; border:1px solid #ddd; border-radius:8px;">
+  <button style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f7f7f7;">Найти</button>
+  <a href="/admin/catalog/categories/new" style="margin-left:auto; padding:8px 12px; border-radius:8px; background:#1677ff; color:#fff; text-decoration:none;">+ Новая</a>
+</form>
+
+<div style="overflow-x:auto;">
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">ID</th>
+      <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Название</th>
+      <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Slug</th>
+      <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in categories %}
+      <tr>
+        <td style="padding:8px;">{{ c.id }}</td>
+        <td style="padding:8px;">{{ c.name }}</td>
+        <td style="padding:8px;">{{ c.slug }}</td>
+        <td style="padding:8px; text-align:right;">
+          <a href="/admin/catalog/categories/{{ c.id }}/edit" style="margin-right:8px;">Редактировать</a>
+          <form method="post" action="/admin/catalog/categories/{{ c.id }}/delete" style="display:inline;" onsubmit="return confirm('Удалить категорию?');">
+            <button style="padding:6px 10px;">Удалить</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" style="padding:12px; color:#888;">Ничего не найдено</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

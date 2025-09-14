@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Заказ #{{ order.id }}</h2>
+<p>
+  Дата: {{ order.created_at.strftime("%Y-%m-%d %H:%M") }}<br>
+  Имя: {{ order.customer_name or "—" }}<br>
+  Телефон: {{ order.phone or "—" }}<br>
+  Комментарий: {{ order.comment or "—" }}<br>
+  Сумма: <b>{{ "%.2f"|format(order.total_amount or 0) }} KZT</b><br>
+  Статус: <b>{{ status_labels.get(order.status, order.status) }}</b>
+</p>
+
+<h3>Состав</h3>
+<div style="overflow-x:auto;">
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Наименование</th>
+        <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Вариант</th>
+        <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Кол-во</th>
+        <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Цена</th>
+        <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Сумма</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in order.items %}
+      <tr>
+        <td style="padding:8px;">{{ it.product_name }}</td>
+        <td style="padding:8px;">{{ it.variant_name }}</td>
+        <td style="padding:8px; text-align:right;">{{ it.qty }}</td>
+        <td style="padding:8px; text-align:right;">{{ "%.2f"|format(it.unit_price) }} KZT</td>
+        <td style="padding:8px; text-align:right;">{{ "%.2f"|format(it.line_total) }} KZT</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h3 style="margin-top:16px;">Действия</h3>
+<div style="display:flex; gap:10px; flex-wrap:wrap;">
+  {% if invoice %}
+    <a href="/invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}" target="_blank"
+       style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f8f8f8; text-decoration:none;">
+      Открыть накладную (публичная)
+    </a>
+    <a href="/admin/invoices/{{ invoice.id }}/edit"
+       style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f8f8f8; text-decoration:none;">
+      Редактировать накладную
+    </a>
+  {% else %}
+    <form method="post" action="/admin/invoices/from-order?order_id={{ order.id }}">
+      <button type="submit"
+              style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f8f8f8; cursor:pointer;">
+        Создать накладную
+      </button>
+    </form>
+  {% endif %}
+</div>
+
+<h3 style="margin-top:16px;">Сменить статус</h3>
+<form method="post" action="/admin/orders/{{ order.id }}/status" style="display:flex; gap:8px; align-items:center;">
+  <select name="new_status" style="padding:8px; border:1px solid #ddd; border-radius:8px;">
+    {% for st in allowed_statuses %}
+      <option value="{{ st }}" {{ 'selected' if order.status==st else '' }}>
+        {{ status_labels.get(st, st) }}
+      </option>
+    {% endfor %}
+  </select>
+  <input type="text" name="note" placeholder="примечание"
+         style="padding:8px; border:1px solid #ddd; border-radius:8px; width:260px;">
+  <button type="submit"
+          style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f8f8f8; cursor:pointer;">
+    Сохранить
+  </button>
+</form>
+{% endblock %}

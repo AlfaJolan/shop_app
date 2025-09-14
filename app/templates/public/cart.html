@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Корзина</h2>
+
+{% if flash %}
+  <div style="padding:10px; background:#fff8e1; border:1px solid #ffe082; border-radius:10px; margin-bottom:10px;">
+    {{ flash }}
+  </div>
+{% endif %}
+
+{% if not lines %}
+  <p>Корзина пуста. <a href="/">Перейти в каталог</a></p>
+{% else %}
+  <div style="overflow-x:auto;">
+    <table class="cart-table" style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Наименование</th>
+          <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Цена</th>
+          <th style="text-align:center; border-bottom:1px solid #eee; padding:8px;">Кол-во (остаток)</th>
+          <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Сумма</th>
+          <th style="border-bottom:1px solid #eee; padding:8px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for l in lines %}
+        <tr>
+          <td style="padding:8px;">
+            <div style="font-weight:600;">{{ l.product_name }}</div>
+            <div style="font-size:12px; color:#666;">{{ l.variant_name }}</div>
+          </td>
+          <td style="padding:8px; text-align:right;">{{ "%.2f"|format(l.unit_price) }} ₸</td>
+          <td style="padding:8px; text-align:center;">
+            <form method="post" action="/cart/update" style="display:inline-flex; gap:6px; align-items:center;">
+              <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+              <input type="number"
+                     name="qty"
+                     value="{{ l.qty }}"
+                     min="0"
+                     max="{{ l.stock }}"
+                     style="width:72px; padding:6px; border:1px solid #ddd; border-radius:8px;"
+                     onchange="this.form.submit()">
+              <span style="font-size:12px; color:#888;">из {{ l.stock }}</span>
+            </form>
+          </td>
+          <td style="padding:8px; text-align:right; font-weight:600;">{{ "%.2f"|format(l.line_total) }} ₸</td>
+          <td style="padding:8px; text-align:center;">
+            <form method="post" action="/cart/remove">
+              <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+              <button type="submit">Удалить</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="padding:8px; text-align:right; font-weight:700;">Итого:</td>
+          <td style="padding:8px; text-align:right; font-weight:700;">{{ "%.2f"|format(total) }} ₸</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <h3 style="margin-top:16px;">Оформление заказа</h3>
+  <form method="post" action="/checkout" class="checkout-form" style="display:grid; gap:10px; max-width:520px;">
+    <label>
+      Имя:
+      <input name="customer_name" placeholder="Ваше имя" />
+    </label>
+    <label>
+      Телефон:
+      <input name="phone" placeholder="+7..." />
+    </label>
+    <label>
+      Комментарий:
+      <textarea name="comment" rows="3" placeholder="Примечание к заказу (необязательно)"></textarea>
+    </label>
+    <button type="submit" style="padding:10px 14px;">Оформить заказ</button>
+  </form>
+{% endif %}
+{% endblock %}

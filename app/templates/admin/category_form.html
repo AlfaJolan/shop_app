@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ "Новая категория" if mode == "new" else "Редактировать категорию" }}</h2>
+
+<form method="post" style="max-width:520px; display:grid; gap:10px;">
+  <label>
+    <div>Название *</div>
+    <input name="name" value="{{ cat.name if cat else '' }}" required
+           style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;">
+  </label>
+
+  <label>
+    <div>Slug (если пустой — сгенерируем)</div>
+    <input name="slug" value="{{ cat.slug if cat else '' }}"
+           style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;">
+  </label>
+
+  <div style="display:flex; gap:8px;">
+    <button style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#1677ff; color:#fff;">
+      {{ "Создать" if mode == "new" else "Сохранить" }}
+    </button>
+    <a href="/admin/catalog/categories" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f7f7f7; text-decoration:none;">
+      Отмена
+    </a>
+  </div>
+</form>
+{% endblock %}

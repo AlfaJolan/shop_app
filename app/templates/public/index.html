@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Каталог</h2>
+
+{# Кнопка корзины в шапке #}
+<div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+  <a href="/cart"
+     style="display:inline-flex; align-items:center; gap:8px;
+            background:#1890ff; color:#fff; text-decoration:none;
+            padding:10px 16px; border-radius:10px; font-weight:600;
+            box-shadow:0 6px 16px rgba(24,144,255,0.35);">
+    🛒 <span>Корзина</span>
+    {% if cart_count and cart_count > 0 %}
+      <span style="background:#fff; color:#1890ff; font-size:12px;
+                   border-radius:999px; padding:2px 8px; font-weight:700;">
+        {{ cart_count }}
+      </span>
+    {% endif %}
+  </a>
+</div>
+
+{# Flash-сообщение после добавления в корзину / ошибок склада #}
+{% if flash %}
+  <div style="padding:10px; background:#e6fffb; border:1px solid #87e8de; border-radius:8px; margin-bottom:12px;">
+    {{ flash }}
+  </div>
+{% endif %}
+
+<div class="grid">
+  {% for p in products %}
+    <div class="card">
+      {% if p.image %}
+        <img src="/static/{{ p.image }}" alt="{{ p.name }}" class="thumb"/>
+      {% endif %}
+      <div class="title">{{ p.name }}</div>
+
+      {% if p.variants %}
+        <ul class="variants">
+          {% for v in p.variants %}
+            <li class="variant-row">
+              <span>
+                {{ v.name }} — {{ "%.2f"|format(v.unit_price) }} ₸
+                {# если у тебя есть v.stock в объекте, можно показать: #}
+                {% if v.stock is defined %}
+                  <span style="font-size:12px; color:#999;">(в наличии: {{ v.stock }})</span>
+                {% endif %}
+              </span>
+
+              <form method="post" action="/cart/add" class="add-form">
+                <input type="hidden" name="product_id" value="{{ p.id }}">
+                <input type="hidden" name="variant_id" value="{{ v.id }}">
+                <input type="number" name="qty" value="1" min="1" class="qty">
+                {% if v.stock is defined and v.stock|int <= 0 %}
+                  <button type="button" disabled title="Нет на складе">Нет в наличии</button>
+                {% else %}
+                  <button type="submit">Добавить</button>
+                {% endif %}
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div>Нет вариантов</div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

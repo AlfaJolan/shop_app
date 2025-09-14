@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ title or "Shop" }}</title>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+</head>
+<body>
+<header class="container">
+  <h1 style="margin:8px 0;">Магазин</h1>
+  <form method="get" action="/" style="display:flex; gap:8px;">
+    <input name="q" value="{{ q if q is defined else '' }}" placeholder="Поиск..." />
+    <button>Найти</button>
+  </form>
+</header>
+<main class="container">
+  {% block content %}{% endblock %}
+</main>
+
+<div class="float-links">
+  📞 WhatsApp: <a href="https://wa.me/7707XXXXXXX" target="_blank">wa.me/7707XXXXXXX</a> |
+  ✈️ Telegram: <a href="https://t.me/your_channel" target="_blank">t.me/your_channel</a>
+</div>
+</body>
+</html>

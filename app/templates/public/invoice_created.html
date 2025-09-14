@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Накладная создана</h2>
+<p>Накладная № <b>{{ invoice.id }}</b> от {{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}.</p>
+
+<p>
+  Публичная ссылка: 
+  <a href="/invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}" target="_blank">
+    /invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}
+  </a>
+</p>
+
+<p style="margin-top:10px;">
+  <a href="/invoice/{{ invoice.id }}/export.pdf?pkey={{ invoice.pkey }}">Скачать PDF</a> •
+  <a href="/invoice/{{ invoice.id }}/export.xlsx?pkey={{ invoice.pkey }}">Скачать XLSX</a>
+</p>
+
+<p style="margin-top:12px;"><a href="/">Вернуться в каталог</a></p>
+{% endblock %}
