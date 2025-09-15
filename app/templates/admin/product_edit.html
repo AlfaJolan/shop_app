@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Редактирование товара: {{ product.name }}</h2>
+
+  <form method="post" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label>Название</label>
+      <input type="text" name="name" value="{{ product.name }}" class="form-control">
+    </div>
+    <div class="mb-3">
+      <label>Категория</label>
+      <select name="category_id" class="form-select">
+        <option value="">---</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if product.category_id==c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label>Изображение</label>
+      <input type="file" name="image" class="form-control">
+      {% if product.image %}
+        <img src="{{ product.image }}" class="img-fluid mt-2" style="max-height:80px;">
+      {% endif %}
+    </div>
+    <button class="btn btn-success">💾 Сохранить</button>
+  </form>
+
+  <hr>
+  <h3>Варианты</h3>
+  <table class="table">
+    <thead><tr><th>Название</th><th>В коробке</th><th>Остаток</th><th>Цена</th><th></th></tr></thead>
+    <tbody>
+      {% for v in product.variants %}
+      <tr>
+        <td>{{ v.name }}</td>
+        <td>{{ v.pack_size }}</td>
+        <td>{{ v.stock }}</td>
+        <td>{{ v.unit_price }}</td>
+        <td>
+          <form method="post" action="/admin/catalog/variants/{{ v.id }}/delete" class="d-inline">
+            <button class="btn btn-sm btn-outline-danger">🗑</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4>➕ Добавить вариант</h4>
+  <form method="post" action="/admin/catalog/products/{{ product.id }}/variants/new">
+    <div class="mb-3">
+      <label>Название варианта</label>
+      <input type="text" name="name" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Штук в коробке</label>
+      <input type="number" name="pack_size" class="form-control" required>
+    </div>
+    <div class="row">
+      <div class="col"><label>Коробок</label><input type="number" name="boxes" class="form-control" value="0"></div>
+      <div class="col"><label>Штук</label><input type="number" name="units" class="form-control" value="0"></div>
+    </div>
+    <div class="mb-3">
+      <label>Цена</label>
+      <input type="number" step="0.01" name="unit_price" class="form-control" required>
+    </div>
+    <button class="btn btn-primary">Добавить</button>
+  </form>
+</div>
+{% endblock %}

@@ -92,11 +92,19 @@ def invoice_export_pdf(
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name="DejaTitle", parent=styles["Title"], fontName="DejaVu"))
     styles.add(ParagraphStyle(name="Deja", parent=styles["Normal"], fontName="DejaVu"))
+    styles.add(ParagraphStyle(
+        name="DejaWrap",
+        parent=styles["Normal"],
+        fontName="DejaVu",
+        wordWrap="CJK",   # перенос строк
+        fontSize=9,
+        leading=11,
+    ))
 
     elems = []
     elems.append(Paragraph(f"Накладная № {inv.id}", styles["DejaTitle"]))
 
-    # Шапка: Имя, Телефон, Время
+    # Шапка
     meta = (
         f"Имя: {inv.customer_name or '—'}<br/>"
         f"Телефон: {inv.phone or '—'}<br/>"
@@ -104,14 +112,21 @@ def invoice_export_pdf(
     )
     elems += [Spacer(1, 8), Paragraph(meta, styles["Deja"]), Spacer(1, 12)]
 
-    # Таблица: Наименование, Фото, Вариант, Кол-во, Цена, Сумма
-    data = [["Наименование", "Фото", "Вариант", "Кол-во", "Цена", "Сумма"]]
+    # Таблица
+    data = [[
+        Paragraph("Наименование", styles["DejaWrap"]),
+        Paragraph("Фото", styles["DejaWrap"]),
+        Paragraph("Вариант", styles["DejaWrap"]),
+        Paragraph("Кол-во", styles["DejaWrap"]),
+        Paragraph("Цена", styles["DejaWrap"]),
+        Paragraph("Сумма", styles["DejaWrap"]),
+    ]]
 
     for it in inv.items:
         # миниатюра
         img_flow = ""
         if it.product_image:
-            fs_path = os.path.join("app", "static", it.product_image)  # images/...
+            fs_path = os.path.join("app", "static", "uploads", "products", it.product_image)
             if os.path.exists(fs_path):
                 try:
                     img_flow = RLImage(fs_path, width=40, height=40)
@@ -123,22 +138,26 @@ def invoice_export_pdf(
         summ = Decimal(str(it.line_total_final))
 
         data.append([
-            Paragraph(it.product_name, styles["Deja"]),
+            Paragraph(it.product_name or "—", styles["DejaWrap"]),
             img_flow,
-            Paragraph(it.variant_name, styles["Deja"]),
-            str(qty),
-            f"{price:.2f} KZT",
-            f"{summ:.2f} KZT",
+            Paragraph(it.variant_name or "—", styles["DejaWrap"]),
+            Paragraph(str(qty), styles["DejaWrap"]),
+            Paragraph(f"{price:.2f} ₸", styles["DejaWrap"]),
+            Paragraph(f"{summ:.2f} ₸", styles["DejaWrap"]),
         ])
 
-    data.append(["", "", "", "", "Итого:", f"{Decimal(str(inv.total_amount_final)):.2f} KZT"])
+    data.append([
+        "", "", "", "",
+        Paragraph("Итого:", styles["DejaWrap"]),
+        Paragraph(f"{Decimal(str(inv.total_amount_final)):.2f} ₸", styles["DejaWrap"]),
+    ])
 
-    table = Table(data, colWidths=[180, 50, 120, 50, 70, 80])
+    table = Table(data, colWidths=[150, 50, 100, 50, 70, 80])
     table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), "DejaVu"),     # применяем шрифт на всю таблицу
+        ("FONTNAME", (0, 0), (-1, -1), "DejaVu"),
         ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("VALIGN", (0, 1), (-1, -1), "MIDDLE"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("ALIGN", (3, 1), (5, -2), "RIGHT"),
         ("ALIGN", (4, -1), (5, -1), "RIGHT"),
         ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
@@ -148,7 +167,7 @@ def invoice_export_pdf(
     doc.build(elems)
     buf.seek(0)
 
-    # Имя файла: «Накладная Имя Телефон Дата.pdf» + ASCII fallback
+    # Имя файла
     date_str = inv.created_at.strftime("%Y-%m-%d_%H-%M")
     name = (inv.customer_name or "Клиент").strip()
     phone = (inv.phone or "без_телефона").strip()
@@ -192,7 +211,7 @@ def invoice_export_xlsx(
             float(it.line_total_final),
         ])
         if PIL_OK and it.product_image:
-            fs_path = os.path.join("app", "static", it.product_image)
+            fs_path = os.path.join("app", "static","uploads","products", it.product_image)
             if os.path.exists(fs_path):
                 try:
                     img = XLImage(fs_path)

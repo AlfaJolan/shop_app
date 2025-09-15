@@ -30,9 +30,11 @@
   {% for p in products %}
     <div class="card">
       {% if p.image %}
-        <img src="/static/{{ p.image }}" alt="{{ p.name }}" class="thumb"/>
-      {% endif %}
-      <div class="title">{{ p.name }}</div>
+  <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}" class="thumb">
+{% else %}
+  <img src="/static/no-photo.png" alt="нет фото" class="thumb">
+{% endif %}
+
 
       {% if p.variants %}
         <ul class="variants">

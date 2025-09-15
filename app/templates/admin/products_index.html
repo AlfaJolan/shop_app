@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="mb-0">📦 Управление каталогом</h2>
+    <a href="/admin/catalog/products/new" class="btn btn-success btn-lg">➕ Добавить товар</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered table-hover align-middle shadow-sm">
+      <thead class="table-light">
+        <tr>
+          <th style="width:120px">Фото</th>
+          <th>Название</th>
+          <th>SKU</th>
+          <th>Категория</th>
+          <th>Варианты</th>
+          <th style="width:150px" class="text-end">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td>
+            {% if p.image %}
+              <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}"
+                   style="height:70px; object-fit:cover; border-radius:8px;">
+            {% else %}
+              <span class="text-muted">нет фото</span>
+            {% endif %}
+          </td>
+          <td class="fw-semibold">{{ p.name }}</td>
+          <td>{{ p.sku or "-" }}</td>
+          <td>{{ p.category.name if p.category else "-" }}</td>
+          <td>
+            {% if p.variants %}
+              <ul class="list-unstyled mb-0">
+                {% for v in p.variants %}
+                  <li>
+                    {{ v.name }} — <b>{{ "%.2f"|format(v.unit_price) }} ₸</b>
+                    <span class="text-muted">(остаток: {{ v.stock }} {{ p.unit }})</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <span class="text-muted">нет вариантов</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <a href="/admin/catalog/products/{{ p.id }}/edit" class="btn btn-sm btn-primary">✏️ Редактировать</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

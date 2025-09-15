@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-4">Админская панель</h2>
+  <div class="row">
+
+    <!-- Заказы -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h4 class="card-title">📦 Заказы</h4>
+          <p class="card-text text-muted">Просмотр и управление заказами.</p>
+          <a href="/admin/orders" class="btn btn-primary w-100">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Накладные -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h4 class="card-title">📄 Накладные</h4>
+          <p class="card-text text-muted">Редактирование и экспорт накладных.</p>
+          <a href="/admin/invoices" class="btn btn-primary w-100">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Аудит -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h4 class="card-title">🔍 Аудит</h4>
+          <p class="card-text text-muted">История изменений и логирование.</p>
+          <a href="/admin/audit" class="btn btn-primary w-100">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Категории -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h4 class="card-title">🗂 Категории</h4>
+          <p class="card-text text-muted">CRUD для категорий товаров.</p>
+          <a href="/admin/catalog/categories" class="btn btn-primary w-100">Перейти</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Товары (пока заглушка) -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h4 class="card-title">🛒 Товары</h4>
+          <p class="card-text text-muted">Управление товарами (будет реализовано).</p>
+          <a href="#" class="btn btn-secondary w-100 disabled">Скоро</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Варианты (пока заглушка) -->
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body text-center">
+          <h4 class="card-title">🔖 Варианты</h4>
+          <p class="card-text text-muted">Управление вариантами товаров.</p>
+          <a href="#" class="btn btn-secondary w-100 disabled">Скоро</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

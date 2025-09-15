@@ -1,4 +1,3 @@
-# app/routers/admin_dashboard.py
 from datetime import datetime
 from typing import Optional
 
@@ -29,6 +28,13 @@ def _parse_date(s: Optional[str]) -> Optional[datetime]:
     return None
 
 
+# ---------- ГЛАВНАЯ ПАНЕЛЬ ----------
+@router.get("/", response_class=HTMLResponse)
+def admin_index(request: Request):
+    return templates.TemplateResponse("admin/dashboard.html", {"request": request})
+
+
+# ---------- ЗАКАЗЫ ----------
 @router.get("/orders", response_class=HTMLResponse)
 def list_orders(
     request: Request,
@@ -64,6 +70,7 @@ def list_orders(
     })
 
 
+# ---------- НАКЛАДНЫЕ ----------
 @router.get("/invoices", response_class=HTMLResponse)
 def list_invoices(
     request: Request,
@@ -105,6 +112,7 @@ def list_invoices(
     })
 
 
+# ---------- АУДИТ ----------
 @router.get("/audit", response_class=HTMLResponse)
 def list_audit(
     request: Request,
@@ -113,7 +121,6 @@ def list_audit(
     q: Optional[str] = Query(None, description="поиск по полю/пользователю"),
     limit: int = Query(200, ge=1, le=2000),
 ):
-    # ВАЖНО: было InvoiceAudit.changed_at — такого поля нет. Используем created_at.
     query = db.query(InvoiceAudit).order_by(InvoiceAudit.created_at.desc())
 
     if invoice_id:

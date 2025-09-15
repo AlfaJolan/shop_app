@@ -74,7 +74,7 @@ def order_detail(
         "order": order,
         "invoice": invoice,
         "allowed_statuses": ALLOWED_STATUSES,
-        "status_labels": STATUS_LABELS_RU,  # <- добавили
+        "status_labels": STATUS_LABELS_RU,
     })
 
 # ---------- СМЕНА СТАТУСА ----------
@@ -109,4 +109,6 @@ def change_status(
         order.status_note = note
 
     db.commit()
-    return RedirectResponse(url="/admin/orders/{0}".format(order.id), status_code=303)
+
+    # ✅ После смены статуса редиректим на live-ленту заказов
+    return RedirectResponse(url="/admin/orders/live", status_code=303)

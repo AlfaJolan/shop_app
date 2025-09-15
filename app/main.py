@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -17,13 +16,15 @@ configure_mappers()
 Base.metadata.create_all(bind=engine)
 
 # 3) Подключаем роутеры ПОСЛЕ импорта моделей
-from app.routers import public, admin, cart
+from app.routers import public, cart
 from app.routers import invoice as invoice_router            # публичная накладная (/invoice/{id})
 from app.routers import admin_invoice as admin_inv_router    # админ-редактор накладной
-from app.routers import admin_dashboard                      # списки заказов/накладных/аудита
+from app.routers import admin_dashboard                      # списки заказов/накладных/аудита + главный dashboard
 from app.routers import admin_orders                         # live-заказы/смена статуса
 from app.routers import admin_catalog as admin_catalog_router  # ← НОВОЕ: CRUD категорий/каталог
+from app.routers import admin_products as admin_products_router  # ← CRUD продуктов и вариантов
 
+# создаём само приложение
 app = FastAPI(title="ShopApp")
 
 # 4) Сессии (корзина и т.п.)
@@ -31,7 +32,6 @@ app.add_middleware(SessionMiddleware, secret_key="dev-secret-change-me")
 
 # 5) Роутеры
 app.include_router(public.router)
-app.include_router(admin.router)
 app.include_router(cart.router)
 
 # Накладные (публично и админ)
@@ -39,9 +39,12 @@ app.include_router(invoice_router.router)
 app.include_router(admin_inv_router.router)
 
 # Админские панели
+# ⚠️ УБРАН старый admin.router (он показывал заглушку "Админ-панель")
+#    Теперь /admin → ведёт в admin_dashboard (dashboard.html с карточками)
 app.include_router(admin_dashboard.router)
 app.include_router(admin_orders.router)
-app.include_router(admin_catalog_router.router)  # ← подключили админ-каталог
+app.include_router(admin_catalog_router.router)   # ← подключили админ-каталог
+app.include_router(admin_products_router.router)  # ← подключили админ-продукты
 
 # 6) Статика (картинки, css, шрифты)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
