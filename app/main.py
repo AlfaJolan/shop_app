@@ -47,6 +47,7 @@ from app.routers import admin_catalog as admin_catalog_router
 from app.routers import admin_products as admin_products_router
 from app.routers import auth as auth_router
 from app.routers import admin_seller as admin_sellers_router
+from app.telegram_subscribe import start_polling
 
 app.include_router(public.router)
 app.include_router(cart.router)
@@ -66,3 +67,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/__routes")
 def __routes():
     return [getattr(r, "path", str(r)) for r in app.routes]
+
+@app.on_event("startup")
+async def startup_event():
+    print("🚀 Запуск приложения, стартуем polling")
+    start_polling()

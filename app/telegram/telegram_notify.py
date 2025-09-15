@@ -1,24 +1,34 @@
 import requests
 from datetime import datetime
 from app.telegram.config_notify import notify_settings
-
+from sqlalchemy.orm import Session
+from app.db import SessionLocal
+from app.models.subscriber import Subscriber
 
 class TelegramNotifier:
-    def __init__(self, token: str, chat_id: str):
+    def __init__(self, token: str):
         self.token = token
-        self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.token}/sendMessage"
+    
 
     def send(self, message: str):
-        """Отправить сообщение в Telegram"""
+        """Отправить сообщение всем подписчикам в Telegram"""
+        db: Session = SessionLocal()
         try:
-            requests.post(self.api_url, data={
-                'chat_id': self.chat_id,
-                'text': message,
-                'parse_mode': 'HTML'
-            })
+            subscribers = db.query(Subscriber).all()
+            for sub in subscribers:
+                try:
+                    requests.post(self.api_url, data={
+                        'chat_id': sub.chat_id,
+                        'text': message,
+                        'parse_mode': 'HTML'
+                    })
+                except Exception as e:
+                    print(f"Ошибка при отправке {sub.chat_id}: {e}")
         except Exception as e:
-            print(f"Ошибка при отправке в Telegram: {e}")
+            print("Ошибка при выборке подписчиков:", e)
+        finally:
+            db.close()
 
     def format_items(self, items):
         """Форматирование списка товаров"""
@@ -57,6 +67,5 @@ class TelegramNotifier:
 
 # глобальный экземпляр
 notifier = TelegramNotifier(
-    token=notify_settings.TELEGRAM_TOKEN,
-    chat_id=notify_settings.TELEGRAM_CHAT_ID
+    token=notify_settings.TELEGRAM_TOKEN
 )

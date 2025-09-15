@@ -5,3 +5,5 @@ from .invoice import *      # Invoice, InvoiceItem
 from .invoice_audit import *  # InvoiceAudit (если уже есть)
 from .stock_audit import *    # StockAudit (новая таблица)
 from .user import User
+from .subscriber import Subscriber   # ✅ добавляем
+
