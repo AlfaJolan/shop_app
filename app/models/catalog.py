@@ -3,6 +3,18 @@ from sqlalchemy import String, ForeignKey, Integer, Numeric, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
+
+
+class Seller(Base):
+    __tablename__ = "sellers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)   # имя продавца
+    city: Mapped[str] = mapped_column(String(120), nullable=False)   # город продавца
+
+    # отношение: один продавец → много продуктов
+    products: Mapped[List["Product"]] = relationship("Product", back_populates="seller")
+
 class Category(Base):
     __tablename__ = "categories"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -21,6 +33,9 @@ class Product(Base):
 
     category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("categories.id"))
     category: Mapped[Optional["Category"]] = relationship("Category", back_populates="products")
+
+    seller_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sellers.id"))   # 🔹 связь с продавцом
+    seller: Mapped[Optional["Seller"]] = relationship("Seller", back_populates="products")
 
     variants: Mapped[List["Variant"]] = relationship(
         "Variant", back_populates="product", cascade="all, delete-orphan"

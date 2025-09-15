@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5" style="max-width:400px;">
+  <h2 class="mb-4">🔑 Вход</h2>
+
+  {% if error %}
+    <div style="color:red; margin-bottom:10px;">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/login">
+    <div class="mb-3">
+      <label class="form-label">Логин</label>
+      <input type="text" name="username" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Пароль</label>
+      <input type="password" name="password" class="form-control" required>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">Войти</button>
+  </form>
+</div>
+{% endblock %}

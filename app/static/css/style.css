@@ -1,49 +1,130 @@
-body{font-family:system-ui,Arial,sans-serif;margin:0;padding:0;}
-.container{max-width:1100px;margin:0 auto;padding:12px;}
-
-/* Р±Р°Р·РѕРІР°СЏ СЃРµС‚РєР° вЂ” РЅРµ Р·Р°РґР°С‘Рј РєРѕР»РѕРЅРѕРє, РёС… Р·Р°РґР°РґРёРј РјРµРґРёР°-РїСЂР°РІРёР»Р°РјРё РЅРёР¶Рµ */
-.grid{display:grid;gap:12px;}
-
-.card{border:1px solid #eee;border-radius:12px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,.04);}
-.title{font-weight:600;margin-bottom:6px;}
-.float-links{position:fixed;right:12px;bottom:12px;background:#fff;border:1px solid #ddd;
-  border-radius:999px;padding:8px 12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;}
-.float-links a{text-decoration:none;}
-input{padding:8px;border:1px solid #ddd;border-radius:8px;}
-button{padding:8px 12px;border-radius:8px;border:1px solid #ddd;background:#f8f8f8;cursor:pointer;}
-
-.thumb{width:100%; height:160px; object-fit:cover; border-radius:10px; margin-bottom:8px; background:#fafafa;}
-.variants{list-style:none; padding:0; margin:0;}
-.variant-row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:6px 0;}
-.add-form{display:flex; align-items:center; gap:6px;}
-.qty{width:64px; padding:6px; border:1px solid #ddd; border-radius:8px;}
-
-/* === СЃРµС‚РєР° РїРѕ Р±СЂРµР№РєРїРѕРёРЅС‚Р°Рј === */
-/* РјРѕР±РёР»СЊРЅС‹Рµ: СЂРѕРІРЅРѕ 2 РєР°СЂС‚РѕС‡РєРё */
-@media (max-width: 600px) {
-  .grid{grid-template-columns: repeat(2, 1fr);}
+/* === Шапка === */
+.header {
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-/* РїР»Р°РЅС€РµС‚С‹: 3 РєР°СЂС‚РѕС‡РєРё */
-@media (min-width: 601px) and (max-width: 1024px) {
-  .grid{grid-template-columns: repeat(3, 1fr);}
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
 }
 
-/* РґРµСЃРєС‚РѕРїС‹: 4 РєР°СЂС‚РѕС‡РєРё */
-@media (min-width: 1025px) {
-  .grid{grid-template-columns: repeat(4, 1fr);}
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+  color: #1890ff;
 }
 
-/* === РґРѕРї. РјРѕР±РёР»СЊРЅС‹Рµ РїСЂР°РІРєРё === */
-@media (max-width: 600px) {
-  body{font-size:14px;}
-  .container{padding:8px;}
-  .thumb{height:120px;}
-  .float-links{
-    position:fixed;left:0;right:0;bottom:0;border-radius:0;
-    text-align:center;font-size:16px;
+.search-form {
+  flex: 1;
+  display: flex;
+  max-width: 400px;
+}
+.search-form input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px 0 0 8px;
+}
+.search-form button {
+  padding: 8px 12px;
+  border: 1px solid #1890ff;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+}
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* === Кнопки === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* 🔑 Войти */
+.btn-login {
+  background: #fff;
+  color: #1890ff;
+  border: 1px solid #1890ff;
+}
+.btn-login:hover { background: #e6f4ff; }
+
+/* ⚙️ Админка */
+.btn-admin {
+  background: #52c41a;
+  color: #fff;
+}
+.btn-admin:hover { background: #389e0d; }
+
+/* 🚪 Выйти */
+.btn-logout {
+  background: #ff4d4f;
+  color: #fff;
+}
+.btn-logout:hover { background: #cf1322; }
+
+/* 🛒 Корзина */
+.btn-cart {
+  position: relative;
+  background: #faad14;
+  color: #fff;
+}
+.btn-cart:hover { background: #d48806; }
+
+.cart-count {
+  background: #fff;
+  color: #fa541c;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  position: absolute;
+  top: -6px;
+  right: -10px;
+}
+
+/* === Адаптив === */
+@media (max-width: 768px) {
+  .header-inner {
+    flex-direction: column;
+    align-items: stretch;
   }
-  .variant-row{flex-direction:column;align-items:flex-start;}
-  .add-form{width:100%;justify-content:space-between;}
-  .qty{width:50px;}
+  .search-form {
+    max-width: 100%;
+    width: 100%;
+  }
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .btn {
+    flex: 1;
+    justify-content: center;
+  }
 }

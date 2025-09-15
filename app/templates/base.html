@@ -7,20 +7,51 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
 </head>
 <body>
-<header class="container">
-  <h1 style="margin:8px 0;">Магазин</h1>
-  <form method="get" action="/" style="display:flex; gap:8px;">
-    <input name="q" value="{{ q if q is defined else '' }}" placeholder="Поиск..." />
-    <button>Найти</button>
-  </form>
-</header>
-<main class="container">
-  {% block content %}{% endblock %}
-</main>
+  <!-- 🔹 Шапка -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">🛍️ Shop</a>
 
-<div class="float-links">
-  📞 WhatsApp: <a href="https://wa.me/7707XXXXXXX" target="_blank">wa.me/7707XXXXXXX</a> |
-  ✈️ Telegram: <a href="https://t.me/your_channel" target="_blank">t.me/your_channel</a>
-</div>
+      <!-- Поиск -->
+      <form method="get" action="/" class="search-form">
+        <input name="q" value="{{ q if q is defined else '' }}" placeholder="Поиск товаров..." />
+        <button>🔎</button>
+      </form>
+
+      <!-- Навигация -->
+      <nav class="nav-links">
+        {% if request.session.get("is_admin") %}
+          <a href="/admin" class="btn btn-admin">⚙️ Админка</a>
+          <a href="/logout" class="btn btn-logout">🚪 Выйти</a>
+        {% else %}
+          <a href="/login" class="btn btn-login">🔑 Войти</a>
+        {% endif %}
+        <a href="/cart" class="btn btn-cart">
+          🛒 Корзина
+          {% if cart_count and cart_count > 0 %}
+            <span class="cart-count">{{ cart_count }}</span>
+          {% endif %}
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 🔹 Контент -->
+  <main class="container content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- 🔹 Футер -->
+  <footer class="footer">
+    <div class="container">
+      <p>
+        📞 WhatsApp:
+        <a href="https://wa.me/7707XXXXXXX" target="_blank">wa.me/7707XXXXXXX</a> |
+        ✈️ Telegram:
+        <a href="https://t.me/your_channel" target="_blank">t.me/your_channel</a>
+      </p>
+      <p class="copyright">© {{ 2025 }} Shop. Все права защищены.</p>
+    </div>
+  </footer>
 </body>
 </html>
