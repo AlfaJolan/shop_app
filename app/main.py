@@ -46,6 +46,8 @@ from app.routers import admin_orders
 from app.routers import admin_catalog as admin_catalog_router
 from app.routers import admin_products as admin_products_router
 from app.routers import auth as auth_router
+from app.routers import admin_seller as admin_sellers_router
+
 app.include_router(public.router)
 app.include_router(cart.router)
 app.include_router(invoice_router.router)
@@ -54,6 +56,7 @@ app.include_router(admin_dashboard.router)
 app.include_router(admin_orders.router)
 app.include_router(admin_catalog_router.router)
 app.include_router(admin_products_router.router)
+app.include_router(admin_sellers_router.router)
 app.include_router(auth_router.router)
 
 # ==== Static ====

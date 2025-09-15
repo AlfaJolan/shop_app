@@ -119,7 +119,7 @@ def invoice_export_pdf(
         Paragraph("Фото", styles["DejaWrap"]),
         Paragraph("Вариант", styles["DejaWrap"]),
         Paragraph("Кол-во", styles["DejaWrap"]),
-        Paragraph("Цена", styles["DejaWrap"]),00000
+        Paragraph("Цена", styles["DejaWrap"]),
         Paragraph("Сумма", styles["DejaWrap"]),
     ]]
 

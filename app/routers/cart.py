@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models.catalog import Product, Variant
 from app.models.order import Order, OrderItem
+from app.telegram.telegram_notify import notifier
 
 # ⬇️ НОВОЕ: сервис создания накладной
 from app.services.invoices import create_invoice_for_order
@@ -228,7 +229,18 @@ async def checkout(
     )
 
     _set_cart(request, {})  # очистили корзину
+    items = [
+    {"name": item.product_name + ", " + item.variant_name, "qty": item.qty, "price": item.unit_price}
+    for item in order.items
+    ]
 
+    notifier.notify_order_created(
+    order_id=order.id,
+    customer_name=order.customer_name,
+    phone=order.phone,
+    comment=order.comment,
+    items=items
+    )
     # Показываем «Заказ принят» + ссылки на накладную
     return templates.TemplateResponse("public/checkout_success.html", {
         "request": request,

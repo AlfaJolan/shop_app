@@ -31,7 +31,8 @@ def create_invoice_for_order(db: Session, order, lines: list, customer_name: str
         product_image = None
         seller_id = None
         seller_name = None
-
+        product_id = l.get("product_id")   # 🆕 берём из order/cart line
+        variant_id = l.get("variant_id")   #
         pid = l.get("product_id")
         if pid:
             p = db.query(Product).get(int(pid))
@@ -50,6 +51,8 @@ def create_invoice_for_order(db: Session, order, lines: list, customer_name: str
             seller_name=seller_name,      # ← и имя для истории
             product_name=l["product_name"],
             variant_name=l["variant_name"],
+            product_id=product_id,        # 🆕 сохраняем product_id
+            variant_id=variant_id,  
             product_image=product_image,
             qty_original=qty,
             qty_final=qty,

@@ -52,7 +52,6 @@ class Invoice(Base):
 
 
 # Состав накладной (строки)
-# Состав накладной (строки)
 class InvoiceItem(Base):
     __tablename__ = "invoice_items"
 
@@ -63,6 +62,11 @@ class InvoiceItem(Base):
     seller_id: Mapped[int] = mapped_column(ForeignKey("sellers.id"), nullable=True, index=True)
     seller_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
+    # 🆕 привязка к продукту
+    product_id: Mapped[Optional[int]] = mapped_column(ForeignKey("products.id"), nullable=True, index=True)
+
+    # привязка к варианту
+    variant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("variants.id"), nullable=True)
     product_name: Mapped[str] = mapped_column(String(255))
     variant_name: Mapped[str] = mapped_column(String(120))
 
@@ -83,6 +87,7 @@ class InvoiceItem(Base):
     # Хелпер: пересчитать сумму строки
     def recompute_line(self):
         self.line_total_final = Decimal(str(self.unit_price_final)) * int(self.qty_final)
+
 
 
 

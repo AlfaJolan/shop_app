@@ -30,11 +30,15 @@
   {% for p in products %}
     <div class="card">
       {% if p.image %}
-  <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}" class="thumb">
-{% else %}
-  <img src="/static/no-photo.png" alt="нет фото" class="thumb">
-{% endif %}
+        <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}" class="thumb">
+      {% else %}
+        <img src="/static/no-photo.png" alt="нет фото" class="thumb">
+      {% endif %}
 
+      <!-- 🆕 Название продукта -->
+      <h3 style="margin:8px 0; font-size:18px; font-weight:600;">
+        {{ p.name }}
+      </h3>
 
       {% if p.variants %}
         <ul class="variants">
@@ -63,6 +67,14 @@
         </ul>
       {% else %}
         <div>Нет вариантов</div>
+      {% endif %}
+
+      <!-- 🆕 Название продавца -->
+      {% if p.seller %}
+        <div style="margin-top:8px; font-size:14px; color:#555;">
+          Продавец: <strong>{{ p.seller.name }}</strong>
+          {% if p.seller.city %} ({{ p.seller.city }}){% endif %}
+        </div>
       {% endif %}
     </div>
   {% endfor %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">📦 Продавцы</h2>
+
+  <a href="/admin/sellers/new" class="btn btn-success mb-3">➕ Добавить продавца</a>
+
+  {% if sellers %}
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Город</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sellers %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>{{ s.name }}</td>
+            <td>{{ s.city or '-' }}</td>
+            <td>
+              <a href="/admin/sellers/{{ s.id }}/edit" class="btn btn-sm btn-primary">✏️ Редактировать</a>
+              <form method="post" action="/admin/sellers/{{ s.id }}/delete"
+                    style="display:inline-block;"
+                    onsubmit="return confirm('Удалить продавца?');">
+                <button type="submit" class="btn btn-sm btn-danger">🗑 Удалить</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Нет продавцов</p>
+  {% endif %}
+</div>
+{% endblock %}

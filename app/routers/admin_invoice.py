@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.invoice_audit import InvoiceAudit  # Убедись, что этот модуль импортируется в app/models/__init__.py
+from app.models.catalog import Variant  # 🔹 импорт для работы со складом
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -58,13 +59,15 @@ def edit_invoice(request: Request, invoice_id: int, db: Session = Depends(get_db
     })
 
 
-@router.post("/{invoice_id}/update")
+@router.post("/{invoice_id}/update", response_class=HTMLResponse)
 async def update_invoice(request: Request, invoice_id: int, db: Session = Depends(get_db)):
     """
     Применение изменений:
     - собираем значения из формы,
     - пишем аудит (кто/что/с какого на какое),
-    - пересчитываем суммы строк и итог накладной.
+    - пересчитываем суммы строк и итог накладной,
+    - 🔹 дополнительно обновляем остатки на складе (Variant.stock),
+    - 🔹 если товара недостаточно — показываем ошибку прямо в форме.
     """
     inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
     if not inv:
@@ -101,20 +104,62 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
                 v = Decimal("0")
             new_price = v
 
-        # аудит qty
+        # аудит qty + проверка склада
         if int(new_qty) != int(it.qty_final):
+            delta = new_qty - it.qty_final  # разница между старым и новым количеством
+
+            # 🔹 обязательно должен быть variant_id
+            if not getattr(it, "variant_id", None):
+                return templates.TemplateResponse(
+                    "admin/invoice_edit.html",
+                    {
+                        "request": request,
+                        "inv": inv,
+                        "items": inv.items,
+                        "error": f"Ошибка: у позиции '{it.product_name}' нет variant_id, нельзя обновить склад."
+                    }
+                )
+
+            variant = db.query(Variant).get(it.variant_id)
+            if not variant:
+                return templates.TemplateResponse(
+                    "admin/invoice_edit.html",
+                    {
+                        "request": request,
+                        "inv": inv,
+                        "items": inv.items,
+                        "error": f"Ошибка: вариант товара для '{it.product_name}' не найден."
+                    }
+                )
+
+            # 🔹 если увеличиваем количество — проверяем склад
+            if delta > 0 and variant.stock < delta:
+                return templates.TemplateResponse(
+                    "admin/invoice_edit.html",
+                    {
+                        "request": request,
+                        "inv": inv,
+                        "items": inv.items,
+                        "error": f"Недостаточно товара '{variant.name}'. На складе {variant.stock}, требуется +{delta}."
+                    }
+                )
+
+            # только после проверки обновляем остатки
+            variant.stock -= delta
+
+            # аудит qty
             audits.append(InvoiceAudit(
                 invoice_id=inv.id,
                 item_id=it.id,
                 field="qty",
                 old_value=Decimal(str(it.qty_final)),
                 new_value=Decimal(str(new_qty)),
-                user="admin",  # тут можно подставлять текущего пользователя
+                user="admin",
             ))
             it.qty_final = int(new_qty)
             changed = True
 
-        # аудит price
+        # аудит цены
         if Decimal(str(new_price)) != Decimal(str(it.unit_price_final)):
             audits.append(InvoiceAudit(
                 invoice_id=inv.id,
@@ -122,7 +167,7 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
                 field="price",
                 old_value=Decimal(str(it.unit_price_final)),
                 new_value=Decimal(str(new_price)),
-                user="admin",  # тут можно подставлять текущего пользователя
+                user="admin",
             ))
             it.unit_price_final = new_price
             changed = True
@@ -145,6 +190,7 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
 def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
     """
     Сброс одной строки к оригинальным qty/price (и аудит изменений).
+    🔹 Дополнительно: корректируем склад (возвращаем разницу на Variant.stock).
     """
     inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
     if not inv:
@@ -174,6 +220,13 @@ def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
             new_value=Decimal(str(it.unit_price_original)),
             user="admin",
         ))
+
+    # 🔹 корректировка склада при сбросе
+    delta = it.qty_original - it.qty_final
+    if getattr(it, "variant_id", None):
+        variant = db.query(Variant).get(it.variant_id)
+        if variant:
+            variant.stock += delta
 
     # сброс значений
     it.qty_final = it.qty_original

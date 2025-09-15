@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models.order import Order
 from app.models.invoice import Invoice
-
+from app.telegram.telegram_notify import notifier
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/admin/orders", tags=["admin-orders"])
 
@@ -109,6 +109,16 @@ def change_status(
         order.status_note = note
 
     db.commit()
+    items = [
+    {"name": item.product_name + ", " + item.variant_name, "qty": item.qty, "price": item.unit_price}
+    for item in order.items
+    ]
+    status_label = STATUS_LABELS_RU.get(new_status, new_status)
 
+    notifier.notify_order_status_changed(
+    order_id=order.id,
+    new_status=status_label,
+    items=items
+    )
     # ✅ После смены статуса редиректим на live-ленту заказов
     return RedirectResponse(url="/admin/orders/live", status_code=303)

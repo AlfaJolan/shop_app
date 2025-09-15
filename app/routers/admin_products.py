@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
-from app.models import Product, Category, Variant
+from app.models import Product, Category, Variant, Seller   # 🆕 добавлен Seller
 from pathlib import Path
 import shutil, uuid, os
 
@@ -37,9 +37,11 @@ def products_index(request: Request, db: Session = Depends(get_db)):
 @router.get("/new")
 def product_new(request: Request, db: Session = Depends(get_db)):
     categories = db.query(Category).all()
+    sellers = db.query(Seller).all()  # 🆕 добавили выбор продавца
     return templates.TemplateResponse("admin/product_form.html", {
         "request": request,
         "categories": categories,
+        "sellers": sellers,           # 🆕 передаём в шаблон
         "product": None,
     })
 
@@ -52,8 +54,8 @@ def product_create(
     sku: str = Form(None),
     category_id: int = Form(None),
     unit: str = Form("шт"),
+    seller_id: int = Form(...),   # 🆕 добавлено поле продавца
     image: UploadFile = File(None),
-    
 
     new_name: list[str] = Form([]),
     new_price: list[float] = Form([]),
@@ -69,9 +71,10 @@ def product_create(
         with open(UPLOAD_DIR / filename, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
+    # 🆕 теперь сохраняем seller_id
     product = Product(
         name=name, sku=sku, category_id=category_id,
-        unit=unit, image=filename
+        unit=unit, image=filename, seller_id=seller_id
     )
     db.add(product)
     db.commit()
@@ -101,10 +104,12 @@ def product_edit(product_id: int, request: Request, db: Session = Depends(get_db
     if not product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     categories = db.query(Category).all()
+    sellers = db.query(Seller).all()  # 🆕 список продавцов
     return templates.TemplateResponse("admin/product_form.html", {
         "request": request,
         "product": product,
         "categories": categories,
+        "sellers": sellers,           # 🆕 передаём в шаблон
         "variants": product.variants,
     })
 
@@ -117,6 +122,7 @@ def product_update(
     sku: str = Form(None),
     category_id: int = Form(None),
     unit: str = Form("шт"),
+    seller_id: int = Form(...),   # 🆕 поле продавца
     image: UploadFile = File(None),
 
     var_id: list[int] = Form([]),
@@ -157,6 +163,7 @@ def product_update(
     product.sku = sku
     product.category_id = category_id
     product.unit = unit
+    product.seller_id = seller_id   # 🆕 обновляем продавца
 
     # существующие варианты
     for i in range(len(var_id)):

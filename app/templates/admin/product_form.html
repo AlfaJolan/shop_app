@@ -33,6 +33,19 @@
       </select>
     </div>
 
+    <!-- 🆕 поле выбора продавца -->
+    <div class="mb-3">
+      <label class="form-label">Продавец</label>
+      <select name="seller_id" class="form-select" required>
+        <option value="">---</option>
+        {% for s in sellers %}
+          <option value="{{ s.id }}" {% if product and product.seller_id == s.id %}selected{% endif %}>
+            {{ s.name }} ({{ s.city }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
     <div class="mb-3">
       <label class="form-label">Фото</label>
       <input type="file" name="image" class="form-control">
