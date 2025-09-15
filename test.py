@@ -1,27 +1,38 @@
-# scripts/seed_demo_data.py
-from app.db import SessionLocal
-from app.models.catalog import Seller, Category, Product, Variant
+# scripts/reset_and_seed.py
+from app.db import Base, engine, SessionLocal
+import app.models  # важно: подтягиваем все модели
+from sqlalchemy.orm import configure_mappers
 
 
-def seed():
+def reset_and_seed():
+    # === RESET ===
+    Base.metadata.drop_all(bind=engine)
+    print("🗑 Все таблицы удалены")
+
+    configure_mappers()
+    Base.metadata.create_all(bind=engine)
+    print("✅ Все таблицы пересозданы")
+
+    # === SEED ===
+    from app.models.catalog import Seller, Category, Product, Variant
+
     db = SessionLocal()
-
     try:
-        # === 1. Продавец ===
+        # --- 1. Продавец ---
         seller = Seller(name="Магазин №1", city="Алматы")
         db.add(seller)
         db.commit()
         db.refresh(seller)
         print(f"✅ Продавец создан: {seller.name}")
 
-        # === 2. Категория ===
+        # --- 2. Категория ---
         category = Category(name="Продукты", slug="produkty")
         db.add(category)
         db.commit()
         db.refresh(category)
         print(f"✅ Категория создана: {category.name}")
 
-        # === 3. Товары ===
+        # --- 3. Товары ---
         milk = Product(
             name="Молоко",
             sku="MILK001",
@@ -47,7 +58,7 @@ def seed():
         print(f"✅ Товар создан: {milk.name}")
         print(f"✅ Товар создан: {sugar.name}")
 
-        # === 4. Варианты ===
+        # --- 4. Варианты ---
         milk_var = Variant(
             product_id=milk.id,
             name="Обычное молоко",
@@ -73,4 +84,4 @@ def seed():
 
 
 if __name__ == "__main__":
-    seed()
+    reset_and_seed()

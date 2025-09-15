@@ -13,6 +13,7 @@
     <thead>
       <tr>
         <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Наименование</th>
+        <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Продавец</th>
         <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Фото</th>
         <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Вариант</th>
         <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Кол-во</th>
@@ -23,7 +24,8 @@
     <tbody>
     {% for it in inv.items %}
       <tr>
-        <td style="padding:8px;">{{ it.product_name }}</td>
+        <td style="padding:8px;">{{ it.product_name + ", " + it.variant_name }}</td>
+        <td style="padding:8px;">{{ it.seller_name }}</td>
         <td style="padding:8px; width:70px;">
           {% if it.product_image %}
             <img src="/static/uploads/products/{{ it.product_image }}" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:6px;">

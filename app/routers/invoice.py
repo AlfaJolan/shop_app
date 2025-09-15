@@ -115,10 +115,11 @@ def invoice_export_pdf(
     # Таблица
     data = [[
         Paragraph("Наименование", styles["DejaWrap"]),
+        Paragraph("Продавец", styles["DejaWrap"]),
         Paragraph("Фото", styles["DejaWrap"]),
         Paragraph("Вариант", styles["DejaWrap"]),
         Paragraph("Кол-во", styles["DejaWrap"]),
-        Paragraph("Цена", styles["DejaWrap"]),
+        Paragraph("Цена", styles["DejaWrap"]),00000
         Paragraph("Сумма", styles["DejaWrap"]),
     ]]
 
@@ -138,7 +139,8 @@ def invoice_export_pdf(
         summ = Decimal(str(it.line_total_final))
 
         data.append([
-            Paragraph(it.product_name or "—", styles["DejaWrap"]),
+            Paragraph(it.product_name + ", " + it.variant_name or "—", styles["DejaWrap"]),
+            Paragraph(it.seller_name or "—", styles["DejaWrap"]),
             img_flow,
             Paragraph(it.variant_name or "—", styles["DejaWrap"]),
             Paragraph(str(qty), styles["DejaWrap"]),
@@ -198,12 +200,13 @@ def invoice_export_xlsx(
     ws.append(["Время", inv.created_at.strftime("%Y-%m-%d %H:%M")])
     ws.append([])
 
-    ws.append(["Наименование", "Фото", "Вариант", "Кол-во", "Цена", "Сумма"])
+    ws.append(["Наименование","Продавец", "Фото", "Вариант", "Кол-во", "Цена", "Сумма"])
 
     row = ws.max_row + 1
     for it in inv.items:
         ws.append([
-            it.product_name,
+            it.product_name + ", " + it.variant_name,
+            it.seller_name,
             "",  # под картинку
             it.variant_name,
             int(it.qty_final),
@@ -217,7 +220,7 @@ def invoice_export_xlsx(
                     img = XLImage(fs_path)
                     img.width = 40
                     img.height = 40
-                    ws.add_image(img, f"B{row}")   # картинка во 2-й столбец
+                    ws.add_image(img, f"C{row}")   # картинка во 2-й столбец
                     ws.row_dimensions[row].height = 34
                 except Exception:
                     pass

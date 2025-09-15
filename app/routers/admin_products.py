@@ -53,6 +53,7 @@ def product_create(
     category_id: int = Form(None),
     unit: str = Form("шт"),
     image: UploadFile = File(None),
+    
 
     new_name: list[str] = Form([]),
     new_price: list[float] = Form([]),
