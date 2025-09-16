@@ -33,14 +33,14 @@ def get_updates(offset=None):
 
 
 def polling_loop():
-    print("Polling запущен...")
+    #print("Polling запущен...")
 
     """Цикл получения сообщений от пользователей"""
     last_update_id = None
     while True:
         try:
             updates = get_updates(last_update_id).get("result", [])
-            print("Апдейты:", updates)   # 👈
+            #print("Апдейты:", updates)   # 👈
 
             for upd in updates:
                 last_update_id = upd["update_id"] + 1

@@ -18,7 +18,7 @@
     <thead class="table-light">
       <tr>
         <th>Наименование</th>
-        <th>Продавец</th>
+        <th>Магазин</th>
         <th>Фото</th>
         <th>Вариант</th>
         <th class="text-end">Кол-во</th>
@@ -76,13 +76,19 @@
   </table>
 </div>
 
-<!-- Кнопки экспорта -->
-<div class="mt-4 d-flex gap-2">
+<!-- Кнопки экспорта и отправки -->
+<div class="mt-4 d-flex flex-wrap gap-2">
   <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-outline-primary">
-    Скачать PDF
+    📄 Скачать PDF
   </a>
   <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-outline-success">
-    Скачать XLSX
+    📊 Скачать XLSX
+  </a>
+  <a href="https://wa.me/{{ inv.phone|replace(' ', '') }}?text=Здравствуйте!%20Ваша%20накладная%20№{{ inv.id }}%20от%20{{ inv.created_at.strftime('%Y-%m-%d') }}%20—%20{{ request.url_root }}invoice/{{ inv.id }}?pkey={{ inv.pkey }}"
+     target="_blank"
+     class="btn btn-success">
+    💬 Отправить в WhatsApp
   </a>
 </div>
+
 {% endblock %}

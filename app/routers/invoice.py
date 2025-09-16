@@ -117,7 +117,7 @@ def invoice_export_pdf(
     # Таблица
     data = [[
         Paragraph("Наименование", styles["DejaWrap"]),
-        Paragraph("Продавец", styles["DejaWrap"]),
+        Paragraph("Магазин", styles["DejaWrap"]),
         Paragraph("Фото", styles["DejaWrap"]),
         Paragraph("Вариант", styles["DejaWrap"]),
         Paragraph("Кол-во", styles["DejaWrap"]),
@@ -204,7 +204,7 @@ def invoice_export_xlsx(
     ws.append(["Время", inv.created_at.strftime("%Y-%m-%d %H:%M")])
     ws.append([])
 
-    ws.append(["Наименование","Продавец", "Фото", "Вариант", "Кол-во", "Цена", "Сумма"])
+    ws.append(["Наименование","Магазин", "Фото", "Вариант", "Кол-во", "Цена", "Сумма"])
 
     row = ws.max_row + 1
     for it in inv.items:
