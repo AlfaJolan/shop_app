@@ -162,6 +162,8 @@ async def checkout(
     db: Session = Depends(get_db),
     customer_name: str = Form(""),
     phone: str = Form(""),
+    seller_name: str = Form(""),
+    city_name: str = Form(""),
     comment: str = Form("")
 ):
     cart = _get_cart(request)
@@ -195,6 +197,8 @@ async def checkout(
     order = Order(
         customer_name=customer_name.strip() or None,
         phone=phone.strip() or None,
+        seller_name=seller_name.strip() or None,
+        city_name=city_name.strip() or None,
         comment=comment.strip() or None,
         total_amount=total
     )

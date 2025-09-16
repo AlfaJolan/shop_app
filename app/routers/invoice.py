@@ -108,6 +108,8 @@ def invoice_export_pdf(
     meta = (
         f"Имя: {inv.customer_name or '—'}<br/>"
         f"Телефон: {inv.phone or '—'}<br/>"
+        f"Продавец: {inv.seller_name or '—'}<br/>"
+        f"Город: {inv.city_name or '—'}<br/>"
         f"Время: {inv.created_at.strftime('%Y-%m-%d %H:%M')}"
     )
     elems += [Spacer(1, 8), Paragraph(meta, styles["Deja"]), Spacer(1, 12)]
@@ -149,7 +151,7 @@ def invoice_export_pdf(
         ])
 
     data.append([
-        "", "", "", "",
+        "", "", "", "","",
         Paragraph("Итого:", styles["DejaWrap"]),
         Paragraph(f"{Decimal(str(inv.total_amount_final)):.2f} ₸", styles["DejaWrap"]),
     ])
@@ -197,6 +199,8 @@ def invoice_export_xlsx(
     ws.append([f"Накладная № {inv.id}"])
     ws.append(["Имя", inv.customer_name or "—"])
     ws.append(["Телефон", inv.phone or "—"])
+    ws.append(["Продавец", inv.seller_name or "—"])
+    ws.append(["Город", inv.city_name or "—"])
     ws.append(["Время", inv.created_at.strftime("%Y-%m-%d %H:%M")])
     ws.append([])
 

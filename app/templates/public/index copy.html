@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">Каталог</h2>
+
+<!-- 🔎 Поиск -->
+<div class="mb-4 position-relative">
+  <input type="text" id="search-input" class="form-control form-control-lg"
+         placeholder="Поиск по товарам, категориям и вариантам...">
+  <div id="suggest-box" class="dropdown-menu w-100"></div>
+</div>
+
+<!-- Flash -->
+{% if flash %}
+  <div class="alert alert-info">{{ flash }}</div>
+{% endif %}
+
+<!-- Динамическая выдача -->
+<div class="row g-4" id="search-results" style="display:none;"></div>
+
+<!-- Каталог -->
+<div class="row g-4" id="catalog-default">
+  {% for p in products %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        {% if p.image %}
+          <img src="/static/uploads/products/{{ p.image }}" class="card-img-top" alt="{{ p.name }}">
+        {% else %}
+          <img src="/static/no-photo.webp" class="card-img-top" alt="нет фото">
+        {% endif %}
+
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ p.name }}</h5>
+
+          {% if p.variants %}
+            <ul class="list-unstyled small flex-grow-1">
+              {% for v in p.variants %}
+                <li class="mb-2">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span>
+                      {{ v.name }} — {{ "%.2f"|format(v.unit_price) }} ₸
+                      {% if v.stock is defined %}
+                        <small class="text-muted">(в наличии: {{ v.stock }})</small>
+                      {% endif %}
+                    </span>
+                    <form method="post" action="/cart/add" class="d-flex align-items-center gap-2">
+                      <input type="hidden" name="product_id" value="{{ p.id }}">
+                      <input type="hidden" name="variant_id" value="{{ v.id }}">
+                      <input type="number" name="qty" value="1" min="1" class="form-control form-control-sm" style="width:70px;">
+                      {% if v.stock is defined and v.stock|int <= 0 %}
+                        <button type="button" class="btn btn-sm btn-secondary" disabled>Нет</button>
+                      {% else %}
+                        <button type="submit" class="btn btn-sm btn-primary">Добавить</button>
+                      {% endif %}
+                    </form>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted">Нет вариантов</p>
+          {% endif %}
+
+          {% if p.seller %}
+            <p class="card-text mt-auto small text-muted">
+              Продавец: <strong>{{ p.seller.name }}</strong>
+              {% if p.seller.city %} ({{ p.seller.city }}){% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<!-- Оставляем твой JS и CSS для suggest-box -->
+<style>
+#suggest-box.show { display:block; }
+#suggest-box li { cursor:pointer; padding:.5rem .75rem; }
+#suggest-box li:hover { background:#f8f9fa; }
+</style>
+
+
+
+<script>
+const $in = document.getElementById("search-input");
+const $suggest = document.getElementById("suggest-box");
+const $def = document.getElementById("catalog-default");
+const $res = document.getElementById("search-results");
+let items = [];
+let activeIndex = -1;
+let debounceId = null;
+
+function escapeHtml(str){return (str||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function highlight(text,q){
+  if(!q) return escapeHtml(text);
+  const lo=text.toLowerCase(), ql=q.toLowerCase(); const i=lo.indexOf(ql);
+  if(i===-1) return escapeHtml(text);
+  const j=i+q.length;
+  return escapeHtml(text.slice(0,i)) + "<mark>"+escapeHtml(text.slice(i,j))+"</mark>" + escapeHtml(text.slice(j));
+}
+
+function renderCards(products){
+  if(!products.length){
+    $res.innerHTML = "<p>Ничего не найдено.</p>";
+    return;
+  }
+  $res.innerHTML = products.map(p=>`
+    <div class="card">
+      ${p.image ? `<img src="/static/uploads/products/${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}" class="thumb">`
+                 : `<img src="/static/no-photo.png" alt="нет фото" class="thumb">`}
+      <h3 style="margin:8px 0; font-size:18px; font-weight:600;">${highlight(p.name, $in.value)}</h3>
+      ${p.variants && p.variants.length ? `
+        <ul class="variants">
+          ${p.variants.map(v=>`
+            <li class="variant-row">
+              <span>
+                ${escapeHtml(v.name)} — ${Number(v.unit_price).toFixed(2)} ₸
+                ${v.stock !== null && v.stock !== undefined ? `<span style="font-size:12px;color:#999;">(в наличии: ${v.stock})</span>` : ""}
+              </span>
+              <form method="post" action="/cart/add" class="add-form">
+                <input type="hidden" name="product_id" value="${p.id}">
+                <input type="hidden" name="variant_id" value="${v.id}">
+                <input type="number" name="qty" value="1" min="1" class="qty">
+                <button type="submit" ${v.stock<=0 ? "disabled title='Нет на складе'" : ""}>
+                  ${v.stock<=0 ? "Нет в наличии" : "Добавить"}
+                </button>
+              </form>
+            </li>
+          `).join("")}
+        </ul>` : `<div>Нет вариантов</div>`}
+      ${p.seller ? `<div style="margin-top:8px;font-size:14px;color:#555;">Продавец: <strong>${escapeHtml(p.seller)}</strong>${p.city?` (${escapeHtml(p.city)})`:""}</div>`:""}
+    </div>
+  `).join("");
+}
+
+function renderSuggest(list,q){
+  if(!list.length){
+    $suggest.innerHTML = ""; $suggest.classList.add("hidden"); return;
+  }
+  items = list; activeIndex = -1;
+  $suggest.innerHTML = `
+    <ul>
+      ${list.map((it,i)=>`
+        <li data-index="${i}" data-type="${it.type}" data-id="${it.id}" data-url="${it.url}">
+          <span>${highlight(it.name,q)}</span>
+          <span class="type">${it.type}</span>
+        </li>
+      `).join("")}
+    </ul>
+  `;
+  $suggest.classList.remove("hidden");
+}
+
+async function fetchSuggest(q){
+  const r = await fetch(`/search/suggest?q=${encodeURIComponent(q)}`); 
+  if(!r.ok) return []; return await r.json();
+}
+async function fetchProductsByQuery(q){
+  const r = await fetch(`/search/products?q=${encodeURIComponent(q)}`); 
+  if(!r.ok) return []; return await r.json();
+}
+async function fetchProductsBySelection(type,id){
+  const params = new URLSearchParams({ selected_type:type, selected_id:String(id) });
+  const r = await fetch(`/search/products?${params.toString()}`); 
+  if(!r.ok) return []; return await r.json();
+}
+
+function showResults(products){
+  $def.style.display = "none";
+  $res.style.display = "grid";
+  renderCards(products);
+}
+
+function resetToDefault(){
+  $res.style.display = "none";
+  $res.innerHTML = "";
+  $def.style.display = "grid";
+  $suggest.classList.add("hidden");
+  $suggest.innerHTML = "";
+  items = []; activeIndex = -1;
+}
+
+$in.addEventListener("input", e=>{
+  const q = e.target.value.trim();
+  clearTimeout(debounceId);
+  if(!q){ resetToDefault(); return; }
+  debounceId = setTimeout(async ()=>{
+    // 1) подсказки
+    const hints = await fetchSuggest(q);
+    renderSuggest(hints, q);
+    // 2) динамические карточки под строкой
+    const prods = await fetchProductsByQuery(q);
+    showResults(prods);
+  }, 160);
+});
+
+// выбор подсказки мышью
+$suggest.addEventListener("click", async e=>{
+  const li = e.target.closest("li"); if(!li) return;
+  const idx = Number(li.dataset.index);
+  const it = items[idx]; if(!it) return;
+  $in.value = it.name; // заполнить «фулл»
+  $suggest.classList.add("hidden");
+  // грузим точное соответствие
+  const data = await fetchProductsBySelection(it.type, it.id);
+  showResults(data);
+});
+
+// клавиатура ↑ ↓ Enter
+$in.addEventListener("keydown", async e=>{
+  if($suggest.classList.contains("hidden")) return;
+  const max = items.length - 1;
+  if(e.key === "ArrowDown"){
+    e.preventDefault(); activeIndex = activeIndex >= max ? 0 : activeIndex + 1;
+  } else if(e.key === "ArrowUp"){
+    e.preventDefault(); activeIndex = activeIndex <= 0 ? max : activeIndex - 1;
+  } else if(e.key === "Enter"){
+    e.preventDefault();
+    if(activeIndex >= 0 && items[activeIndex]){
+      const it = items[activeIndex];
+      $in.value = it.name; // заполнить «фулл»
+      $suggest.classList.add("hidden");
+      const data = await fetchProductsBySelection(it.type, it.id);
+      showResults(data);
+    }
+  }
+  // подсветка активной
+  [...$suggest.querySelectorAll("li")].forEach((li,i)=>li.classList.toggle("active", i===activeIndex));
+});
+
+// клик вне — закрыть подсказки
+document.addEventListener("click", (e)=>{
+  if(!($suggest.contains(e.target) || e.target === $in)){
+    $suggest.classList.add("hidden");
+  }
+});
+</script>
+{% endblock %}
