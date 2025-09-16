@@ -59,7 +59,9 @@ def product_create(
 
     new_name: list[str] = Form([]),
     new_price: list[float] = Form([]),
-    new_stock: list[int] = Form([]),
+    # 🆕 новые поля для логики "штуки и коробки"
+    new_pieces: list[int] = Form([]),
+    new_boxes: list[int] = Form([]),
 
     db: Session = Depends(get_db),
 ):
@@ -84,11 +86,16 @@ def product_create(
     for i in range(len(new_name)):
         if not new_name[i]:
             continue
+        pieces = int(new_pieces[i]) if i < len(new_pieces) and new_pieces[i] else 0
+        boxes = int(new_boxes[i]) if i < len(new_boxes) and new_boxes[i] else 0
+        # 🆕 если коробки > 0 → сохраняем штуки * коробки
+        stock = pieces * boxes if boxes > 0 else pieces
+
         v = Variant(
             product_id=product.id,
             name=new_name[i],
             unit_price=new_price[i],
-            stock=new_stock[i],
+            stock=stock,
         )
         db.add(v)
 
@@ -128,11 +135,14 @@ def product_update(
     var_id: list[int] = Form([]),
     var_name: list[str] = Form([]),
     var_price: list[float] = Form([]),
-    var_stock: list[int] = Form([]),
+    # 🆕 новые поля для логики "штуки и коробки"
+    var_pieces: list[int] = Form([]),
+    var_boxes: list[int] = Form([]),
 
     new_name: list[str] = Form([]),
     new_price: list[float] = Form([]),
-    new_stock: list[int] = Form([]),
+    new_pieces: list[int] = Form([]),
+    new_boxes: list[int] = Form([]),
 
     delete_variant_id: list[int] = Form([]),
 
@@ -174,19 +184,28 @@ def product_update(
         if vid in delete_variant_id:
             db.delete(v)
             continue
+        pieces = int(var_pieces[i]) if i < len(var_pieces) and var_pieces[i] else 0
+        boxes = int(var_boxes[i]) if i < len(var_boxes) and var_boxes[i] else 0
+        # 🆕 если коробки > 0 → сохраняем штуки * коробки
+        stock = pieces * boxes if boxes > 0 else pieces
+
         v.name = var_name[i]
         v.unit_price = var_price[i]
-        v.stock = var_stock[i]
+        v.stock = stock
 
     # новые варианты
     for i in range(len(new_name)):
         if not new_name[i]:
             continue
+        pieces = int(new_pieces[i]) if i < len(new_pieces) and new_pieces[i] else 0
+        boxes = int(new_boxes[i]) if i < len(new_boxes) and new_boxes[i] else 0
+        stock = pieces * boxes if boxes > 0 else pieces
+
         v = Variant(
             product_id=product.id,
             name=new_name[i],
             unit_price=new_price[i],
-            stock=new_stock[i],
+            stock=stock,
         )
         db.add(v)
 

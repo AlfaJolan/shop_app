@@ -62,7 +62,7 @@ def run_seed():
 
         # --- Admin User ---
         # напрямую SQL, т.к. у тебя users не в ORM
-        password_hash = hash_password("123456")
+        password_hash = hash_password("Bl00dType")
         db.execute(text("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

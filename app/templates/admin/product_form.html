@@ -64,17 +64,22 @@
         {% for v in product.variants %}
           <div class="row g-2 mb-2 variant-row border p-2 rounded">
             <input type="hidden" name="var_id" value="{{ v.id }}">
-            <div class="col-md-4">
+            <div class="col-md-3">
               <input type="text" name="var_name" class="form-control"
                      placeholder="Название варианта" value="{{ v.name }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
               <input type="number" step="0.01" name="var_price" class="form-control"
                      placeholder="Цена" value="{{ v.unit_price }}">
             </div>
-            <div class="col-md-3">
-              <input type="number" name="var_stock" class="form-control"
-                     placeholder="Остаток" value="{{ v.stock }}">
+            <!-- 🆕 добавлено два новых поля: штук и коробок -->
+            <div class="col-md-2">
+              <input type="number" name="var_pieces" class="form-control"
+                     placeholder="Штук в коробке">
+            </div>
+            <div class="col-md-2">
+              <input type="number" name="var_boxes" class="form-control"
+                     placeholder="Коробок" value="0" min="0">
             </div>
             <div class="col-md-2 d-flex align-items-center">
               <label class="form-check-label me-1">Удалить</label>
@@ -91,14 +96,18 @@
       {% if not product %}
         <!-- При создании хотя бы один блок по умолчанию -->
         <div class="row g-2 mb-2 border p-2 rounded">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <input type="text" name="new_name" class="form-control" placeholder="Название варианта">
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
             <input type="number" step="0.01" name="new_price" class="form-control" placeholder="Цена">
           </div>
-          <div class="col-md-3">
-            <input type="number" name="new_stock" class="form-control" placeholder="Остаток">
+          <!-- 🆕 поля для новых вариантов -->
+          <div class="col-md-2">
+            <input type="number" name="new_pieces" class="form-control" placeholder="Штук в коробке">
+          </div>
+          <div class="col-md-2">
+            <input type="number" name="new_boxes" class="form-control" placeholder="Коробок" value="0" min="0">
           </div>
         </div>
       {% endif %}
@@ -116,14 +125,18 @@ function addNewVariant() {
   const div = document.createElement("div");
   div.classList.add("row","g-2","mb-2","border","p-2","rounded");
   div.innerHTML = `
-    <div class="col-md-4">
+    <div class="col-md-3">
       <input type="text" name="new_name" class="form-control" placeholder="Название варианта">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <input type="number" step="0.01" name="new_price" class="form-control" placeholder="Цена">
     </div>
-    <div class="col-md-3">
-      <input type="number" name="new_stock" class="form-control" placeholder="Остаток">
+    <!-- 🆕 динамически добавляем поля для штук и коробок -->
+    <div class="col-md-2">
+      <input type="number" name="new_pieces" class="form-control" placeholder="Штук в коробке">
+    </div>
+    <div class="col-md-2">
+      <input type="number" name="new_boxes" class="form-control" placeholder="Коробок" value="0" min="0">
     </div>`;
   document.getElementById("new-variants").appendChild(div);
 }
