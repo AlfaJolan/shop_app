@@ -18,7 +18,8 @@ class Order(Base):
     customer_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     comment: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-
+    seller_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
+    city_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
 
     # === СТАТУС ЗАКАЗА ===

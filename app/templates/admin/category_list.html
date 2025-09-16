@@ -1,41 +1,79 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Категории</h2>
+<div class="container my-4">
+  <h2 class="mb-4">🗂 Категории</h2>
 
-<form method="get" action="/admin/catalog/categories" style="display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;">
-  <input name="q" value="{{ q }}" placeholder="Поиск по названию/slug"
-         style="padding:8px; border:1px solid #ddd; border-radius:8px;">
-  <button style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f7f7f7;">Найти</button>
-  <a href="/admin/catalog/categories/new" style="margin-left:auto; padding:8px 12px; border-radius:8px; background:#1677ff; color:#fff; text-decoration:none;">+ Новая</a>
-</form>
+  <!-- Поиск и кнопка -->
+  <form method="get" action="/admin/catalog/categories" class="row g-2 mb-4 align-items-center">
+    <div class="col-12 col-md-6">
+      <input name="q" value="{{ q }}" class="form-control" placeholder="Поиск по названию / slug">
+    </div>
+    <div class="col-6 col-md-auto">
+      <button class="btn btn-primary w-100">Найти</button>
+    </div>
+    <div class="col-6 col-md-auto ms-md-auto">
+      <a href="/admin/catalog/categories/new" class="btn btn-success w-100">+ Новая</a>
+    </div>
+  </form>
 
-<div style="overflow-x:auto;">
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">ID</th>
-      <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Название</th>
-      <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Slug</th>
-      <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Действия</th>
-      </tr>
-    </thead>
-    <tbody>
+  <!-- Таблица для ПК -->
+  <div class="table-responsive d-none d-sm-block">
+    <table class="table table-striped table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Slug</th>
+          <th class="text-end">Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td>{{ c.id }}</td>
+          <td>{{ c.name }}</td>
+          <td><span class="text-muted">{{ c.slug }}</span></td>
+          <td class="text-end">
+            <a href="/admin/catalog/categories/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary me-1">✏️</a>
+            <form method="post" action="/admin/catalog/categories/{{ c.id }}/delete"
+                  class="d-inline"
+                  onsubmit="return confirm('Удалить категорию?');">
+              <button class="btn btn-sm btn-outline-danger">🗑 Удалить</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-3">Ничего не найдено</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Мобильный вид -->
+  <div class="d-sm-none">
+    <div class="list-group">
       {% for c in categories %}
-      <tr>
-        <td style="padding:8px;">{{ c.id }}</td>
-        <td style="padding:8px;">{{ c.name }}</td>
-        <td style="padding:8px;">{{ c.slug }}</td>
-        <td style="padding:8px; text-align:right;">
-          <a href="/admin/catalog/categories/{{ c.id }}/edit" style="margin-right:8px;">Редактировать</a>
-          <form method="post" action="/admin/catalog/categories/{{ c.id }}/delete" style="display:inline;" onsubmit="return confirm('Удалить категорию?');">
-            <button style="padding:6px 10px;">Удалить</button>
-          </form>
-        </td>
-      </tr>
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <div>
+              <div class="fw-semibold">{{ c.name }}</div>
+              <div class="small text-muted">Slug: {{ c.slug }}</div>
+            </div>
+            <div class="d-flex flex-column gap-1 ms-2">
+              <a href="/admin/catalog/categories/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary">Ред.</a>
+              <form method="post" action="/admin/catalog/categories/{{ c.id }}/delete"
+                    onsubmit="return confirm('Удалить категорию?');">
+                <button class="btn btn-sm btn-outline-danger w-100">Удал.</button>
+              </form>
+            </div>
+          </div>
+        </div>
       {% else %}
-      <tr><td colspan="4" style="padding:12px; color:#888;">Ничего не найдено</td></tr>
+        <div class="list-group-item text-center text-muted">Ничего не найдено</div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+  </div>
 </div>
 {% endblock %}

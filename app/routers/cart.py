@@ -229,6 +229,8 @@ async def checkout(
         lines=lines,
         customer_name=customer_name,
         phone=phone,
+        seller_name=seller_name,
+        city_name=city_name,
         comment=comment,
     )
 

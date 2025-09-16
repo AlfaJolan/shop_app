@@ -9,13 +9,15 @@ def _make_pkey(length: int = 16) -> str:
     return secrets.token_urlsafe(length)
 
 
-def create_invoice_for_order(db: Session, order, lines: list, customer_name: str, phone: str, comment: str):
+def create_invoice_for_order(db: Session, order, lines: list, customer_name: str, phone: str, seller_name: str, city_name: str, comment: str):
     inv = Invoice(
         order_id=order.id if order else None,
         pkey=_make_pkey(16),
         is_revoked=False,
         customer_name=(customer_name or None),
         phone=(phone or None),
+        seller_name = (seller_name or None),
+        city_name = (city_name or None),
         comment=(comment or None),
         total_amount_final=Decimal("0.00"),
     )

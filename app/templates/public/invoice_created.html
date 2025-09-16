@@ -1,19 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Накладная создана</h2>
-<p>Накладная № <b>{{ invoice.id }}</b> от {{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}.</p>
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h2 class="card-title mb-3">✅ Накладная создана</h2>
+    <p>
+      Накладная № <b>{{ invoice.id }}</b> от 
+      <span class="text-muted">{{ invoice.created_at.strftime("%Y-%m-%d %H:%M") }}</span>.
+    </p>
 
-<p>
-  Публичная ссылка: 
-  <a href="/invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}" target="_blank">
-    /invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}
-  </a>
-</p>
+    <!-- Публичная ссылка -->
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Публичная ссылка:</label>
+      <div class="input-group">
+        <input type="text" class="form-control" 
+               value="/invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}" readonly>
+        <a href="/invoice/{{ invoice.id }}?pkey={{ invoice.pkey }}" 
+           target="_blank" class="btn btn-outline-primary">Открыть</a>
+      </div>
+    </div>
 
-<p style="margin-top:10px;">
-  <a href="/invoice/{{ invoice.id }}/export.pdf?pkey={{ invoice.pkey }}">Скачать PDF</a> •
-  <a href="/invoice/{{ invoice.id }}/export.xlsx?pkey={{ invoice.pkey }}">Скачать XLSX</a>
-</p>
+    <!-- Кнопки экспорта -->
+    <div class="mb-3">
+      <a href="/invoice/{{ invoice.id }}/export.pdf?pkey={{ invoice.pkey }}" 
+         class="btn btn-outline-danger me-2">📄 Скачать PDF</a>
+      <a href="/invoice/{{ invoice.id }}/export.xlsx?pkey={{ invoice.pkey }}" 
+         class="btn btn-outline-success">📊 Скачать XLSX</a>
+    </div>
 
-<p style="margin-top:12px;"><a href="/">Вернуться в каталог</a></p>
+    <!-- Вернуться -->
+    <a href="/" class="btn btn-primary">⬅ Вернуться в каталог</a>
+  </div>
+</div>
 {% endblock %}

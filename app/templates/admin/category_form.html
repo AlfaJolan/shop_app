@@ -1,27 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>{{ "Новая категория" if mode == "new" else "Редактировать категорию" }}</h2>
+<div class="container my-4" style="max-width:600px;">
+  <h2 class="mb-4">
+    {{ "🆕 Новая категория" if mode == "new" else "✏️ Редактировать категорию" }}
+  </h2>
 
-<form method="post" style="max-width:520px; display:grid; gap:10px;">
-  <label>
-    <div>Название *</div>
-    <input name="name" value="{{ cat.name if cat else '' }}" required
-           style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;">
-  </label>
+  <form method="post" class="card shadow-sm p-4">
+    <div class="mb-3">
+      <label class="form-label">Название *</label>
+      <input type="text" name="name" value="{{ cat.name if cat else '' }}" 
+             class="form-control" required>
+    </div>
 
-  <label>
-    <div>Slug (если пустой — сгенерируем)</div>
-    <input name="slug" value="{{ cat.slug if cat else '' }}"
-           style="width:100%; padding:8px; border:1px solid #ddd; border-radius:8px;">
-  </label>
+    <div class="mb-3">
+      <label class="form-label">Slug <span class="text-muted">(если пустой — сгенерируем)</span></label>
+      <input type="text" name="slug" value="{{ cat.slug if cat else '' }}" 
+             class="form-control">
+    </div>
 
-  <div style="display:flex; gap:8px;">
-    <button style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#1677ff; color:#fff;">
-      {{ "Создать" if mode == "new" else "Сохранить" }}
-    </button>
-    <a href="/admin/catalog/categories" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#f7f7f7; text-decoration:none;">
-      Отмена
-    </a>
-  </div>
-</form>
+    <div class="d-flex flex-wrap gap-2">
+      <button type="submit" class="btn btn-primary">
+        {{ "Создать" if mode == "new" else "Сохранить" }}
+      </button>
+      <a href="/admin/catalog/categories" class="btn btn-secondary">Отмена</a>
+    </div>
+  </form>
+</div>
 {% endblock %}

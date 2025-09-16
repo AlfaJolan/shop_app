@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block content %}
 <h2 class="mb-4">Каталог</h2>
@@ -15,10 +16,10 @@
 {% endif %}
 
 <!-- Динамическая выдача -->
-<div class="row row-cols-2 row-cols-lg-4 g-4" id="search-results" style="display:none;"></div>
+<div class="row g-4" id="search-results" style="display:none;"></div>
 
 <!-- Каталог -->
-<div class="row row-cols-2 row-cols-lg-4 g-4" id="catalog-default">
+<div class="row g-4" id="catalog-default">
   {% for p in products %}
     <div class="col">
       <div class="card h-100 shadow-sm">
@@ -29,7 +30,7 @@
         {% endif %}
 
         <div class="card-body d-flex flex-column">
-          <h6 class="card-title mb-2">{{ p.name }}</h6>
+          <h5 class="card-title">{{ p.name }}</h5>
 
           {% if p.variants %}
             <ul class="list-unstyled small flex-grow-1">
@@ -39,18 +40,17 @@
                     <span>
                       {{ v.name }} — {{ "%.2f"|format(v.unit_price) }} ₸
                       {% if v.stock is defined %}
-                        <small class="text-muted">(осталось: {{ v.stock }})</small>
+                        <small class="text-muted">(в наличии: {{ v.stock }})</small>
                       {% endif %}
                     </span>
                     <form method="post" action="/cart/add" class="d-flex align-items-center gap-2">
                       <input type="hidden" name="product_id" value="{{ p.id }}">
                       <input type="hidden" name="variant_id" value="{{ v.id }}">
-                      <input type="number" name="qty" value="1" min="1"
-                             class="form-control form-control-sm" style="width:60px;">
+                      <input type="number" name="qty" value="1" min="1" class="form-control form-control-sm" style="width:70px;">
                       {% if v.stock is defined and v.stock|int <= 0 %}
                         <button type="button" class="btn btn-sm btn-secondary" disabled>Нет</button>
                       {% else %}
-                        <button type="submit" class="btn btn-sm btn-primary">+</button>
+                        <button type="submit" class="btn btn-sm btn-primary">Добавить</button>
                       {% endif %}
                     </form>
                   </div>
@@ -58,12 +58,12 @@
               {% endfor %}
             </ul>
           {% else %}
-            <p class="text-muted small">Нет вариантов</p>
+            <p class="text-muted">Нет вариантов</p>
           {% endif %}
 
           {% if p.seller %}
             <p class="card-text mt-auto small text-muted">
-              <strong>{{ p.seller.name }}</strong>
+              Продавец: <strong>{{ p.seller.name }}</strong>
               {% if p.seller.city %} ({{ p.seller.city }}){% endif %}
             </p>
           {% endif %}
@@ -73,30 +73,11 @@
   {% endfor %}
 </div>
 
+<!-- Оставляем минимальные стили для dropdown -->
 <style>
-/* Подсказки */
 #suggest-box.show { display:block; }
 #suggest-box li { cursor:pointer; padding:.5rem .75rem; }
 #suggest-box li:hover, #suggest-box li.active { background:#f8f9fa; }
-
-/* Картинки в карточках */
-
-.card-img-top {
-  height: 180px;
-  object-fit: contain;
-  background: #f8f9fa; /* светлый фон вокруг картинки */
-}
-
-/* 🔹 На очень маленьких экранах */
-@media (max-width: 576px) {
-  .card-title { font-size: 0.9rem; }
-  .card-img-top { height: 120px; }
-  .card-body { padding: 0.5rem; }
-  .btn, .form-control-sm { font-size: 0.75rem; }
-}
-
-
-}
 </style>
 
 <script>
@@ -108,9 +89,14 @@ let items = [];
 let activeIndex = -1;
 let debounceId = null;
 
+// ✅ Исправленный escapeHtml
 function escapeHtml(str){
   return (str || "").replace(/[&<>"']/g, m => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
   })[m]);
 }
 function highlight(text,q){
@@ -121,9 +107,12 @@ function highlight(text,q){
   return escapeHtml(text.slice(0,i)) + "<mark>"+escapeHtml(text.slice(i,j))+"</mark>" + escapeHtml(text.slice(j));
 }
 
-// === Рендер карточек ===
+// === Bootstrap-стиль карточек ===
 function renderCards(products){
-  if(!products.length){ $res.innerHTML = "<p>Ничего не найдено.</p>"; return; }
+  if(!products.length){
+    $res.innerHTML = "<p>Ничего не найдено.</p>";
+    return;
+  }
   $res.innerHTML = products.map(p=>`
     <div class="col">
       <div class="card h-100 shadow-sm">
@@ -131,7 +120,7 @@ function renderCards(products){
           ? `<img src="/static/uploads/products/${escapeHtml(p.image)}" class="card-img-top" alt="${escapeHtml(p.name)}">`
           : `<img src="/static/no-photo.webp" class="card-img-top" alt="нет фото">`}
         <div class="card-body d-flex flex-column">
-          <h6 class="card-title mb-2">${highlight(p.name, $in.value)}</h6>
+          <h5 class="card-title">${highlight(p.name, $in.value)}</h5>
           ${p.variants && p.variants.length ? `
             <ul class="list-unstyled small flex-grow-1">
               ${p.variants.map(v=>`
@@ -139,23 +128,22 @@ function renderCards(products){
                   <div class="d-flex justify-content-between align-items-center">
                     <span>
                       ${escapeHtml(v.name)} — ${Number(v.unit_price).toFixed(2)} ₸
-                      ${v.stock!==null && v.stock!==undefined ? `<small class="text-muted">(осталось: ${v.stock})</small>` : ""}
+                      ${v.stock!==null && v.stock!==undefined ? `<small class="text-muted">(в наличии: ${v.stock})</small>` : ""}
                     </span>
                     <form method="post" action="/cart/add" class="d-flex align-items-center gap-2">
                       <input type="hidden" name="product_id" value="${p.id}">
                       <input type="hidden" name="variant_id" value="${v.id}">
-                      <input type="number" name="qty" value="1" min="1"
-                             class="form-control form-control-sm" style="width:60px;">
+                      <input type="number" name="qty" value="1" min="1" class="form-control form-control-sm" style="width:70px;">
                       <button type="submit" class="btn btn-sm ${v.stock<=0 ? "btn-secondary" : "btn-primary"}" ${v.stock<=0 ? "disabled" : ""}>
-                        ${v.stock<=0 ? "Нет" : "+"}
+                        ${v.stock<=0 ? "Нет" : "Добавить"}
                       </button>
                     </form>
                   </div>
                 </li>
               `).join("")}
             </ul>` 
-          : `<p class="text-muted small">Нет вариантов</p>`}
-          ${p.seller ? `<p class="card-text mt-auto small text-muted"><strong>${escapeHtml(p.seller)}</strong>${p.city?` (${escapeHtml(p.city)})`:""}</p>` : ""}
+          : `<p class="text-muted">Нет вариантов</p>`}
+          ${p.seller ? `<p class="card-text mt-auto small text-muted">Продавец: <strong>${escapeHtml(p.seller)}</strong>${p.city?` (${escapeHtml(p.city)})`:""}</p>` : ""}
         </div>
       </div>
     </div>
@@ -163,23 +151,42 @@ function renderCards(products){
 }
 
 function renderSuggest(list,q){
-  if(!list.length){ $suggest.innerHTML=""; $suggest.classList.remove("show"); return; }
-  items = list; activeIndex = -1;
+  if(!list.length){ 
+    $suggest.innerHTML=""; 
+    $suggest.classList.remove("show"); 
+    return; 
+  }
+  items = list; 
+  activeIndex = -1;
+
   $suggest.innerHTML = list.map((it,i)=>`
-    <li class="dropdown-item" data-index="${i}" data-type="${it.type}" data-id="${it.id}">
+    <li class="dropdown-item" data-index="${i}" data-type="${it.type}" data-id="${it.id}" data-url="${it.url}">
       <span>${highlight(it.name,q)}</span>
       <span class="text-muted small">${it.type}</span>
     </li>`).join("");
+
   $suggest.classList.add("show");
 }
 
+
+// API-запросы
 async function fetchSuggest(q){ const r=await fetch(`/search/suggest?q=${encodeURIComponent(q)}`); return r.ok?await r.json():[]; }
 async function fetchProductsByQuery(q){ const r=await fetch(`/search/products?q=${encodeURIComponent(q)}`); return r.ok?await r.json():[]; }
-async function fetchProductsBySelection(type,id){ const r=await fetch(`/search/products?selected_type=${type}&selected_id=${id}`); return r.ok?await r.json():[]; }
+async function fetchProductsBySelection(type,id){ const r=await fetch(`/search/products?selected_type=${encodeURIComponent(type)}&selected_id=${encodeURIComponent(id)}`); return r.ok?await r.json():[]; }
 
-function showResults(products){ $def.style.display="none"; $res.style.display="flex"; $res.className="row row-cols-2 row-cols-lg-4 g-4"; renderCards(products); }
-function resetToDefault(){ $res.style.display="none"; $res.innerHTML=""; $def.style.display="flex"; $suggest.classList.remove("show"); items=[]; activeIndex=-1; }
+function showResults(products){
+  $def.style.display="none";
+  $res.style.display="flex";
+  $res.className="row g-4";
+  renderCards(products);
+}
+function resetToDefault(){
+  $res.style.display="none"; $res.innerHTML="";
+  $def.style.display="flex";
+  $suggest.classList.remove("show"); items=[]; activeIndex=-1;
+}
 
+// === Обработчики ===
 $in.addEventListener("input", e=>{
   const q = e.target.value.trim(); clearTimeout(debounceId);
   if(!q){ resetToDefault(); return; }
@@ -203,7 +210,8 @@ $in.addEventListener("keydown", async e=>{
   else if(e.key==="ArrowUp"){ e.preventDefault(); activeIndex=activeIndex<=0?max:activeIndex-1; }
   else if(e.key==="Enter"){ e.preventDefault();
     if(activeIndex>=0&&items[activeIndex]){
-      const it=items[activeIndex]; $in.value=it.name; $suggest.classList.remove("show");
+      const it=items[activeIndex];
+      $in.value=it.name; $suggest.classList.remove("show");
       const data=await fetchProductsBySelection(it.type,it.id); showResults(data);
     }
   }
