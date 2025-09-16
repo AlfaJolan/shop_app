@@ -48,7 +48,7 @@ from app.routers import admin_products as admin_products_router
 from app.routers import auth as auth_router
 from app.routers import admin_seller as admin_sellers_router
 from app.telegram_subscribe import start_polling
-
+from app.routers import search as search_router
 app.include_router(public.router)
 app.include_router(cart.router)
 app.include_router(invoice_router.router)
@@ -59,6 +59,7 @@ app.include_router(admin_catalog_router.router)
 app.include_router(admin_products_router.router)
 app.include_router(admin_sellers_router.router)
 app.include_router(auth_router.router)
+app.include_router(search_router.router)
 
 # ==== Static ====
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
