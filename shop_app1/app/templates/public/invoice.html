@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">Накладная № {{ inv.id }}</h2>
+<p class="text-muted">Дата: {{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</p>
+
+<!-- Информация о покупателе и заказе -->
+<ul class="list-group mb-4">
+  <li class="list-group-item"><strong>Покупатель:</strong> {{ inv.customer_name or "—" }}</li>
+  <li class="list-group-item"><strong>Телефон:</strong> {{ inv.phone or "—" }}</li>
+  <li class="list-group-item"><strong>Продавец:</strong> {{ inv.seller_name or "—" }}</li>
+  <li class="list-group-item"><strong>Город:</strong> {{ inv.city_name or "—" }}</li>
+  <li class="list-group-item"><strong>Комментарий:</strong> {{ inv.comment or "—" }}</li>
+</ul>
+
+<!-- Таблица товаров -->
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Наименование</th>
+        <th>Магазин</th>
+        <th>Фото</th>
+        <th>Вариант</th>
+        <th class="text-end">Кол-во</th>
+        <th class="text-end">Цена</th>
+        <th class="text-end">Сумма</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for it in inv.items %}
+      <tr>
+        <td>
+          <div class="fw-semibold">{{ it.product_name }}</div>
+          <div class="small text-muted">{{ it.variant_name }}</div>
+        </td>
+        <td>{{ it.seller_name }}</td>
+        <td style="width:70px;">
+          {% if it.product_image %}
+            <img src="/static/uploads/products/{{ it.product_image }}" alt=""
+                 class="img-thumbnail" style="width:64px; height:64px; object-fit:contain;">
+          {% else %} — {% endif %}
+        </td>
+        <td>{{ it.variant_name }}</td>
+        <td class="text-end">
+          {% if it.qty_original != it.qty_final %}
+            <s class="text-muted">{{ it.qty_original }}</s> → <b>{{ it.qty_final }}</b>
+          {% else %}
+            {{ it.qty_final }}
+          {% endif %}
+        </td>
+        <td class="text-end">
+          {% if it.unit_price_original != it.unit_price_final %}
+            <s class="text-muted">{{ "%.2f"|format(it.unit_price_original) }}</s> →
+            <b>{{ "%.2f"|format(it.unit_price_final) }}</b> ₸
+          {% else %}
+            {{ "%.2f"|format(it.unit_price_final) }} ₸
+          {% endif %}
+        </td>
+        <td class="text-end">
+          {% if it.line_total_original != it.line_total_final %}
+            <s class="text-muted">{{ "%.2f"|format(it.line_total_original) }}</s> →
+            <b>{{ "%.2f"|format(it.line_total_final) }}</b> ₸
+          {% else %}
+            {{ "%.2f"|format(it.line_total_final) }} ₸
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="6" class="text-end fw-bold">Итого:</td>
+        <td class="text-end fw-bold">{{ "%.2f"|format(inv.total_amount_final) }} ₸</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- Кнопки экспорта и отправки -->
+<div class="mt-4 d-flex flex-wrap gap-2">
+  <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-outline-primary">
+    📄 Скачать PDF
+  </a>
+  <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-outline-success">
+    📊 Скачать XLSX
+  </a>
+  <a href="https://wa.me/{{ inv.phone|replace(' ', '') }}?text=Здравствуйте!%20Ваша%20накладная%20№{{ inv.id }}%20от%20{{ inv.created_at.strftime('%Y-%m-%d') }}%20—%20{{ request.url_root }}invoice/{{ inv.id }}?pkey={{ inv.pkey }}"
+     target="_blank"
+     class="btn btn-success">
+    💬 Отправить в WhatsApp
+  </a>
+</div>
+
+{% endblock %}

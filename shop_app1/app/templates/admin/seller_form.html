@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">
+    {% if seller %}✏️ Редактировать{% else %}➕ Новый{% endif %} продавец
+  </h2>
+
+  <form method="post"
+        action="{% if seller %}/admin/sellers/{{ seller.id }}/update{% else %}/admin/sellers/create{% endif %}">
+
+    <div class="mb-3">
+      <label class="form-label">Название продавца</label>
+      <input type="text" name="name" class="form-control"
+             value="{{ seller.name if seller else '' }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Город</label>
+      <input type="text" name="city" class="form-control"
+             value="{{ seller.city if seller else '' }}">
+    </div>
+
+    <hr class="my-4">
+    <button type="submit" class="btn btn-primary btn-lg">💾 Сохранить</button>
+    <a href="/admin/sellers" class="btn btn-secondary btn-lg">⬅ Назад</a>
+  </form>
+</div>
+{% endblock %}

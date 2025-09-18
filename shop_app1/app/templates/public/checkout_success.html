@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h2 class="card-title mb-3">✅ Заказ принят</h2>
+    <p class="mb-3">
+      Спасибо! Ваш заказ № <b>{{ order.id }}</b> от 
+      <span class="text-muted">{{ order.created_at.strftime("%Y-%m-%d %H:%M") }}</span>.
+    </p>
+
+    {# --- Блок накладной --- #}
+    {% if invoice_id and invoice_pkey %}
+      <div class="alert alert-info">
+        <div class="fw-semibold mb-2">Накладная сформирована</div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <a href="/invoice/{{ invoice_id }}?pkey={{ invoice_pkey }}" 
+             target="_blank" class="btn btn-primary">
+            📄 Открыть накладную
+          </a>
+          <button type="button" onclick="copyInvoiceLink()" 
+                  class="btn btn-outline-primary">
+            🔗 Скопировать ссылку
+          </button>
+          <span id="copy-status" class="small text-success d-none">Ссылка скопирована</span>
+        </div>
+      </div>
+      <script>
+        function copyInvoiceLink() {
+          const url = `${window.location.origin}/invoice/{{ invoice_id }}?pkey={{ invoice_pkey }}`;
+          navigator.clipboard.writeText(url).then(() => {
+            const el = document.getElementById('copy-status');
+            el.classList.remove('d-none');
+            setTimeout(() => el.classList.add('d-none'), 2000);
+          });
+        }
+      </script>
+    {% endif %}
+
+    <h3 class="mt-4">Состав заказа</h3>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Наименование</th>
+            <th class="text-end">Цена</th>
+            <th class="text-center">Кол-во</th>
+            <th class="text-end">Сумма</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for l in lines %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ l.product_name }}</div>
+              <div class="small text-muted">{{ l.variant_name }}</div>
+            </td>
+            <td class="text-end">{{ "%.2f"|format(l.unit_price) }} ₸</td>
+            <td class="text-center">{{ l.qty }}</td>
+            <td class="text-end fw-semibold">{{ "%.2f"|format(l.line_total) }} ₸</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" class="text-end fw-bold">Итого:</td>
+            <td class="text-end fw-bold">{{ "%.2f"|format(total) }} ₸</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <h3 class="mt-4">Контакты</h3>
+    <ul class="list-group mb-3">
+      <li class="list-group-item"><strong>Имя:</strong> {{ order.customer_name or "—" }}</li>
+      <li class="list-group-item"><strong>Телефон:</strong> {{ order.phone or "—" }}</li>
+      <li class="list-group-item"><strong>Комментарий:</strong> {{ order.comment or "—" }}</li>
+    </ul>
+
+    <a href="/" class="btn btn-success">⬅ Вернуться в каталог</a>
+  </div>
+</div>
+{% endblock %}

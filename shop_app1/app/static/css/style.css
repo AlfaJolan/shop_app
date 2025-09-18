@@ -1,0 +1,130 @@
+/* === Шапка === */
+.header {
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  box-shadow: 0 2px 6px rgba(0,0,0,.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+  color: #1890ff;
+}
+
+.search-form {
+  flex: 1;
+  display: flex;
+  max-width: 400px;
+}
+.search-form input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px 0 0 8px;
+}
+.search-form button {
+  padding: 8px 12px;
+  border: 1px solid #1890ff;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+}
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* === Кнопки === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* 🔑 Войти */
+.btn-login {
+  background: #fff;
+  color: #1890ff;
+  border: 1px solid #1890ff;
+}
+.btn-login:hover { background: #e6f4ff; }
+
+/* ⚙️ Админка */
+.btn-admin {
+  background: #52c41a;
+  color: #fff;
+}
+.btn-admin:hover { background: #389e0d; }
+
+/* 🚪 Выйти */
+.btn-logout {
+  background: #ff4d4f;
+  color: #fff;
+}
+.btn-logout:hover { background: #cf1322; }
+
+/* 🛒 Корзина */
+.btn-cart {
+  position: relative;
+  background: #faad14;
+  color: #fff;
+}
+.btn-cart:hover { background: #d48806; }
+
+.cart-count {
+  background: #fff;
+  color: #fa541c;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  position: absolute;
+  top: -6px;
+  right: -10px;
+}
+
+/* === Адаптив === */
+@media (max-width: 768px) {
+  .header-inner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-form {
+    max-width: 100%;
+    width: 100%;
+  }
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
