@@ -5,7 +5,8 @@
     {% if product %}✏️ Редактировать{% else %}➕ Новый{% endif %} товар
   </h2>
 
-  <form method="post" enctype="multipart/form-data"
+  <!-- Добавляем id="product-form", чтобы JS мог найти -->
+  <form id="product-form" method="post" enctype="multipart/form-data"
         action="{% if product %}/admin/catalog/products/{{ product.id }}/update{% else %}/admin/catalog/products/create{% endif %}">
     
     <!-- Основные поля -->
@@ -48,7 +49,8 @@
 
     <div class="mb-3">
       <label class="form-label">Фото</label>
-      <input type="file" name="image" class="form-control">
+      <!-- 🆕 добавляем id="image-input" -->
+      <input type="file" name="image" id="image-input" class="form-control">
       {% if product and product.image %}
         <img src="/static/uploads/products/{{ product.image }}"
              style="height:80px; margin-top:10px; border-radius:6px;">
@@ -115,30 +117,37 @@
     <button type="button" class="btn btn-outline-secondary mt-2" onclick="addNewVariant()">Добавить вариант</button>
 
     <hr class="my-4">
-    <button type="submit" class="btn btn-primary btn-lg">💾 Сохранить</button>
+    <button type="submit" id="save-btn" class="btn btn-primary btn-lg">
+      💾 Сохранить
+      <span id="spinner" class="spinner-border spinner-border-sm ms-2" style="display:none;" role="status" aria-hidden="true"></span>
+    </button>
     <a href="/admin/catalog/products" class="btn btn-secondary btn-lg">⬅ Назад</a>
+        <a href="/admin/catalog/products" class="btn btn-secondary btn-lg">⬅ Назад</a>
   </form>
 </div>
 
+<!-- Подключаем JS из статики -->
+<script src="/static/js/image_compress.js"></script>
+
 <script>
-function addNewVariant() {
-  const div = document.createElement("div");
-  div.classList.add("row","g-2","mb-2","border","p-2","rounded");
-  div.innerHTML = `
-    <div class="col-md-3">
-      <input type="text" name="new_name" class="form-control" placeholder="Название варианта">
-    </div>
-    <div class="col-md-2">
-      <input type="number" step="0.01" name="new_price" class="form-control" placeholder="Цена">
-    </div>
-    <!-- 🆕 динамически добавляем поля для штук и коробок -->
-    <div class="col-md-2">
-      <input type="number" name="new_pieces" class="form-control" placeholder="Штук в коробке">
-    </div>
-    <div class="col-md-2">
-      <input type="number" name="new_boxes" class="form-control" placeholder="Коробок" value="0" min="0">
-    </div>`;
-  document.getElementById("new-variants").appendChild(div);
-}
-</script>
+  function addNewVariant() {
+    const div = document.createElement("div");
+    div.classList.add("row","g-2","mb-2","border","p-2","rounded");
+    div.innerHTML = `
+      <div class="col-md-3">
+        <input type="text" name="new_name" class="form-control" placeholder="Название варианта">
+      </div>
+      <div class="col-md-2">
+        <input type="number" step="0.01" name="new_price" class="form-control" placeholder="Цена">
+      </div>
+      <!-- 🆕 динамически добавляем поля для штук и коробок -->
+      <div class="col-md-2">
+        <input type="number" name="new_pieces" class="form-control" placeholder="Штук в коробке">
+      </div>
+      <div class="col-md-2">
+        <input type="number" name="new_boxes" class="form-control" placeholder="Коробок" value="0" min="0">
+      </div>`;
+    document.getElementById("new-variants").appendChild(div);
+  }
+  </script>
 {% endblock %}
