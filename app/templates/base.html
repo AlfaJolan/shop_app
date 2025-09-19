@@ -59,13 +59,12 @@
     <div class="container d-flex justify-content-between align-items-center">
       <a class="navbar-brand fw-bold fs-4 text-primary" href="/">🛍️ Shop</a>
       <div class="d-flex align-items-center gap-3">
-        {% if request.session.get("is_admin") %}
-          <a href="/admin" class="btn btn-sm btn-outline-success">⚙️ Админка</a>
-          <a href="/logout" class="btn btn-sm btn-outline-danger">🚪 Выйти</a>
-        {% else %}
-          <a href="/login" class="btn btn-sm btn-outline-primary">🔑 Войти</a>
-        {% endif %}
-
+        {% if request.session.get("role") in ["admin", "seller", "picker"] %}
+        <a href="/admin" class="btn btn-sm btn-outline-success">⚙️ Админка</a>
+        <a href="/logout" class="btn btn-sm btn-outline-danger">🚪 Выйти</a>
+      {% else %}
+        <a href="/login" class="btn btn-sm btn-outline-primary">🔑 Войти</a>
+      {% endif %}
         <!-- 🔹 Корзина: теперь количество и сумма -->
         <a href="/cart" class="btn btn-sm btn-warning position-relative">
           🛒 Корзина
@@ -75,6 +74,12 @@
       </div>
     </div>
   </nav>
+  {% if request.session.get("flash") %}
+  <div class="alert alert-danger mt-2">
+    {{ request.session.get("flash") }}
+  </div>
+  {% set _ = request.session.pop("flash") %}
+{% endif %}
 
   <!-- Content -->
   <main class="flex-grow-1 py-4">
@@ -82,7 +87,7 @@
       {% block content %}{% endblock %}
     </div>
   </main>
-
+  
   <!-- Footer -->
   <footer class="bg-light border-top mt-auto py-3">
     <div class="container small d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">

@@ -5,7 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import RedirectResponse
 
 from app.db import Base, engine
-
+from app.middleware.rbac import RBACMiddleware
 # 1) Импортируем все модели до create_all(),
 #    чтобы SQLAlchemy знал про классы и связи
 import app.models  # noqa: F401
@@ -30,7 +30,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 # ==== FastAPI app ====
 app = FastAPI(title="ShopApp")
 
-app.add_middleware(AdminAuthMiddleware)
+app.add_middleware(RBACMiddleware)
 
 # Сессии (корзина и т.п.)
 app.add_middleware(SessionMiddleware, secret_key="dev-secret-change-me")

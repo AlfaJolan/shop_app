@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
+from fastapi.responses import RedirectResponse
 
 from app.db import get_db
 from app.models.order import Order
@@ -29,9 +30,13 @@ def _parse_date(s: Optional[str]) -> Optional[datetime]:
 
 
 # ---------- ГЛАВНАЯ ПАНЕЛЬ ----------
-@router.get("/", response_class=HTMLResponse)
+@router.get("/dashboard", response_class=HTMLResponse)
 def admin_index(request: Request):
     return templates.TemplateResponse("admin/dashboard.html", {"request": request})
+
+@router.get("/", include_in_schema=False)
+def admin_root():
+    return RedirectResponse("/admin/dashboard")
 
 
 # ---------- ЗАКАЗЫ ----------

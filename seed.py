@@ -4,8 +4,10 @@ from sqlalchemy.orm import configure_mappers
 from decimal import Decimal
 import app.models  # подтягиваем все модели
 from app.models.catalog import Seller, Category, Product, Variant
+from app.models.user import User
 from app.utils.security import hash_password
 from app.models import Base
+from app.utils.enums import UserRole
 from sqlalchemy import text
 
 def run_seed():
@@ -60,31 +62,29 @@ def run_seed():
             db.commit()
             print(f"✅ Товар создан: {product.name}")
 
-        # --- Admin User ---
-        # напрямую SQL, т.к. у тебя users не в ORM
-        password_hash = hash_password("Bl00dType")
-        db.execute(text("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                is_admin BOOLEAN DEFAULT 0,
-                role TEXT
-            )
-        """))
-        db.commit()
+            users = [
+            ("admin", "123456", UserRole.ADMIN.value),
+            ("seller", "123456", UserRole.SELLER.value),
+            ("picker", "123456", UserRole.PICKER.value),
+        ]
 
-        exists = db.execute(text("SELECT id FROM users WHERE username = 'admin'")).fetchone()
-        if not exists:
-            db.execute(text(
-                "INSERT INTO users (username, password_hash, is_admin, role) VALUES (:u, :p, 1, 'admin')"
-            ), {"u": "admin", "p": password_hash})
-            db.commit()
-            print("✅ Admin user created (username='admin', password='123456')")
-        else:
-            print("ℹ️ Admin user already exists")
+        for username, raw_password, role in users:
+            exists = db.execute(
+                text("SELECT id FROM users WHERE username = :u"),
+                {"u": username}
+            ).fetchone()
 
-        print("🎉 Готово: БД заполнена тестовыми данными!")
+            if not exists:
+                password_hashed = hash_password(raw_password)
+                db.execute(
+                    text("INSERT INTO users (username, password_hash, role) VALUES (:u, :p, :r)"),
+                    {"u": username, "p": password_hashed, "r": role}
+                )
+                db.commit()
+                print(f"✅ User created (username='{username}', password='{raw_password}', role='{role}')")
+            else:
+                print(f"ℹ️ User '{username}' already exists")
+
 
     finally:
         db.close()
