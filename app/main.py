@@ -50,6 +50,7 @@ from app.routers import admin_seller as admin_sellers_router
 from app.telegram_subscribe import start_polling
 from app.routers import search as search_router
 from app.routers import admin_users
+#CREATE USER shop_user WITH PASSWORD 'your_password';
 
 
 app.include_router(public.router)

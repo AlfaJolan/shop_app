@@ -84,11 +84,12 @@
   <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-outline-success">
     📊 Скачать XLSX
   </a>
-  <a href="https://wa.me/{{ inv.phone|replace(' ', '') }}?text=Здравствуйте!%20Ваша%20накладная%20№{{ inv.id }}%20от%20{{ inv.created_at.strftime('%Y-%m-%d') }}%20—%20{{ request.url_root }}invoice/{{ inv.id }}?pkey={{ inv.pkey }}"
-     target="_blank"
-     class="btn btn-success">
-    💬 Отправить в WhatsApp
+  <a href="https://wa.me/{{ inv.phone|replace(' ', '') }}?text=Здравствуйте!%20Ваша%20накладная%20№{{ inv.id }}%20от%20{{ inv.created_at.strftime('%Y-%m-%d') }}%20—%20{{ invoice_url }}"
+   target="_blank"
+   class="btn btn-success">
+  💬 Отправить в WhatsApp
   </a>
+
 </div>
 
 {% endblock %}

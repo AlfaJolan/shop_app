@@ -3,12 +3,15 @@ from dotenv import load_dotenv
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")  # .env можно не создавать — возьмутся дефолты
+load_dotenv(BASE_DIR / ".env")  # Загружаем переменные окружения из .env
 
 APP_NAME = "ShopApp"
 ENV = os.getenv("ENV", "local")
 
-# SQLite-файл рядом с проектом
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///{0}".format((BASE_DIR / "shop.db").as_posix()))
+# Строка подключения к БД
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://shop_user:testingApp@localhost:5432/shop_app"
+)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
