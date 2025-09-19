@@ -2,22 +2,29 @@ from decimal import Decimal
 import secrets
 from sqlalchemy.orm import Session
 from app.models.invoice import Invoice, InvoiceItem
-from app.models.catalog import Product  # ← берём seller_id через продукт
-
+from app.models.catalog import Product
 
 def _make_pkey(length: int = 16) -> str:
     return secrets.token_urlsafe(length)
 
+def create_invoice(
+    db: Session,
+    lines: list,
+    customer_name: str,
+    phone: str,
+    seller_name: str,
+    city_name: str,
+    comment: str
+) -> Invoice:
+    """Создаёт накладную + строки из корзины."""
 
-def create_invoice_for_order(db: Session, order, lines: list, customer_name: str, phone: str, seller_name: str, city_name: str, comment: str):
     inv = Invoice(
-        order_id=order.id if order else None,
         pkey=_make_pkey(16),
         is_revoked=False,
         customer_name=(customer_name or None),
         phone=(phone or None),
-        seller_name = (seller_name or None),
-        city_name = (city_name or None),
+        seller_name=(seller_name or None),
+        city_name=(city_name or None),
         comment=(comment or None),
         total_amount_final=Decimal("0.00"),
     )
@@ -33,28 +40,27 @@ def create_invoice_for_order(db: Session, order, lines: list, customer_name: str
         product_image = None
         seller_id = None
         seller_name = None
-        product_id = l.get("product_id")   # 🆕 берём из order/cart line
-        variant_id = l.get("variant_id")   #
-        pid = l.get("product_id")
-        if pid:
-            p = db.query(Product).get(int(pid))
+        product_id = l.get("product_id")
+        variant_id = l.get("variant_id")
+
+        if product_id:
+            p = db.query(Product).get(int(product_id))
             if p:
                 if p.image:
-                    product_image = p.image  # например "images/milk.jpeg"
+                    product_image = p.image
                 if p.seller_id:
                     seller_id = p.seller_id
-                    # если в модели Product есть relationship seller → можно взять имя
                     if hasattr(p, "seller") and p.seller:
                         seller_name = p.seller.name
 
         item = InvoiceItem(
             invoice_id=inv.id,
-            seller_id=seller_id,          # ← сохраняем продавца
-            seller_name=seller_name,      # ← и имя для истории
+            seller_id=seller_id,
+            seller_name=seller_name,
+            product_id=product_id,
+            variant_id=variant_id,
             product_name=l["product_name"],
             variant_name=l["variant_name"],
-            product_id=product_id,        # 🆕 сохраняем product_id
-            variant_id=variant_id,  
             product_image=product_image,
             qty_original=qty,
             qty_final=qty,

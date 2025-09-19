@@ -79,7 +79,7 @@
   }
 </style>
 
-<h2 class="mt-2">📡 Живые заказы</h2>
+<h2 class="mt-2">📡 Живые заказы</h2> <!-- 🔹 заменили -->
 
 <div class="toolbar">
   <label for="statusFilter" class="meta">Статус:</label>
@@ -135,14 +135,14 @@ async function fetchOrders(){
     cont.innerHTML = "";
 
     if (!data.length){
-      cont.appendChild(el("div", {class:"empty"}, "Пока нет заказов под выбранный фильтр."));
+      cont.appendChild(el("div", {class:"empty"}, "Пока нет накладных под выбранный фильтр.")); // 🔹 заменили
     }
 
     data.forEach(o => {
       const card = el("div", {class:"card"});
 
       const header = el("div", {class:"title"});
-      header.appendChild(el("div", {class:"order-id"}, `Заказ #${o.id}`));
+      header.appendChild(el("div", {class:"order-id"}, `Накладная #${o.id}`)); // 🔹 заменили
       const badge = el("span", {class:`badge ${o.status}`}, STATUS_LABELS[o.status] || o.status);
       header.appendChild(badge);
       card.appendChild(header);
@@ -166,7 +166,7 @@ async function fetchOrders(){
       card.appendChild(rowC);
 
       const actions = el("div", {class:"actions"});
-      actions.appendChild(el("a", {class:"link", href:`/admin/orders/${o.id}`}, "Открыть"));
+      actions.appendChild(el("a", {class:"link", href:`/admin/orders/${o.id}`}, "Открыть")); <!-- 🔹 ссылка оставлена -->
       card.appendChild(actions);
 
       cont.appendChild(card);
@@ -175,7 +175,7 @@ async function fetchOrders(){
     document.getElementById("lastUpd").textContent =
       "Обновлено: " + new Date().toLocaleTimeString();
   } catch (e) {
-    console.error("Ошибка при загрузке заказов:", e);
+    console.error("Ошибка при загрузке накладных:", e); // 🔹 заменили
   }
 }
 

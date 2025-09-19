@@ -6,7 +6,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.order import Order
+# ❌ старое:
+# from app.models.order import Order
+# ✅ новое:
 from app.models.invoice import Invoice
 from app.telegram.telegram_notify import notifier
 
@@ -39,9 +41,9 @@ def live_orders(
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
-    q = db.query(Order).order_by(Order.created_at.desc())
+    q = db.query(Invoice).order_by(Invoice.created_at.desc())
     if status != "all":
-        q = q.filter(Order.status == status)
+        q = q.filter(Invoice.status == status)
     rows = q.limit(limit).all()
     return [
         {
@@ -50,7 +52,7 @@ def live_orders(
             "customer_name": r.customer_name,
             "phone": r.phone,
             "comment": r.comment,
-            "total_amount": float(r.total_amount or 0),
+            "total_amount": float(r.total_amount_final or 0),
             "status": r.status,
         }
         for r in rows
@@ -58,23 +60,18 @@ def live_orders(
 
 
 # ---------- ДЕТАЛИ ЗАКАЗА ----------
-@router.get("/{order_id}", response_class=HTMLResponse)
+@router.get("/{invoice_id}", response_class=HTMLResponse)
 def order_detail(
     request: Request,
-    order_id: int,
+    invoice_id: int,
     db: Session = Depends(get_db)
 ):
-    order: Optional[Order] = db.query(Order).get(order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Заказ не найден")
-
-    invoice: Optional[Invoice] = (
-        db.query(Invoice).filter(Invoice.order_id == order.id).order_by(Invoice.id.desc()).first()
-    )
+    invoice: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
 
     return templates.TemplateResponse("admin/order_detail.html", {
         "request": request,
-        "order": order,
         "invoice": invoice,
         "allowed_statuses": ALLOWED_STATUSES,
         "status_labels": STATUS_LABELS_RU,
@@ -82,9 +79,9 @@ def order_detail(
 
 
 # ---------- СМЕНА СТАТУСА ----------
-@router.post("/{order_id}/status")
+@router.post("/{invoice_id}/status")
 def change_status(
-    order_id: int,
+    invoice_id: int,
     new_status: str = Form(...),
     note: Optional[str] = Form(None),
     db: Session = Depends(get_db),
@@ -92,9 +89,9 @@ def change_status(
     if new_status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=400, detail="Некорректный статус")
 
-    order: Optional[Order] = db.query(Order).get(order_id)
-    if not order:
-        raise HTTPException(status_code=404, detail="Заказ не найден")
+    invoice: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
 
     # 🔹 Разрешённые переходы
     valid_next = {
@@ -103,25 +100,25 @@ def change_status(
         "shipped": set(),
     }
 
-    cur = order.status or "new"
+    cur = invoice.status or "new"
     if new_status not in valid_next.get(cur, set()) and new_status != cur:
         raise HTTPException(status_code=400, detail="Недопустимый переход статуса")
 
-    order.status = new_status
-    order.status_changed_at = datetime.utcnow()
+    invoice.status = new_status
+    invoice.status_changed_at = datetime.utcnow()
     if note:
-        order.status_note = note
+        invoice.status_note = note
 
     db.commit()
 
     items = [
-        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty, "price": item.unit_price}
-        for item in order.items
+        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_final, "price": item.unit_price_final}
+        for item in invoice.items
     ]
     status_label = STATUS_LABELS_RU.get(new_status, new_status)
 
-    notifier.notify_order_status_changed(
-        order_id=order.id,
+    notifier.notify_invoice_status_changed(
+        invoice_id=invoice.id,
         new_status=status_label,
         items=items
     )

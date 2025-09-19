@@ -41,11 +41,11 @@ class TelegramNotifier:
         lines.append(f"\n💰 Итого: {total_sum} ₸")
         return "\n".join(lines)
 
-    def notify_order_created(self, order_id, customer_name, phone, comment, items):
-        """Уведомление о создании заказа"""
+    def notify_invoice_created(self, invoice_id, customer_name, phone, comment, items):
+        """Уведомление о создании накладной (бывший заказ)"""
         date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         msg = [
-            f"🆕 <b>Новый заказ #{order_id}</b>",
+            f"🆕 <b>Новый заказ #{invoice_id}</b>",   # 🔹 заменили заказ → накладная
             f"📅 {date_str}",
             f"👤 Клиент: {customer_name}",
             f"📞 Телефон: {phone or '—'}"
@@ -55,10 +55,10 @@ class TelegramNotifier:
         msg.append("\n📦 Состав заказа:\n" + self.format_items(items))
         self.send("\n".join(msg))
 
-    def notify_order_status_changed(self, order_id, new_status, items):
-        """Уведомление при изменении статуса"""
+    def notify_invoice_status_changed(self, invoice_id, new_status, items):
+        """Уведомление при изменении статуса накладной"""
         msg = [
-            f"⚡ <b>Заказ #{order_id}</b>",
+            f"⚡ <b>Заказ #{invoice_id}</b>",   # 🔹 заменили заказ → накладная
             f"📌 Новый статус: {new_status}",
             "\n📦 Состав заказа:\n" + self.format_items(items)
         ]

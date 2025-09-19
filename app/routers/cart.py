@@ -7,11 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models.catalog import Product, Variant
-from app.models.order import Order, OrderItem
+# ❌ старое:
+# from app.models.order import Order, OrderItem
+# ✅ новое:
+from app.models.invoice import Invoice, InvoiceItem
 from app.telegram.telegram_notify import notifier
 
-# ⬇️ НОВОЕ: сервис создания накладной
-from app.services.invoices import create_invoice_for_order
+# ⬇️ сервис создания накладной (оставляем твой вариант)
+from app.services.invoices import create_invoice
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
@@ -230,7 +233,6 @@ async def checkout(
 
     if problems:
         _flash(request, "Недостаточно на складе по позициям: {0}. Количество скорректировано.".format(", ".join(problems)))
-        # скорректируем корзину под максимальные остатки
         for l in lines:
             v = db.query(Variant).get(int(l["variant_id"]))
             if v:
@@ -241,40 +243,9 @@ async def checkout(
         _set_cart(request, cart)
         return RedirectResponse(url="/cart", status_code=303)
 
-    total = sum([l["line_total"] for l in lines], Decimal("0"))
-
-    order = Order(
-        customer_name=customer_name.strip() or None,
-        phone=phone.strip() or None,
-        seller_name=seller_name.strip() or None,
-        city_name=city_name.strip() or None,
-        comment=comment.strip() or None,
-        total_amount=total
-    )
-    db.add(order)
-    db.flush()
-
-    # позиции + списание остатков
-    for l in lines:
-        db.add(OrderItem(
-            order_id=order.id,
-            product_id=l["product_id"] or 0,
-            variant_id=l["variant_id"],
-            product_name=l["product_name"],
-            variant_name=l["variant_name"],
-            qty=int(l["qty"]),
-            unit_price=l["unit_price"],
-            line_total=l["line_total"],
-        ))
-        v = db.query(Variant).get(int(l["variant_id"]))
-        v.stock = int(v.stock) - int(l["qty"])
-
-    db.commit()
-
-    # ⬇️ НОВОЕ: создаём накладную и показываем ссылку на неё
-    inv = create_invoice_for_order(
+    # создаём накладную
+    inv = create_invoice(
         db=db,
-        order=order,
         lines=lines,
         customer_name=customer_name,
         phone=phone,
@@ -283,25 +254,29 @@ async def checkout(
         comment=comment,
     )
 
-    _set_cart(request, {})  # очистили корзину
+    # списываем остатки склада
+    for l in lines:
+        v = db.query(Variant).get(int(l["variant_id"]))
+        v.stock = int(v.stock) - int(l["qty"])
+    db.commit()
+
+    _set_cart(request, {})
     items = [
-        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty, "price": item.unit_price}
-        for item in order.items
+        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
+        for item in inv.items
     ]
 
-    notifier.notify_order_created(
-        order_id=order.id,
-        customer_name=order.customer_name,
-        phone=order.phone,
-        comment=order.comment,
+    notifier.notify_invoice_created(
+        invoice_id=inv.id,
+        customer_name=inv.customer_name,
+        phone=inv.phone,
+        comment=inv.comment,
         items=items
     )
-    # Показываем «Заказ принят» + ссылки на накладную
-    return templates.TemplateResponse("public/checkout_success.html", {
-        "request": request,
-        "order": order,
-        "lines": lines,
-        "total": total,
-        "invoice_id": inv.id,
-        "invoice_pkey": inv.pkey,
-    })
+
+    return RedirectResponse(
+    url=f"/invoice/{inv.id}?pkey={inv.pkey}", 
+    status_code=303
+)
+
+

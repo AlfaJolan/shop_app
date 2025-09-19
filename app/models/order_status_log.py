@@ -12,7 +12,7 @@ class OrderStatusLog(Base):
     __tablename__ = "order_status_log"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), index=True)
 
     old_status: Mapped[str] = mapped_column(String(24))
     new_status: Mapped[str] = mapped_column(String(24))

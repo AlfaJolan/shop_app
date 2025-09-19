@@ -25,7 +25,7 @@ class Invoice(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     # Привязка к заказу (опционально)
-    order_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    #order_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
 
     # Публичный токен-доступ (в ссылке), можно ротировать/отзывать
     pkey: Mapped[Optional[str]] = mapped_column(String(128), unique=True, nullable=True)
@@ -37,6 +37,13 @@ class Invoice(Base):
     comment: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     seller_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
     city_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
+
+
+    # === СТАТУС ЗАКАЗА ===
+    # допустимые значения: 'new' | 'packed' | 'shipped' | 'delivered' | 'cancelled'
+    status: Mapped[str] = mapped_column(String(24), default="new", index=True)
+    status_changed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    status_note: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Итог по накладной (финал)
     total_amount_final: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
