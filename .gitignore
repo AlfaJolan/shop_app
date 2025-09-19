@@ -1,0 +1,28 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+env/
+
+# VS Code
+.vscode/
+
+# Mypy / pytest
+.mypy_cache/
+.pytest_cache/
+.cache/
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Alembic (если не нужно коммитить версии)
+alembic/versions/
