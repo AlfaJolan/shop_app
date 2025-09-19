@@ -1,7 +1,7 @@
 from typing import Dict, List
 from decimal import Decimal
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse  # 🔹 добавили JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,10 @@ from app.services.invoices import create_invoice_for_order
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
+
+# 🔹 Helper: понять, хочет ли клиент JSON
+def _wants_json(request: Request) -> bool:
+    return "application/json" in request.headers.get("accept", "").lower()
 
 def _get_cart(request: Request) -> Dict[str, dict]:
     return request.session.get("cart") or {}
@@ -67,6 +71,7 @@ def _cart_lines(db: Session, cart: Dict[str, dict]) -> List[dict]:
         })
     return lines
 
+# ----------------------- ADD -----------------------
 @router.post("/cart/add")
 async def cart_add(
     request: Request,
@@ -82,15 +87,17 @@ async def cart_add(
 
     v = db.query(Variant).get(int(variant_id))
     if not v:
+        if _wants_json(request):
+            return JSONResponse({"ok": False, "error": "Вариант не найден."}, status_code=400)
         _flash(request, "Вариант не найден.")
-        referer = request.headers.get("referer") or "/"
-        return RedirectResponse(url=referer, status_code=303)
+        return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
     max_qty = int(v.stock)
     if max_qty <= 0:
+        if _wants_json(request):
+            return JSONResponse({"ok": False, "error": "Нет на складе."}, status_code=400)
         _flash(request, "Нет на складе.")
-        referer = request.headers.get("referer") or "/"
-        return RedirectResponse(url=referer, status_code=303)
+        return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
     if want > max_qty:
         want = max_qty
@@ -101,10 +108,18 @@ async def cart_add(
     cart[key] = {"variant_id": int(variant_id), "product_id": int(product_id), "qty": want}
     _set_cart(request, cart)
 
-    referer = request.headers.get("referer") or "/"
-    return RedirectResponse(url=referer, status_code=303)
+    if _wants_json(request):
+        lines = _cart_lines(db, cart)
+        total = sum([l["line_total"] for l in lines], Decimal("0"))
+        return {
+            "ok": True,
+            "total_items": sum(l["qty"] for l in lines),
+            "total_sum": float(total),
+        }
 
+    return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
+# ----------------------- UPDATE -----------------------
 @router.post("/cart/update")
 async def cart_update(
     request: Request,
@@ -114,12 +129,16 @@ async def cart_update(
 ):
     cart = _get_cart(request)
     key = str(variant_id)
+    updated_item = None
+
     if key in cart:
         new_qty = max(0, int(qty))
         v = db.query(Variant).get(int(variant_id))
         if not v:
             cart.pop(key, None)
             _set_cart(request, cart)
+            if _wants_json(request):
+                return JSONResponse({"ok": False, "error": "Вариант не найден"}, status_code=400)
             _flash(request, "Позиция удалена (вариант не найден).")
             return RedirectResponse(url="/cart", status_code=303)
 
@@ -132,17 +151,46 @@ async def cart_update(
             cart.pop(key, None)
         else:
             cart[key]["qty"] = new_qty
+            updated_item = {
+                "variant_id": v.id,
+                "qty": new_qty,
+                "line_total": float(v.unit_price) * new_qty,
+            }
 
     _set_cart(request, cart)
+
+    if _wants_json(request):
+        lines = _cart_lines(db, cart)
+        total = sum([l["line_total"] for l in lines], Decimal("0"))
+        return {
+            "ok": True,
+            "total_items": sum(l["qty"] for l in lines),
+            "total_sum": float(total),
+            "updated": updated_item,
+        }
+
     return RedirectResponse(url="/cart", status_code=303)
 
+# ----------------------- REMOVE -----------------------
 @router.post("/cart/remove")
-async def cart_remove(request: Request, variant_id: int = Form(...)):
+async def cart_remove(request: Request, variant_id: int = Form(...), db: Session = Depends(get_db)):
     cart = _get_cart(request)
-    cart.pop(str(variant_id), None)
+    removed = cart.pop(str(variant_id), None)
     _set_cart(request, cart)
+
+    if _wants_json(request):
+        lines = _cart_lines(db, cart)
+        total = sum([l["line_total"] for l in lines], Decimal("0"))
+        return {
+            "ok": True,
+            "total_items": sum(l["qty"] for l in lines),
+            "total_sum": float(total),
+            "removed_variant": variant_id if removed else None,
+        }
+
     return RedirectResponse(url="/cart", status_code=303)
 
+# ----------------------- VIEW -----------------------
 @router.get("/cart", response_class=HTMLResponse)
 async def cart_view(request: Request, db: Session = Depends(get_db)):
     cart = _get_cart(request)
@@ -156,6 +204,7 @@ async def cart_view(request: Request, db: Session = Depends(get_db)):
         "flash": flash
     })
 
+# ----------------------- CHECKOUT -----------------------
 @router.post("/checkout")
 async def checkout(
     request: Request,
@@ -236,16 +285,16 @@ async def checkout(
 
     _set_cart(request, {})  # очистили корзину
     items = [
-    {"name": item.product_name + ", " + item.variant_name, "qty": item.qty, "price": item.unit_price}
-    for item in order.items
+        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty, "price": item.unit_price}
+        for item in order.items
     ]
 
     notifier.notify_order_created(
-    order_id=order.id,
-    customer_name=order.customer_name,
-    phone=order.phone,
-    comment=order.comment,
-    items=items
+        order_id=order.id,
+        customer_name=order.customer_name,
+        phone=order.phone,
+        comment=order.comment,
+        items=items
     )
     # Показываем «Заказ принят» + ссылки на накладную
     return templates.TemplateResponse("public/checkout_success.html", {

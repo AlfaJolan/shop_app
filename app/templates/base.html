@@ -65,13 +65,12 @@
         {% else %}
           <a href="/login" class="btn btn-sm btn-outline-primary">🔑 Войти</a>
         {% endif %}
+
+        <!-- 🔹 Корзина: теперь количество и сумма -->
         <a href="/cart" class="btn btn-sm btn-warning position-relative">
           🛒 Корзина
-          {% if cart_count and cart_count > 0 %}
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {{ cart_count }}
-            </span>
-          {% endif %}
+          (<span id="cart-count">{{ cart_count or 0 }}</span> шт,
+           <span id="cart-sum">{{ cart_sum or 0 }}</span> ₸)
         </a>
       </div>
     </div>
@@ -104,5 +103,8 @@
   <!-- Bootstrap + FontAwesome -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://kit.fontawesome.com/a2e0e6ad5f.js" crossorigin="anonymous"></script>
+
+  <!-- 🔹 Новый JS для корзины -->
+  <script src="/static/js/cart.js"></script>
 </body>
 </html>

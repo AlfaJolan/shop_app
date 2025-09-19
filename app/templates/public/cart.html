@@ -7,7 +7,7 @@
 {% endif %}
 
 {% if not lines %}
-  <p>Корзина пуста. <a href="/" class="link-primary">Перейти в каталог</a></p>
+  <p id="empty-cart">Корзина пуста. <a href="/" class="link-primary">Перейти в каталог</a></p>
 {% else %}
 
   <!-- Таблица для больших экранов -->
@@ -22,16 +22,16 @@
           <th></th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="cart-body">
       {% for l in lines %}
-        <tr>
+        <tr data-variant-id="{{ l.variant_id }}">
           <td>
             <div class="fw-semibold">{{ l.product_name }}</div>
             <div class="small text-muted">{{ l.variant_name }}</div>
           </td>
           <td class="text-end">{{ "%.2f"|format(l.unit_price) }} ₸</td>
           <td class="text-center">
-            <form method="post" action="/cart/update" class="d-inline-flex align-items-center gap-2">
+            <form method="post" action="/cart/update" class="cart-update-form d-inline-flex align-items-center gap-2">
               <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
               <input type="number" name="qty" value="{{ l.qty }}" min="0" max="{{ l.stock }}"
                      class="form-control form-control-sm text-center" style="width:70px;"
@@ -39,9 +39,9 @@
               <span class="small text-muted">из {{ l.stock }}</span>
             </form>
           </td>
-          <td class="text-end fw-semibold">{{ "%.2f"|format(l.line_total) }} ₸</td>
+          <td class="text-end fw-semibold line-total">{{ "%.2f"|format(l.line_total) }} ₸</td>
           <td class="text-center">
-            <form method="post" action="/cart/remove">
+            <form method="post" action="/cart/remove" class="cart-remove-form">
               <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
               <button type="submit" class="btn btn-sm btn-outline-danger">✖</button>
             </form>
@@ -52,7 +52,7 @@
       <tfoot>
         <tr>
           <td colspan="3" class="text-end fw-bold">Итого:</td>
-          <td class="text-end fw-bold">{{ "%.2f"|format(total) }} ₸</td>
+          <td class="text-end fw-bold" id="cart-total">{{ "%.2f"|format(total) }} ₸</td>
           <td></td>
         </tr>
       </tfoot>
@@ -61,27 +61,27 @@
 
   <!-- Карточки для мобильных -->
   <div class="d-lg-none">
-    <div class="list-group mb-3">
+    <div class="list-group mb-3" id="cart-list">
       {% for l in lines %}
-        <div class="list-group-item">
+        <div class="list-group-item" data-variant-id="{{ l.variant_id }}">
           <div class="fw-semibold">{{ l.product_name }}</div>
           <div class="small text-muted mb-2">{{ l.variant_name }}</div>
           <div class="d-flex justify-content-between align-items-center">
             <span>{{ "%.2f"|format(l.unit_price) }} ₸</span>
-            <span class="fw-semibold">{{ "%.2f"|format(l.line_total) }} ₸</span>
+            <span class="fw-semibold line-total">{{ "%.2f"|format(l.line_total) }} ₸</span>
           </div>
-          <form method="post" action="/cart/update" class="d-flex align-items-center gap-2 mt-2">
+          <form method="post" action="/cart/update" class="cart-update-form d-flex align-items-center gap-2 mt-2">
             <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
             <input type="number" name="qty" value="{{ l.qty }}" min="0" max="{{ l.stock }}"
                    class="form-control form-control-sm" style="width:80px;"
                    onchange="this.form.submit()">
             <span class="small text-muted">из {{ l.stock }}</span>
-            <button type="submit" formaction="/cart/remove" class="btn btn-sm btn-outline-danger ms-auto">Удалить</button>
+            <button type="submit" formaction="/cart/remove" class="btn btn-sm btn-outline-danger ms-auto cart-remove-form">Удалить</button>
           </form>
         </div>
       {% endfor %}
     </div>
-    <div class="text-end fw-bold mb-3">Итого: {{ "%.2f"|format(total) }} ₸</div>
+    <div class="text-end fw-bold mb-3" id="cart-total-mobile">Итого: {{ "%.2f"|format(total) }} ₸</div>
   </div>
 
   <!-- Форма оформления заказа -->
@@ -113,4 +113,7 @@
   </form>
 
 {% endif %}
+
+<!-- 🔹 Подключаем скрипт AJAX-обработки корзины -->
+<script src="/static/js/cart.js"></script>
 {% endblock %}
