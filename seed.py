@@ -3,7 +3,7 @@ from app.db import Base, engine, SessionLocal
 from sqlalchemy.orm import configure_mappers
 from decimal import Decimal
 import app.models  # подтягиваем все модели
-from app.models.catalog import Seller, Category, Product, Variant
+from app.models.catalog import Shop, Category, Product, Variant
 from app.models.user import User
 from app.utils.security import hash_password
 from app.models import Base
@@ -22,7 +22,7 @@ def run_seed():
     db = SessionLocal()
     try:
         # --- Продавец ---
-        seller = Seller(name="Магазин №1", city="Алматы")
+        seller = Shop(name="Магазин №1", city="Алматы")
         db.add(seller)
         db.commit()
         db.refresh(seller)

@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
-from app.models import Product, Category, Variant, Seller   # 🆕 добавлен Seller
+from app.models import Product, Category, Variant, Shop   # 🆕 добавлен Seller
 from pathlib import Path
 import shutil, uuid, os
 
@@ -37,7 +37,7 @@ def products_index(request: Request, db: Session = Depends(get_db)):
 @router.get("/new")
 def product_new(request: Request, db: Session = Depends(get_db)):
     categories = db.query(Category).all()
-    sellers = db.query(Seller).all()  # 🆕 добавили выбор продавца
+    sellers = db.query(Shop).all()  # 🆕 добавили выбор продавца
     return templates.TemplateResponse("admin/product_form.html", {
         "request": request,
         "categories": categories,
@@ -111,7 +111,7 @@ def product_edit(product_id: int, request: Request, db: Session = Depends(get_db
     if not product:
         raise HTTPException(status_code=404, detail="Товар не найден")
     categories = db.query(Category).all()
-    sellers = db.query(Seller).all()  # 🆕 список продавцов
+    sellers = db.query(Shop).all()  # 🆕 список продавцов
     return templates.TemplateResponse("admin/product_form.html", {
         "request": request,
         "product": product,
