@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>✏️ Редактировать пользователя</h2>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="post">
+    <div class="mb-3">
+      <label class="form-label">Имя пользователя</label>
+      <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Новый пароль (если нужно)</label>
+      <input type="password" name="password" class="form-control">
+      <small class="text-muted">Оставьте пустым, если не хотите менять</small>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Роль</label>
+      <select name="role" class="form-control" required>
+        {% for r in roles %}
+          <option value="{{ r }}" {% if user.role == r %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn btn-success">💾 Сохранить</button>
+    <a href="/admin/users" class="btn btn-secondary">Назад</a>
+  </form>
+</div>
+{% endblock %}
