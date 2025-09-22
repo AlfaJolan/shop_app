@@ -26,3 +26,4 @@ dist/
 
 # Alembic (если не нужно коммитить версии)
 alembic/versions/
+app v12.zip
