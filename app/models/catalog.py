@@ -5,7 +5,7 @@ from app.db import Base
 
 
 
-class Shop(Base):
+class Seller(Base):
     __tablename__ = "sellers"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -35,7 +35,7 @@ class Product(Base):
     category: Mapped[Optional["Category"]] = relationship("Category", back_populates="products")
 
     seller_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sellers.id"))   # 🔹 связь с продавцом
-    seller: Mapped[Optional["Shop"]] = relationship("Seller", back_populates="products")
+    seller: Mapped[Optional["Seller"]] = relationship("Seller", back_populates="products")
 
     variants: Mapped[List["Variant"]] = relationship(
         "Variant", back_populates="product", cascade="all, delete-orphan"

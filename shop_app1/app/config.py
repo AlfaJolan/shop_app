@@ -5,7 +5,7 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")  # .env можно не создавать — возьмутся дефолты
 
-APP_NAME = "ShopApp"
+APP_NAME = "SellerApp"
 ENV = os.getenv("ENV", "local")
 
 # SQLite-файл рядом с проектом

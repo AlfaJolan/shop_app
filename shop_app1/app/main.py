@@ -28,7 +28,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
 
 
 # ==== FastAPI app ====
-app = FastAPI(title="ShopApp")
+app = FastAPI(title="SellerApp")
 
 app.add_middleware(AdminAuthMiddleware)
 
