@@ -11,6 +11,12 @@ env/
 # VS Code
 .vscode/
 
+# JetBrains (PyCharm)
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
 # Mypy / pytest
 .mypy_cache/
 .pytest_cache/
@@ -26,4 +32,12 @@ dist/
 
 # Alembic (если не нужно коммитить версии)
 alembic/versions/
-app v12.zip
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Архивы
+*.zip
