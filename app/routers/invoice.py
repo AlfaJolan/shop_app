@@ -70,10 +70,14 @@ def invoice_public(
     pkey: str = Query(...),
     db: Session = Depends(get_db),
 ):
-    # 👇 строим полный абсолютный URL на этот же роут
-    invoice_url = request.url_for("invoice_public", invoice_id=inv.id) + f"?pkey={inv.pkey}"
     inv = _get_invoice_checked(db, invoice_id, pkey)
-    return templates.TemplateResponse("public/invoice.html", {"request": request, "inv": inv, "invoice_url": invoice_url})
+    invoice_url = str(request.url_for("invoice_public", invoice_id=inv.id)) + f"?pkey={inv.pkey}"
+
+    return templates.TemplateResponse(
+        "public/invoice.html",
+        {"request": request, "inv": inv, "invoice_url": invoice_url}
+    )
+
 
 
 # ---------- PDF ----------

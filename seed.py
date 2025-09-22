@@ -7,6 +7,7 @@ from app.models.catalog import Seller, Category, Product, Variant
 from app.models.user import User
 from app.utils.security import hash_password
 from app.models import Base
+from app.models.subscriber import Subscriber
 from app.utils.enums import UserRole
 from sqlalchemy import text
 
@@ -84,7 +85,12 @@ def run_seed():
                 print(f"✅ User created (username='{username}', password='{raw_password}', role='{role}')")
             else:
                 print(f"ℹ️ User '{username}' already exists")
+        channel_chat_id = "-1002878414324"
 
+        subscriber = Subscriber(chat_id=channel_chat_id, username="shop_channel")
+        db.add(subscriber)
+        db.commit()
+        print(f"✅ Канал добавлен как подписчик: {channel_chat_id}")
 
     finally:
         db.close()

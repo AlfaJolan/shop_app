@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
-from app.models import Shop  # 🆕 модель продавца
+from app.models import Seller  # 🆕 модель продавца
 
 router = APIRouter(prefix="/admin/sellers", tags=["admin-sellers"])
 templates = Jinja2Templates(directory="app/templates")
@@ -21,7 +21,7 @@ def get_db():
 # 📦 список продавцов
 @router.get("/")
 def sellers_index(request: Request, db: Session = Depends(get_db)):
-    sellers = db.query(Shop).all()
+    sellers = db.query(Seller).all()
     return templates.TemplateResponse("admin/sellers_index.html", {
         "request": request,
         "sellers": sellers,
@@ -44,7 +44,7 @@ def seller_create(
     city: str = Form(None),
     db: Session = Depends(get_db),
 ):
-    seller = Shop(name=name, city=city)
+    seller = Seller(name=name, city=city)
     db.add(seller)
     db.commit()
     return RedirectResponse("/admin/sellers", status_code=303)
@@ -53,7 +53,7 @@ def seller_create(
 # ✏️ форма редактирования
 @router.get("/{seller_id}/edit")
 def seller_edit(seller_id: int, request: Request, db: Session = Depends(get_db)):
-    seller = db.query(Shop).get(seller_id)
+    seller = db.query(Seller).get(seller_id)
     if not seller:
         raise HTTPException(status_code=404, detail="Продавец не найден")
     return templates.TemplateResponse("admin/seller_form.html", {
@@ -70,7 +70,7 @@ def seller_update(
     city: str = Form(None),
     db: Session = Depends(get_db),
 ):
-    seller = db.query(Shop).get(seller_id)
+    seller = db.query(Seller).get(seller_id)
     if not seller:
         raise HTTPException(status_code=404, detail="Продавец не найден")
 
@@ -83,7 +83,7 @@ def seller_update(
 # 🗑 удаление
 @router.post("/{seller_id}/delete")
 def seller_delete(seller_id: int, db: Session = Depends(get_db)):
-    seller = db.query(Shop).get(seller_id)
+    seller = db.query(Seller).get(seller_id)
     if not seller:
         raise HTTPException(status_code=404, detail="Продавец не найден")
 
