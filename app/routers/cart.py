@@ -268,6 +268,7 @@ async def checkout(
 
     notifier.notify_invoice_created(
         invoice_id=inv.id,
+        invoice_pkey=inv.pkey,
         customer_name=inv.customer_name,
         phone=inv.phone,
         comment=inv.comment,

@@ -4,6 +4,7 @@ from app.telegram.config_notify import notify_settings
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models.subscriber import Subscriber
+from app import config  # импортируем настройки
 
 class TelegramNotifier:
     def __init__(self, token: str):
@@ -41,7 +42,7 @@ class TelegramNotifier:
         lines.append(f"\n💰 Итого: {total_sum} ₸")
         return "\n".join(lines)
 
-    def notify_invoice_created(self, invoice_id, customer_name, phone, comment, items):
+    def notify_invoice_created(self, invoice_id,invoice_pkey, customer_name, phone, comment, items):
         """Уведомление о создании накладной (бывший заказ)"""
         date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         msg = [
@@ -52,6 +53,9 @@ class TelegramNotifier:
         ]
         if comment:
             msg.append(f"💬 Комментарий: {comment}")
+            
+        invoice_url = f"{config.BASE_URL}/invoice/{invoice_id}?pkey={invoice_pkey}"
+        msg.append(f"🔗 <a href='{invoice_url}'>Открыть накладную</a>")        
         msg.append("\n📦 Состав заказа:\n" + self.format_items(items))
         self.send("\n".join(msg))
 

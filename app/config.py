@@ -31,5 +31,8 @@ SESSION_HTTPONLY = os.getenv("SESSION_HTTPONLY", "true").lower() in ("1", "true"
 # === Redis для server-side сессий (опционально) ===
 REDIS_URL = os.getenv("REDIS_URL")  # например: redis://localhost:6379/0
 
+#BASE_URL = "http://127.0.0.1:8000"  # локально
+BASE_URL = "https://shop.yourdomain.kz"  # на проде
+
 # === Прочее (можно расширять) ===
 # Например, email-конфиг, API-ключи и т.д.
