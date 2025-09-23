@@ -47,6 +47,9 @@ class Variant(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
     name: Mapped[str] = mapped_column(String(120))   # "1 литр", "1 кг" и т.д.
     pack_size: Mapped[int] = mapped_column(Integer, default=1)
+    # Себестоимость
+    unit_price_net_cost: Mapped[float] = mapped_column(Numeric(12, 2))
+    # Цена товара
     unit_price: Mapped[float] = mapped_column(Numeric(12, 2))
     stock: Mapped[int] = mapped_column(Integer, default=0)   # ← НОВОЕ: остаток
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
