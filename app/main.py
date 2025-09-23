@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException  # 🔹 добавили
 from app.middleware.rbac import RBACMiddleware
 from app.db import Base, engine
 import app.models  # noqa: F401
@@ -53,13 +54,25 @@ app.include_router(admin_users.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Переделать этот момент под отдельные файлы
 # ==== Контакты (JSON конфиг) ====
 templates = Jinja2Templates(directory="app/templates")
 CONFIG_PATH = Path(__file__).parent / "config" / "contacts.json"
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONTACTS = json.load(f)
 templates.env.globals["contacts"] = CONTACTS  # теперь contacts доступны во всех шаблонах
-app.state.contacts = CONTACTS          # ← добавь эту строку
+app.state.contacts = CONTACTS                 # ← добавил
+
+# ==== Обработчик ошибок (404) ====
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        return templates.TemplateResponse(
+            "errors/404.html",
+            {"request": request},
+            status_code=404
+        )
+    raise exc  # остальные ошибки пока пробрасываем
 
 @app.get("/__routes")
 def __routes():
