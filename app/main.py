@@ -7,6 +7,10 @@ import app.models  # noqa: F401
 from sqlalchemy.orm import configure_mappers
 from app import config
 
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
+import json
+
 configure_mappers()
 Base.metadata.create_all(bind=engine)
 
@@ -48,6 +52,14 @@ app.include_router(search_router.router)
 app.include_router(admin_users.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+# ==== Контакты (JSON конфиг) ====
+templates = Jinja2Templates(directory="app/templates")
+CONFIG_PATH = Path(__file__).parent / "config" / "contacts.json"
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    CONTACTS = json.load(f)
+templates.env.globals["contacts"] = CONTACTS  # теперь contacts доступны во всех шаблонах
+app.state.contacts = CONTACTS          # ← добавь эту строку
 
 @app.get("/__routes")
 def __routes():

@@ -61,7 +61,7 @@
   <!-- Header -->
   <nav class="navbar navbar-expand-lg bg-white shadow-sm sticky-top">
     <div class="container d-flex justify-content-between align-items-center">
-      <a class="navbar-brand fw-bold fs-4 text-primary" href="/">🛍️ Seller</a>
+      <a class="navbar-brand fw-bold fs-4 text-primary" href="/">🛍️ Shop</a>
       <div class="d-flex align-items-center gap-3" id="auth-buttons">
   <!-- Здесь JS сам подставит Войти / Выйти / Админка -->
       </div>
@@ -91,10 +91,10 @@
 
   <!-- Плавающие кнопки -->
   <div class="floating-buttons-messengers">
-    <a href="https://wa.me/7707XXXXXXX" target="_blank" class="float-btn wa">
+    <a href="{{ request.app.state.contacts.whatsapp }}" target="_blank" class="float-btn wa">
       <i class="fab fa-whatsapp"></i>
     </a>
-    <a href="https://t.me/your_channel" target="_blank" class="float-btn tg">
+    <a href="{{ request.app.state.contacts.telegram }}" target="_blank" class="float-btn tg">
       <i class="fab fa-telegram"></i>
     </a>
   </div>
