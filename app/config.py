@@ -9,6 +9,7 @@ load_dotenv(BASE_DIR / ".env")  # Загружаем переменные окр
 APP_NAME = "SellerApp"
 ENV = os.getenv("ENV", "local")  # local / prod / staging
 
+#и для боя этот пароль
 # === База данных ===
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -19,7 +20,7 @@ DATABASE_URL = os.getenv(
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # DEBUG-флаг: True для локалки, False для продакшена
-DEBUG = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
+DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
 
 # === Настройки сессий ===
 SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "shop_session")
