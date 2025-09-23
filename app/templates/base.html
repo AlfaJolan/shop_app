@@ -23,7 +23,7 @@
       gap: 10px;
       z-index: 1050; /* поверх контента, но под модалками */
     }
-    .floating-buttons-messengers a {
+    .floating-buttons-messengers .float-btn {
       width: 50px;
       height: 50px;
       border-radius: 50%;
@@ -31,12 +31,16 @@
       justify-content: center;
       align-items: center;
       font-size: 22px;
+      color: #fff;
       box-shadow: 0 4px 10px rgba(77, 73, 73, 0.2);
       transition: transform 0.2s;
+      text-decoration: none !important;
     }
-    .floating-buttons-messengers a:hover {
+    .floating-buttons-messengers .float-btn:hover {
       transform: scale(1.1);
     }
+    .floating-buttons-messengers .float-btn.wa { background: #25d366; }
+    .floating-buttons-messengers .float-btn.tg { background: #0088cc; }
 
     /* На очень маленьких экранах */
     @media (max-width: 480px) {
@@ -44,7 +48,7 @@
         right: 10px;
         bottom: 70px;
       }
-      .floating-buttons-messengers a {
+      .floating-buttons-messengers .float-btn {
         width: 44px;
         height: 44px;
         font-size: 20px;
@@ -87,10 +91,10 @@
 
   <!-- Плавающие кнопки -->
   <div class="floating-buttons-messengers">
-    <a href="https://wa.me/7707XXXXXXX" target="_blank" class="btn btn-success">
+    <a href="https://wa.me/7707XXXXXXX" target="_blank" class="float-btn wa">
       <i class="fab fa-whatsapp"></i>
     </a>
-    <a href="https://t.me/your_channel" target="_blank" class="btn btn-info text-white">
+    <a href="https://t.me/your_channel" target="_blank" class="float-btn tg">
       <i class="fab fa-telegram"></i>
     </a>
   </div>
@@ -101,8 +105,7 @@
 
   <!-- 🔹 Новый JS для корзины -->
   <script src="/static/js/cart.js"></script>
-  <script src="/static/js/auth_buttons.js">
-</script>
+  <script src="/static/js/auth_buttons.js"></script>
 
 </body>
 </html>
