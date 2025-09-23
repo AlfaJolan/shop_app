@@ -19,7 +19,7 @@ DATABASE_URL = os.getenv(
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # DEBUG-флаг: True для локалки, False для продакшена
-DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+DEBUG = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
 
 # === Настройки сессий ===
 SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "shop_session")
@@ -32,7 +32,7 @@ SESSION_HTTPONLY = os.getenv("SESSION_HTTPONLY", "true").lower() in ("1", "true"
 REDIS_URL = os.getenv("REDIS_URL")  # например: redis://localhost:6379/0
 
 #BASE_URL = "http://127.0.0.1:8000"  # локально
-BASE_URL = "https://shop.yourdomain.kz"  # на проде
+BASE_URL = "https://economzhasa.kz"  # на проде
 
 # === Прочее (можно расширять) ===
 # Например, email-конфиг, API-ключи и т.д.
