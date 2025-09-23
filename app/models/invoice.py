@@ -84,7 +84,8 @@ class InvoiceItem(Base):
 
     qty_original: Mapped[int] = mapped_column(Integer)
     qty_final: Mapped[int] = mapped_column(Integer)
-
+    # Себестоимость товара
+    unit_price_net_cost: Mapped[float] = mapped_column(Numeric(12, 2))
     unit_price_original: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     unit_price_final: Mapped[Decimal] = mapped_column(Numeric(12, 2))
 

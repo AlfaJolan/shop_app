@@ -6,6 +6,7 @@ from app.db import SessionLocal
 from app.models import Product, Category, Variant, Seller   # 🆕 добавлен Seller
 from pathlib import Path
 import shutil, uuid, os
+from typing import Optional
 
 router = APIRouter(prefix="/admin/catalog/products", tags=["admin-products"])
 templates = Jinja2Templates(directory="app/templates")
@@ -21,6 +22,13 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def safe_int(val: str) -> int:
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return 0
+
 
 
 # 📦 список товаров
@@ -58,6 +66,7 @@ def product_create(
     image: UploadFile = File(None),
 
     new_name: list[str] = Form([]),
+    new_price_net_cost: list[float] = Form([]),
     new_price: list[float] = Form([]),
     # 🆕 новые поля для логики "штуки и коробки"
     new_pieces: list[int] = Form([]),
@@ -94,7 +103,8 @@ def product_create(
         v = Variant(
             product_id=product.id,
             name=new_name[i],
-            unit_price=new_price[i],
+            unit_price_net_cost=new_price_net_cost[i] if i < len(new_price_net_cost) else 0,  # 🆕 безопасно
+            unit_price=new_price[i] if i < len(new_price) else 0,
             stock=stock,
         )
         db.add(v)
@@ -134,12 +144,19 @@ def product_update(
 
     var_id: list[int] = Form([]),
     var_name: list[str] = Form([]),
+    var_net_price: list[float] = Form([]),  # 🆕 себестоимость (unit_price_net_cost)
     var_price: list[float] = Form([]),
     # 🆕 новые поля для логики "штуки и коробки"
     var_pieces: list[int] = Form([]),
     var_boxes: list[int] = Form([]),
 
+    # 🆕 ДОБАВЛЕНИЕ к остатку (появляется при нажатии кнопки)
+    var_add_pieces: list[str] = Form([]),
+    var_add_boxes: list[str] = Form([]),
+    # 🆕
+
     new_name: list[str] = Form([]),
+    new_net_cost_price: list[float] = Form([]),
     new_price: list[float] = Form([]),
     new_pieces: list[int] = Form([]),
     new_boxes: list[int] = Form([]),
@@ -184,14 +201,27 @@ def product_update(
         if vid in delete_variant_id:
             db.delete(v)
             continue
+
+        # основная логика из кода (не трогаем):
         pieces = int(var_pieces[i]) if i < len(var_pieces) and var_pieces[i] else 0
         boxes = int(var_boxes[i]) if i < len(var_boxes) and var_boxes[i] else 0
         # 🆕 если коробки > 0 → сохраняем штуки * коробки
         stock = pieces * boxes if boxes > 0 else pieces
 
-        v.name = var_name[i]
-        v.unit_price = var_price[i]
+        v.name = var_name[i] if i < len(var_name) else v.name
+        # 🆕 обновляем себестоимость отдельно
+        if i < len(var_net_price):
+            v.unit_price_net_cost = var_net_price[i]
+        if i < len(var_price):
+            v.unit_price = var_price[i]
         v.stock = stock
+
+        # 🆕 ДОБАВИТЬ К ОСТАТКУ: умножаем и прибавляем
+        add_pieces = safe_int(var_add_pieces[i]) if i < len(var_add_pieces) else 0
+        add_boxes  = safe_int(var_add_boxes[i])  if i < len(var_add_boxes)  else 0
+        add_total = add_pieces * add_boxes if add_boxes > 0 else add_pieces
+        if add_total:
+            v.stock = (v.stock or 0) + add_total
 
     # новые варианты
     for i in range(len(new_name)):
@@ -204,7 +234,8 @@ def product_update(
         v = Variant(
             product_id=product.id,
             name=new_name[i],
-            unit_price=new_price[i],
+            unit_price_net_cost = new_net_cost_price[i] if i < len(new_net_cost_price) else 0,
+            unit_price=new_price[i] if i < len(new_price) else 0,
             stock=stock,
         )
         db.add(v)

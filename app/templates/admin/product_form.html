@@ -62,6 +62,17 @@
     <!-- Варианты (редактирование существующих) -->
     {% if product and product.variants %}
       <h4>Варианты товара</h4>
+
+      <!-- 🆕 Шапка таблицы -->
+      <div class="row fw-bold mb-2">
+        <div class="col-md-3">Наименование</div>
+        <div class="col-md-2">Себестоимость</div>
+        <div class="col-md-2">Цена</div>
+        <div class="col-md-2">Кол-во (штук)</div>
+        <div class="col-md-2">Кол-во (коробок)</div>
+        <div class="col-md-1">Удалить</div>
+      </div>
+
       <div id="variants">
         {% for v in product.variants %}
           <div class="row g-2 mb-2 variant-row border p-2 rounded">
@@ -71,22 +82,54 @@
                      placeholder="Название варианта" value="{{ v.name }}">
             </div>
             <div class="col-md-2">
+              <!-- 👇 фикс имени поля под backend var_net_price -->
+              <input type="number" step="0.01" name="var_net_price" class="form-control"
+                     placeholder="Себестоимость" value="{{ v.unit_price_net_cost }}">
+            </div>
+            <div class="col-md-2">
               <input type="number" step="0.01" name="var_price" class="form-control"
                      placeholder="Цена" value="{{ v.unit_price }}">
             </div>
             <!-- 🆕 добавлено два новых поля: штук и коробок -->
             <div class="col-md-2">
               <input type="number" name="var_pieces" class="form-control"
-                     placeholder="Штук в коробке">
+                     placeholder="Штук в коробке" value="{{ v.stock }}">
             </div>
             <div class="col-md-2">
               <input type="number" name="var_boxes" class="form-control"
                      placeholder="Коробок" value="0" min="0">
             </div>
-            <div class="col-md-2 d-flex align-items-center">
+            <div class="col-md-1 d-flex align-items-center">
               <label class="form-check-label me-1">Удалить</label>
               <input type="checkbox" name="delete_variant_id" value="{{ v.id }}">
             </div>
+
+            <!-- 🆕 Кнопка добавить к остатку -->
+            <div class="col-md-12 mt-2">
+              <button type="button" class="btn btn-outline-success btn-sm" onclick="toggleAddStock(this)">
+                ➕ Добавить к остатку
+              </button>
+            </div>
+
+            <!-- 🆕 Скрываемая зона добавления к остатку (конкретно для этого варианта) -->
+            <div class="col-md-12 add-stock-area mt-2" style="display:none;">
+              <div class="row g-2">
+                <div class="col-md-3">
+                  <input type="number" name="var_add_pieces" class="form-control"
+                         placeholder="Штук в коробке (добавить)" min="0">
+                </div>
+                <div class="col-md-3">
+                  <input type="number" name="var_add_boxes" class="form-control"
+                         placeholder="Коробок (добавить)" min="0" value="0">
+                </div>
+                <div class="col-md-6 d-flex align-items-center">
+                  <small class="text-muted">
+                    🆕 Эти два поля перемножаются и прибавляются к текущему остатку.
+                  </small>
+                </div>
+              </div>
+            </div>
+
           </div>
         {% endfor %}
       </div>
@@ -96,10 +139,21 @@
     <h5 class="mt-4">➕ Новые варианты</h5>
     <div id="new-variants">
       {% if not product %}
+      <!-- 🆕 Шапка таблицы -->
+      <div class="row fw-bold mb-2">
+        <div class="col-md-3">Наименование</div>
+        <div class="col-md-2">Себестоимость</div>
+        <div class="col-md-2">Цена</div>
+        <div class="col-md-2">Кол-во (штук)</div>
+        <div class="col-md-2">Кол-во (коробок)</div>
+      </div>
         <!-- При создании хотя бы один блок по умолчанию -->
         <div class="row g-2 mb-2 border p-2 rounded">
           <div class="col-md-3">
             <input type="text" name="new_name" class="form-control" placeholder="Название варианта">
+          </div>
+          <div class="col-md-2">
+            <input type="number" step="0.01" name="new_price_net_cost" class="form-control" placeholder="Себестоимость">
           </div>
           <div class="col-md-2">
             <input type="number" step="0.01" name="new_price" class="form-control" placeholder="Цена">
@@ -122,7 +176,7 @@
       <span id="spinner" class="spinner-border spinner-border-sm ms-2" style="display:none;" role="status" aria-hidden="true"></span>
     </button>
     <a href="/admin/catalog/products" class="btn btn-secondary btn-lg">⬅ Назад</a>
-        <a href="/admin/catalog/products" class="btn btn-secondary btn-lg">⬅ Назад</a>
+    <a href="/admin/catalog/products" class="btn btn-secondary btn-lg">⬅ Назад</a>
   </form>
 </div>
 
@@ -138,6 +192,9 @@
         <input type="text" name="new_name" class="form-control" placeholder="Название варианта">
       </div>
       <div class="col-md-2">
+        <input type="number" step="0.01" name="new_price_net_cost" class="form-control" placeholder="Себестоимость">
+      </div>
+      <div class="col-md-2">
         <input type="number" step="0.01" name="new_price" class="form-control" placeholder="Цена">
       </div>
       <!-- 🆕 динамически добавляем поля для штук и коробок -->
@@ -149,5 +206,13 @@
       </div>`;
     document.getElementById("new-variants").appendChild(div);
   }
-  </script>
+
+  // 🆕 показать/скрыть зону добавления к остатку для конкретного варианта
+  function toggleAddStock(btn) {
+    const row = btn.closest('.variant-row');
+    const area = row.querySelector('.add-stock-area');
+    if (!area) return;
+    area.style.display = (area.style.display === 'none' || area.style.display === '') ? 'block' : 'none';
+  }
+</script>
 {% endblock %}

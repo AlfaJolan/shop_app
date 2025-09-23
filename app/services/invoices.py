@@ -2,7 +2,7 @@ from decimal import Decimal
 import secrets
 from sqlalchemy.orm import Session
 from app.models.invoice import Invoice, InvoiceItem
-from app.models.catalog import Product
+from app.models.catalog import Product, Variant
 
 def _make_pkey(length: int = 16) -> str:
     return secrets.token_urlsafe(length)
@@ -42,7 +42,7 @@ def create_invoice(
         seller_name = None
         product_id = l.get("product_id")
         variant_id = l.get("variant_id")
-
+        unit_price_net_cost = None
         if product_id:
             p = db.query(Product).get(int(product_id))
             if p:
@@ -52,6 +52,12 @@ def create_invoice(
                     seller_id = p.seller_id
                     if hasattr(p, "seller") and p.seller:
                         seller_name = p.seller.name
+        if variant_id:
+            variant = db.query(Variant).get(int(variant_id))
+            if variant:
+                if variant.unit_price_net_cost:
+                    unit_price_net_cost = variant.unit_price_net_cost
+            
 
         item = InvoiceItem(
             invoice_id=inv.id,
@@ -64,6 +70,7 @@ def create_invoice(
             product_image=product_image,
             qty_original=qty,
             qty_final=qty,
+            unit_price_net_cost = unit_price_net_cost,
             unit_price_original=unit_price,
             unit_price_final=unit_price,
             line_total_original=line_total,

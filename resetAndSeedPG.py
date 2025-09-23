@@ -56,6 +56,7 @@ def run_seed():
                 name="Основной вариант",
                 pack_size=1,
                 unit_price=Decimal(i),  # цена = имя
+                unit_price_net_cost = Decimal(i-0.2),
                 stock=20,
                 is_active=True,
             )
