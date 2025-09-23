@@ -1,13 +1,20 @@
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import RedirectResponse
+from starlette.responses import JSONResponse, RedirectResponse
 from fastapi import Request
 from app.utils.enums import UserRole
 
 
 ACCESS_MATRIX = {
     UserRole.ADMIN.value: ["*"],  # полный доступ
-    UserRole.SELLER.value: ["/admin/dashboard", "/admin/products", "/admin/invoices"],
-    UserRole.PICKER.value: ["/admin/dashboard", "/admin/orders/live"],
+    UserRole.SELLER.value: [
+        "/admin/dashboard",
+        "/admin/products",
+        "/admin/invoices",
+    ],
+    UserRole.PICKER.value: [
+        "/admin/dashboard",
+        "/admin/orders/live",
+    ],
 }
 
 
@@ -31,9 +38,10 @@ class RBACMiddleware(BaseHTTPMiddleware):
             if "*" in allowed_paths or any(path.startswith(p) for p in allowed_paths):
                 return await call_next(request)
 
-            # 🔹 иначе → редирект назад с сообщением
-            referer = request.headers.get("referer") or "/"
-            request.session["flash"] = "❌ У вас нет прав для доступа к этой странице."
-            return RedirectResponse(referer)
+            # ❌ иначе → отдаём 403 вместо редиректа на referer
+            return JSONResponse(
+                {"error": "У вас нет прав для доступа к этой странице."},
+                status_code=403,
+            )
 
         return await call_next(request)

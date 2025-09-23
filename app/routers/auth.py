@@ -1,6 +1,6 @@
 import time
 from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
@@ -94,16 +94,19 @@ def login(
     # Успешный вход — сброс счётчика
     reset_attempts(client_ip)
 
-    # сохраняем в сессии
+    # --- предотвращаем session fixation
+    request.session.clear()
+
+    # сохраняем только минимальные данные
     request.session["user_id"] = user.id
     role_clean = (user.role or "").strip().lower()
     request.session["role"] = role_clean
+    request.session["auth_ts"] = int(time.time())  # отметка времени входа
+
     print("🔑 LOGIN SUCCESS:", user.username, "role=", role_clean)
 
-
-
-
     return RedirectResponse("/admin/dashboard", status_code=303)
+
 
 
 # выход
@@ -111,7 +114,12 @@ def login(
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/", status_code=303)
+
+
+# 🔹 API, чтобы фронт знал текущего пользователя и роль
 @router.get("/whoami")
 def whoami(request: Request):
-    return {"user_id": request.session.get("user_id"), "role": request.session.get("role")}
-
+    return {
+        "user_id": request.session.get("user_id"),
+        "role": request.session.get("role"),
+    }

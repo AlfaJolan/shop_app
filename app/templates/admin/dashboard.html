@@ -3,10 +3,15 @@
 <div class="container my-4">
   <h2 class="mb-4 text-center">⚙️ Админская панель</h2>
 
+  <!-- роль пробрасываем из сессии -->
+  <script>
+    window.currentRole = "{{ role }}";
+  </script>
+
   <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
 
     <!-- Заказы -->
-    <div class="col">
+    <div class="col" data-roles="admin,seller,picker">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">📦 Заказы</h4>
@@ -17,7 +22,7 @@
     </div>
 
     <!-- Накладные -->
-    <div class="col">
+    <div class="col" data-roles="admin,seller">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">📄 Накладные</h4>
@@ -28,7 +33,7 @@
     </div>
 
     <!-- Аудит -->
-    <div class="col">
+    <div class="col" data-roles="admin,seller">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">🔍 Аудит</h4>
@@ -39,7 +44,7 @@
     </div>
 
     <!-- Категории -->
-    <div class="col">
+    <div class="col" data-roles="admin">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">🗂 Категории</h4>
@@ -50,7 +55,7 @@
     </div>
 
     <!-- Продавцы -->
-    <div class="col">
+    <div class="col" data-roles="admin">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">🏪 Продавцы</h4>
@@ -61,8 +66,7 @@
     </div>
 
     <!-- Товары -->
-    
-    <div class="col">
+    <div class="col" data-roles="admin,seller">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">🛒 Товары</h4>
@@ -73,12 +77,23 @@
     </div>
 
     <!-- Варианты -->
-    <div class="col">
+    <div class="col" data-roles="admin,seller,picker">
       <div class="card shadow-sm h-100 admin-card">
         <div class="card-body text-center d-flex flex-column">
           <h4 class="card-title mb-2">🔖 Варианты</h4>
           <p class="card-text text-muted flex-grow-1">Управление вариантами товаров.</p>
           <a href="#" class="btn btn-secondary mt-auto w-100 disabled">Скоро</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Пользователи -->
+    <div class="col" data-roles="admin">
+      <div class="card shadow-sm h-100 admin-card">
+        <div class="card-body text-center d-flex flex-column">
+          <h4 class="card-title mb-2">👤 Пользователи</h4>
+          <p class="card-text text-muted flex-grow-1">Управление пользователями</p>
+          <a href="/admin/users" class="btn btn-primary mt-auto w-100">Перейти</a>
         </div>
       </div>
     </div>
@@ -95,4 +110,8 @@
   box-shadow: 0 .5rem 1rem rgba(0,0,0,.1);
 }
 </style>
+
+<!-- Подключаем внешний JS -->
+<!--<script src="{{ url_for('static', path='/js/role_filter.js') }}"></script>-->
+
 {% endblock %}

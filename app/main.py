@@ -1,57 +1,38 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import RedirectResponse
-
-from app.db import Base, engine
 from app.middleware.rbac import RBACMiddleware
-# 1) Импортируем все модели до create_all(),
-#    чтобы SQLAlchemy знал про классы и связи
+from app.db import Base, engine
 import app.models  # noqa: F401
-
 from sqlalchemy.orm import configure_mappers
-configure_mappers()
+from app import config
 
-# 2) Создаём таблицы
+configure_mappers()
 Base.metadata.create_all(bind=engine)
 
-
-# ==== Middleware ====
-class AdminAuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # проверяем только /admin (кроме /login)
-        if request.url.path.startswith("/admin") and not request.url.path.startswith("/login"):
-            if not request.session.get("is_admin"):
-                return RedirectResponse("/login")
-        return await call_next(request)
-
-
-# ==== FastAPI app ====
 app = FastAPI(title="ShopApp")
 
+# RBAC проверяет роли
 app.add_middleware(RBACMiddleware)
 
-# Сессии (корзина и т.п.)
-app.add_middleware(SessionMiddleware, secret_key="dev-secret-change-me")
-# Проверка админ-доступа
-
+# SessionMiddleware с безопасными настройками
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=config.SECRET_KEY,
+    session_cookie=config.SESSION_COOKIE_NAME,
+    max_age=config.SESSION_MAX_AGE,
+    same_site=config.SESSION_SAMESITE,
+    https_only=not config.DEBUG
+)
 
 # ==== Routers ====
-from app.routers import public, cart
-from app.routers import invoice as invoice_router
-from app.routers import admin_invoice as admin_inv_router
-from app.routers import admin_dashboard
-from app.routers import admin_orders
-from app.routers import admin_catalog as admin_catalog_router
-from app.routers import admin_products as admin_products_router
-from app.routers import auth as auth_router
-from app.routers import admin_seller as admin_sellers_router
+from app.routers import (
+    public, cart, invoice as invoice_router, admin_invoice as admin_inv_router,
+    admin_dashboard, admin_orders, admin_catalog as admin_catalog_router,
+    admin_products as admin_products_router, auth as auth_router,
+    admin_seller as admin_sellers_router, search as search_router, admin_users
+)
 from app.telegram_subscribe import start_polling
-from app.routers import search as search_router
-from app.routers import admin_users
-#CREATE USER shop_user WITH PASSWORD 'your_password';
-
 
 app.include_router(public.router)
 app.include_router(cart.router)
@@ -66,15 +47,13 @@ app.include_router(auth_router.router)
 app.include_router(search_router.router)
 app.include_router(admin_users.router)
 
-# ==== Static ====
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# ==== Debug route ====
 @app.get("/__routes")
 def __routes():
     return [getattr(r, "path", str(r)) for r in app.routes]
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Запуск приложения, стартуем polling")
-    start_polling()
+    print("🚀 Stop Polling")
+    # start_polling()

@@ -14,7 +14,7 @@
 
   <style>
     /* Плавающие кнопки */
-    .floating-buttons {
+    .floating-buttons-messengers {
       position: fixed;
       left: 16px;
       bottom: 80px;
@@ -23,7 +23,7 @@
       gap: 10px;
       z-index: 1050; /* поверх контента, но под модалками */
     }
-    .floating-buttons a {
+    .floating-buttons-messengers a {
       width: 50px;
       height: 50px;
       border-radius: 50%;
@@ -34,17 +34,17 @@
       box-shadow: 0 4px 10px rgba(77, 73, 73, 0.2);
       transition: transform 0.2s;
     }
-    .floating-buttons a:hover {
+    .floating-buttons-messengers a:hover {
       transform: scale(1.1);
     }
 
     /* На очень маленьких экранах */
     @media (max-width: 480px) {
-      .floating-buttons {
+      .floating-buttons-messengers {
         right: 10px;
         bottom: 70px;
       }
-      .floating-buttons a {
+      .floating-buttons-messengers a {
         width: 44px;
         height: 44px;
         font-size: 20px;
@@ -58,20 +58,10 @@
   <nav class="navbar navbar-expand-lg bg-white shadow-sm sticky-top">
     <div class="container d-flex justify-content-between align-items-center">
       <a class="navbar-brand fw-bold fs-4 text-primary" href="/">🛍️ Seller</a>
-      <div class="d-flex align-items-center gap-3">
-        {% if request.session.get("role") in ["admin", "seller", "picker"] %}
-        <a href="/admin" class="btn btn-sm btn-outline-success">⚙️ Админка</a>
-        <a href="/logout" class="btn btn-sm btn-outline-danger">🚪 Выйти</a>
-      {% else %}
-        <a href="/login" class="btn btn-sm btn-outline-primary">🔑 Войти</a>
-      {% endif %}
-        <!-- 🔹 Корзина: теперь количество и сумма -->
-        <a href="/cart" class="btn btn-sm btn-warning position-relative">
-          🛒 Корзина
-          (<span id="cart-count">{{ cart_count or 0 }}</span> шт,
-           <span id="cart-sum">{{ cart_sum or 0 }}</span> ₸)
-        </a>
+      <div class="d-flex align-items-center gap-3" id="auth-buttons">
+  <!-- Здесь JS сам подставит Войти / Выйти / Админка -->
       </div>
+
     </div>
   </nav>
   {% if request.session.get("flash") %}
@@ -96,7 +86,7 @@
   </footer>
 
   <!-- Плавающие кнопки -->
-  <div class="floating-buttons">
+  <div class="floating-buttons-messengers">
     <a href="https://wa.me/7707XXXXXXX" target="_blank" class="btn btn-success">
       <i class="fab fa-whatsapp"></i>
     </a>
@@ -111,5 +101,8 @@
 
   <!-- 🔹 Новый JS для корзины -->
   <script src="/static/js/cart.js"></script>
+  <script src="/static/js/auth_buttons.js">
+</script>
+
 </body>
 </html>
