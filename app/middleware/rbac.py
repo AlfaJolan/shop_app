@@ -10,6 +10,7 @@ ACCESS_MATRIX = {
         "/admin/dashboard",
         "/admin/products",
         "/admin/invoices",
+        "/admin/orders/live",
     ],
     UserRole.PICKER.value: [
         "/admin/dashboard",
