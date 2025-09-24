@@ -354,5 +354,15 @@ async def cart_state(request: Request, db: Session = Depends(get_db)):
         "total_sum": float(total),
     }
 
+# ----------------------- CLEAR -----------------------
+@router.post("/cart/clear")
+async def cart_clear(request: Request, db: Session = Depends(get_db)):
+    _set_cart(request, {})
+
+    if _wants_json(request):
+        return {"ok": True, "total_items": 0, "total_sum": 0, "items": []}
+
+    return RedirectResponse(url="/cart", status_code=303)
+
 
 

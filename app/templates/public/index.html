@@ -14,6 +14,14 @@
   <div class="alert alert-info">{{ flash }}</div>
 {% endif %}
 
+<!-- 🔹 Toast контейнер -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- 🔹 Кнопка очистки корзины -->
+<div class="mb-3">
+  <button id="clear-cart" class="btn btn-outline-danger btn-sm">🗑 Очистить корзину</button>
+</div>
+
 <!-- Динамическая выдача -->
 <div class="row row-cols-2 row-cols-lg-4 g-4" id="search-results" style="display:none;"></div>
 
@@ -104,6 +112,37 @@
   object-fit: cover;
   display: block;
 }
+
+/* 🔹 Toast */
+.toast-container {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2000;
+}
+.toast {
+  background: #333;
+  color: #fff;
+  padding: .75rem 1rem;
+  border-radius: .25rem;
+  margin-bottom: .5rem;
+  opacity: 0.95;
+  animation: fadeInOut 3s forwards;
+}
+.toast.success { background: #28a745; }
+.toast.error { background: #dc3545; }
+.toast.info { background: #17a2b8; }
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(-10px); }
+  10% { opacity: 0.95; transform: translateY(0); }
+  90% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(-10px); }
+}
+
+/* 🔹 Подсветка qty */
+.qty-input.flash-green { background: #d4edda; transition: background .7s; }
+.qty-input.flash-red { background: #f8d7da; transition: background .7s; }
 
 /* 🔹 На очень маленьких экранах */
 @media (max-width: 576px) {
@@ -233,6 +272,22 @@
   
   document.addEventListener("click", (e)=>{ if(!($suggest.contains(e.target)||e.target===$in)){ $suggest.classList.remove("show"); }});
   
+  // 🔹 Toast
+  function showToast(msg, type="success"){
+    const container = document.getElementById("toast-container");
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(()=>toast.remove(), 3000);
+  }
+
+  // 🔹 Подсветка qty
+  function flashInput(input, type="green"){
+    input.classList.add(type === "green" ? "flash-green" : "flash-red");
+    setTimeout(()=>input.classList.remove("flash-green","flash-red"), 700);
+  }
+
   // 🔹 AJAX: set qty через +, − и ручной ввод
   document.addEventListener("click", async (e)=>{
     const form = e.target.closest("form.cart-set-form");
@@ -244,10 +299,21 @@
     if(e.target.classList.contains("btn-inc")){
       qtyInput.value = Math.min(stock, current+1);
       await submitCartForm(form);
+      showToast("✅ Товар добавлен в корзину","success");
+      flashInput(qtyInput,"green");
     }
     if(e.target.classList.contains("btn-dec")){
       qtyInput.value = Math.max(0, current-1);
       await submitCartForm(form);
+      showToast("❌ Товар убран","error");
+      flashInput(qtyInput, (parseInt(qtyInput.value)||0) > 0 ? "red" : "red");
+    }
+  });
+
+  // 🔹 запоминаем предыдущее значение qty, чтобы подсвечивать корректно
+  document.addEventListener("focusin", (e)=>{
+    if(e.target.classList.contains("qty-input")){
+      e.target.dataset.prev = e.target.value;
     }
   });
 
@@ -259,8 +325,11 @@
       let val = parseInt(e.target.value)||0;
       if(val > stock) val = stock;
       if(val < 0) val = 0;
+      const prev = parseInt(e.target.dataset.prev || "0") || 0;
       e.target.value = val;
       await submitCartForm(form);
+      showToast("ℹ Количество обновлено","info");
+      flashInput(e.target, val >= prev ? "green" : "red");
     }
   });
 
@@ -308,6 +377,24 @@
     }catch(err){
       console.error("Ошибка загрузки состояния корзины:", err);
     }
+  }
+
+  // 🔹 Очистка корзины
+  const clearBtn = document.getElementById("clear-cart");
+  if(clearBtn){
+    clearBtn.addEventListener("click", async ()=>{
+      try{
+        const resp = await fetch("/cart/clear",{method:"POST",headers:{Accept:"application/json"}});
+        if(resp.ok){
+          const data = await resp.json();
+          updateCartUI(data);
+          document.querySelectorAll(".qty-input").forEach(i=>{ i.value=0; flashInput(i,"red"); });
+          showToast("🗑 Корзина очищена","error");
+        }
+      }catch(err){
+        console.error("Ошибка очистки корзины:", err);
+      }
+    });
   }
 
   window.addEventListener("DOMContentLoaded", refreshCartState);
