@@ -45,15 +45,20 @@
                         <small class="text-muted">(осталось: {{ v.stock }})</small>
                       {% endif %}
                     </span>
-                    <form method="post" action="/cart/add" class="cart-add-form d-flex align-items-center gap-2">
+                    <!-- 🔹 форма добавления в корзину -->
+                    <form method="post" action="/cart/set" class="cart-set-form d-flex align-items-center gap-2">
                       <input type="hidden" name="product_id" value="{{ p.id }}">
                       <input type="hidden" name="variant_id" value="{{ v.id }}">
-                      <input type="number" name="qty" value="1" min="1"
-                             class="form-control form-control-sm" style="width:60px;">
+                      <input type="hidden" name="stock" value="{{ v.stock if v.stock is defined else '' }}">
+                      <!-- 🔹 qty теперь по умолчанию 0 -->
+                      <button type="button" class="btn btn-sm btn-outline-secondary btn-dec">−</button>
+                      <input type="number" name="qty" value="0" min="0"
+                             class="form-control form-control-sm qty-input text-center" style="width:60px;">
                       {% if v.stock is defined and v.stock|int <= 0 %}
                         <button type="button" class="btn btn-sm btn-secondary" disabled>Нет</button>
                       {% else %}
-                        <button type="submit" class="btn btn-sm btn-primary">+</button>
+                        <!-- 🔹 кнопка плюс теперь инкрементирует -->
+                        <button type="button" class="btn btn-sm btn-primary btn-inc">+</button>
                       {% endif %}
                     </form>
                   </div>
@@ -152,13 +157,14 @@
                         ${escapeHtml(v.name)} — ${Number(v.unit_price).toFixed(2)} ₸
                         ${v.stock!==null && v.stock!==undefined ? `<small class="text-muted">(осталось: ${v.stock})</small>` : ""}
                       </span>
-                      <!-- 🔹 добавлен класс cart-add-form, остальное без изменений -->
-                      <form method="post" action="/cart/add" class="cart-add-form d-flex align-items-center gap-2">
+                      <form method="post" action="/cart/set" class="cart-set-form d-flex align-items-center gap-2">
                         <input type="hidden" name="product_id" value="${p.id}">
                         <input type="hidden" name="variant_id" value="${v.id}">
-                        <input type="number" name="qty" value="1" min="1"
-                               class="form-control form-control-sm" style="width:60px;">
-                        <button type="submit" class="btn btn-sm ${v.stock<=0 ? "btn-secondary" : "btn-primary"}" ${v.stock<=0 ? "disabled" : ""}>
+                        <input type="hidden" name="stock" value="${v.stock ?? ''}">
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-dec">−</button>
+                        <input type="number" name="qty" value="0" min="0"
+                               class="form-control form-control-sm qty-input text-center" style="width:60px;">
+                        <button type="button" class="btn btn-sm ${v.stock<=0 ? "btn-secondary" : "btn-primary btn-inc"}" ${v.stock<=0 ? "disabled" : ""}>
                           ${v.stock<=0 ? "Нет" : "+"}
                         </button>
                       </form>
@@ -172,6 +178,9 @@
         </div>
       </div>
     `).join("");
+
+    // 🔹 после перерисовки обновляем qty из корзины
+    refreshCartState();
   }
   
   function renderSuggest(list,q){
@@ -224,33 +233,83 @@
   
   document.addEventListener("click", (e)=>{ if(!($suggest.contains(e.target)||e.target===$in)){ $suggest.classList.remove("show"); }});
   
-  // 🔹 AJAX для форм добавления в корзину внутри динамических результатов поиска
-  // Используем делегирование: один обработчик на контейнер $res, чтобы ловить любые
-  // вновь отрисованные формы .cart-add-form (логика поиска НЕ менялась)
-  $res.addEventListener("submit", async (e) => {
-    const form = e.target;
-    if (!(form instanceof HTMLFormElement)) return;
-    if (!form.matches("form.cart-add-form")) return;
-  
-    e.preventDefault();
+  // 🔹 AJAX: set qty через +, − и ручной ввод
+  document.addEventListener("click", async (e)=>{
+    const form = e.target.closest("form.cart-set-form");
+    if(!form) return;
+    const qtyInput = form.querySelector(".qty-input");
+    const stock = parseInt(form.querySelector("input[name=stock]")?.value) || Infinity;
+    let current = parseInt(qtyInput.value)||0;
+
+    if(e.target.classList.contains("btn-inc")){
+      qtyInput.value = Math.min(stock, current+1);
+      await submitCartForm(form);
+    }
+    if(e.target.classList.contains("btn-dec")){
+      qtyInput.value = Math.max(0, current-1);
+      await submitCartForm(form);
+    }
+  });
+
+  document.addEventListener("change", async (e)=>{
+    if(e.target.classList.contains("qty-input")){
+      const form = e.target.closest("form.cart-set-form");
+      if(!form) return;
+      const stock = parseInt(form.querySelector("input[name=stock]")?.value) || Infinity;
+      let val = parseInt(e.target.value)||0;
+      if(val > stock) val = stock;
+      if(val < 0) val = 0;
+      e.target.value = val;
+      await submitCartForm(form);
+    }
+  });
+
+  async function submitCartForm(form){
     try {
+      const fd = new FormData(form);
       const resp = await fetch(form.action, {
         method: form.method,
-        body: new FormData(form),
+        body: fd,
         headers: { Accept: "application/json" }
       });
       if (!resp.ok) return;
       const data = await resp.json();
-  
-      // Обновляем шапку
-      const countEl = document.getElementById("cart-count");
-      const sumEl = document.getElementById("cart-sum");
-      if (countEl) countEl.textContent = (data.total_items ?? 0);
-      if (sumEl) sumEl.textContent = (data.total_sum ?? 0);
+      updateCartUI(data);
     } catch (err) {
-      console.error("Ошибка при добавлении в корзину (результаты поиска):", err);
+      console.error("Ошибка при обновлении корзины:", err);
     }
-  });
-  </script>
-  
+  }
+
+  function updateCartUI(data){
+    const countEl = document.getElementById("cart-count");
+    const sumEl = document.getElementById("cart-sum");
+    if (countEl) countEl.textContent = (data.total_items ?? 0);
+    if (sumEl) sumEl.textContent = (data.total_sum ?? 0);
+
+    // 🔹 обновляем qty в карточках
+    if(data.items){
+      data.items.forEach(it=>{
+        const input = document.querySelector(`form.cart-set-form input[name=variant_id][value='${it.variant_id}']`)
+          ?.closest("form")
+          ?.querySelector(".qty-input");
+        if(input) input.value = it.qty;
+      });
+    }
+  }
+
+  // 🔹 Обновляем корзину и карточки при загрузке страницы
+  async function refreshCartState(){
+    try{
+      const resp = await fetch("/cart/state");
+      if(resp.ok){
+        const data = await resp.json();
+        updateCartUI(data);
+      }
+    }catch(err){
+      console.error("Ошибка загрузки состояния корзины:", err);
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", refreshCartState);
+</script>
 {% endblock %}

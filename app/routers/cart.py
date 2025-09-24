@@ -280,4 +280,79 @@ async def checkout(
     status_code=303
 )
 
+# ----------------------- SET (новый) -----------------------
+@router.post("/cart/set")
+async def cart_set(
+    request: Request,
+    product_id: int = Form(...),
+    variant_id: int = Form(...),
+    qty: int = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    🔹 Новый эндпоинт: установить количество товара в корзине
+    (в отличие от /cart/add, который прибавляет qty)
+    """
+    cart = _get_cart(request)
+    key = str(variant_id)
+
+    v = db.query(Variant).get(int(variant_id))
+    if not v:
+        if _wants_json(request):
+            return JSONResponse({"ok": False, "error": "Вариант не найден."}, status_code=400)
+        _flash(request, "Вариант не найден.")
+        return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
+
+    max_qty = int(v.stock)
+    new_qty = max(0, min(int(qty), max_qty))
+
+    if new_qty == 0:
+        cart.pop(key, None)
+    else:
+        cart[key] = {"variant_id": int(variant_id), "product_id": int(product_id), "qty": new_qty}
+
+    _set_cart(request, cart)
+
+    if _wants_json(request):
+        lines = _cart_lines(db, cart)
+        total = sum([l["line_total"] for l in lines], Decimal("0"))
+        return {
+            "ok": True,
+            "total_items": sum(l["qty"] for l in lines),
+            "total_sum": float(total),
+        }
+
+    return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
+
+
+# ----------------------- STATE (новый) -----------------------
+@router.get("/cart/state")
+async def cart_state(request: Request, db: Session = Depends(get_db)):
+    """
+    🔹 Новый эндпоинт: вернуть текущее состояние корзины в JSON
+    Используется фронтом при загрузке страницы (для обновления UI).
+    """
+    cart = _get_cart(request)
+    lines = _cart_lines(db, cart)
+    total = sum([l["line_total"] for l in lines], Decimal("0"))
+    return {
+        "ok": True,
+        "items": [
+            {
+                "variant_id": l["variant_id"],
+                "qty": l["qty"],
+                "product_id": l["product_id"],
+                "product_name": l["product_name"],
+                "variant_name": l["variant_name"],
+                "unit_price": float(l["unit_price"]),
+                "line_total": float(l["line_total"]),
+                "stock": l["stock"],
+            }
+            for l in lines
+        ],
+        "total_items": sum(l["qty"] for l in lines),
+        "total_sum": float(total),
+    }
+
+
 
