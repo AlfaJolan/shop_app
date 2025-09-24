@@ -12,6 +12,9 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import json
 
+# COMMIT Рабочей версий
+# Рабочая версия, с RBAC и сессиями
+# https://fastapi.tiangolo.com/tutorial/middleware/
 configure_mappers()
 Base.metadata.create_all(bind=engine)
 
