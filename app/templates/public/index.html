@@ -8,6 +8,22 @@
          placeholder="Поиск по товарам, категориям и вариантам...">
   <div id="suggest-box" class="dropdown-menu w-100"></div>
 </div>
+<!-- 🔹 Список категорий -->
+<div class="categories-dropdown mb-3">
+  <button id="categories-toggle" class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
+          type="button" data-bs-toggle="collapse" data-bs-target="#categories-collapse">
+    <span id="selected-category-label">Все товары</span>
+    <span class="caret">▼</span>
+  </button>
+  <div id="categories-collapse" class="collapse mt-2">
+    <ul class="list-group">
+      <li class="list-group-item category-select active" data-id="">Все товары</li>
+      {% for c in categories %}
+        <li class="list-group-item category-select" data-id="{{ c.id }}">{{ c.name }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
 
 <!-- Flash -->
 {% if flash %}
@@ -94,6 +110,42 @@
 #suggest-box.show { display:block; }
 #suggest-box li { cursor:pointer; padding:.5rem .75rem; }
 #suggest-box li:hover, #suggest-box li.active { background:#f8f9fa; }
+
+/* 🔹 Панель фильтров */
+.filter-bar {
+  justify-content: flex-start;
+}
+
+/* На больших экранах кнопки компактные */
+@media (min-width: 768px) {
+  .filter-bar .btn,
+  .filter-bar .btn-group {
+    flex: 0 auto;
+  }
+}
+
+/* На телефонах кнопки растягиваются на всю ширину */
+@media (max-width: 767.98px) {
+  .filter-bar {
+    flex-direction: column;
+  }
+  .filter-bar .btn,
+  .filter-bar .btn-group {
+    width: 100%;
+  }
+}
+/* 🔹 Категории (выпадающий список) */
+.categories-dropdown .list-group-item {
+  cursor: pointer;
+}
+.categories-dropdown .list-group-item.active {
+  background-color: #f8f9fa;
+  font-weight: 600;
+}
+.caret {
+  font-size: 0.8rem;
+}
+
 
 /* 🔹 Картинки в карточках — фиксируем 4:5 */
 .product-img-wrapper {
@@ -398,5 +450,45 @@
   }
 
   window.addEventListener("DOMContentLoaded", refreshCartState);
+
+  let selectedCategoryId = null;
+
+document.querySelectorAll(".category-select").forEach(el=>{
+  el.addEventListener("click", async ()=>{
+    // снять выделение
+    document.querySelectorAll(".category-select").forEach(li => li.classList.remove("active"));
+    el.classList.add("active");
+
+    // меняем надпись на кнопке
+    const label = document.getElementById("selected-category-label");
+    label.textContent = el.dataset.id ? el.textContent : "Все товары";
+
+    // закрываем список
+    const collapseEl = document.getElementById("categories-collapse");
+    const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
+    bsCollapse.hide();
+
+    // фильтр
+    selectedCategoryId = el.dataset.id || null;
+    if (selectedCategoryId) {
+      const prods = await fetchProductsBySelection("category", selectedCategoryId);
+      showResults(prods);
+    } else {
+      const prods = await fetchProductsByQuery($in.value.trim());
+      showResults(prods);
+    }
+  });
+});
+
+// доработанный fetchProductsByQuery
+async function fetchProductsByQuery(q){
+  const url = new URL(`/search/products`, window.location.origin);
+  url.searchParams.set("q", q);
+  if (selectedCategoryId) url.searchParams.set("category_id", selectedCategoryId);
+  const r = await fetch(url);
+  return r.ok ? await r.json() : [];
+}
+
+
 </script>
 {% endblock %}

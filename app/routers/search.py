@@ -86,12 +86,14 @@ def search_products(
     q: str = Query(""),
     selected_type: Optional[str] = Query(None, description="product|variant|category"),
     selected_id: Optional[int] = Query(None),
+    category_id: Optional[int] = Query(None),   # 🔹 добавили фильтр по категории
     limit: int = Query(60, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
     q = (q or "").strip()
     results: List[Product] = []
 
+    # Если пользователь выбрал конкретный объект (товар/вариант/категорию)
     if selected_type and selected_id:
         st = selected_type.lower().strip()
         if st == "product":
@@ -116,25 +118,36 @@ def search_products(
             results = []
         return [product_to_dict(p) for p in results if p]
 
-    if not q:
-        return []
+    # Если нет запроса и категории → вернуть пусто
+    # Если нет запроса и категории → вернуть пусто
+    if not q and not category_id:
+        results = db.query(Product).limit(limit).all()
+        return [product_to_dict(p) for p in results if p]
 
+
+    # Базовый запрос
     candidates = (
         db.query(Product)
         .join(Category, Category.id == Product.category_id, isouter=True)
         .join(Variant, Variant.product_id == Product.id, isouter=True)
-        .filter(
+    )
+
+    # Фильтрация по поисковому запросу
+    if q:
+        candidates = candidates.filter(
             or_(
                 Product.name.ilike(f"%{q}%"),
                 Category.name.ilike(f"%{q}%"),
                 Variant.name.ilike(f"%{q}%"),
             )
         )
-        .distinct(Product.id)
-        .limit(max(limit * 4, 200))
-        .all()
-    )
 
+    # 🔹 Фильтрация по категории (если выбрана)
+    if category_id:
+        candidates = candidates.filter(Product.category_id == category_id)
+
+    # Ограничение и сортировка
+    candidates = candidates.distinct(Product.id).limit(max(limit * 4, 200)).all()
     candidates.sort(key=lambda p: rank_product_obj(p, q))
     results = candidates[:limit]
 
