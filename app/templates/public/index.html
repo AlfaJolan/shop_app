@@ -384,6 +384,7 @@
     const q = e.target.value.trim(); clearTimeout(debounceId);
     if(!q){ resetToDefault(); return; }
     debounceId=setTimeout(async ()=>{
+      // 🔹 сброс пагинации Потом допилить
       currentPage = 1; // сбрасываем страницу при новом поиске
       const hints=await fetchSuggest(q); renderSuggest(hints,q);
       const prods=await fetchProductsByQuery(q); showResults(prods);
