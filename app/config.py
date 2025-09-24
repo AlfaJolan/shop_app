@@ -20,6 +20,7 @@ DATABASE_URL = os.getenv(
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
 # DEBUG-флаг: True для локалки, False для продакшена
+# Не забывать менять
 DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true", "yes")
 
 # === Настройки сессий ===

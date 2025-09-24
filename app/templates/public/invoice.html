@@ -89,7 +89,78 @@
    class="btn btn-success">
   💬 Отправить в WhatsApp
   </a>
+  <!-- Кнопка -->
+<button class="btn btn-outline-primary" onclick="copyInvoiceLink()">
+  📋 Скопировать ссылку
+</button>
+
+<!-- Toast -->
+<!-- Toast (уведомление) -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="copyToast" class="toast align-items-center text-bg-success border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body">
+        ✅ Ссылка на накладную скопирована!
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
 
 </div>
+<script>
+function copyInvoiceLink() {
+  const link = "{{ invoice_url }}";
+
+  // Современный API (большинство браузеров + Android Chrome)
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(link).then(showCopiedToast).catch(() => {
+      fallbackCopyText(link);
+    });
+  } else {
+    // Фоллбэк для iOS Safari и старых браузеров
+    fallbackCopyText(link);
+  }
+}
+
+function fallbackCopyText(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+
+  // Хак для iOS Safari: делаем textarea видимой
+  textarea.style.position = "absolute";
+  textarea.style.top = "0";
+  textarea.style.left = "0";
+  textarea.style.width = "1px";
+  textarea.style.height = "1px";
+  textarea.style.opacity = "0";
+
+  document.body.appendChild(textarea);
+
+  textarea.focus();
+  textarea.select();
+
+  try {
+    const successful = document.execCommand("copy");
+    if (successful) {
+      showCopiedToast();
+    } else {
+      alert("Скопируйте вручную: " + text);
+    }
+  } catch (err) {
+    console.error("execCommand error:", err);
+    alert("Скопируйте вручную: " + text);
+  }
+
+  document.body.removeChild(textarea);
+}
+
+function showCopiedToast() {
+  const toastEl = document.getElementById('copyToast');
+  const toast = new bootstrap.Toast(toastEl);
+  toast.show();
+}
+</script>
 
 {% endblock %}
