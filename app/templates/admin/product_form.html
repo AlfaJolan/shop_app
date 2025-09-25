@@ -46,9 +46,13 @@
         {% endfor %}
       </select>
     </div>
+    <div class="mb-3">
+  <label class="form-label">Описание</label>
+  <textarea name="description" class="form-control" rows="4">{{ product.description if product else '' }}</textarea>
+  </div>
 
     <div class="mb-3">
-      <label class="form-label">Фото</label>
+      <label class="form-label">Фото для карточки</label>
       <!-- 🆕 добавляем id="image-input" -->
       <input type="file" name="image" id="image-input" class="form-control">
       {% if product and product.image %}
@@ -56,6 +60,51 @@
              style="height:80px; margin-top:10px; border-radius:6px;">
       {% endif %}
     </div>
+    <!-- 🆕 Дополнительные картинки (галерея) -->
+     <div class="mb-3">
+  <label class="form-label">Дополнительные фото</label>
+  <input type="file" name="gallery" class="form-control" multiple>
+  
+  {% if product and product.images %}
+    <div class="mt-2 d-flex flex-wrap gap-2">
+      {% for img in product.images %}
+        <div style="position:relative; display:inline-block;">
+          <img src="/static/uploads/products/{{ product.id }}/gallery/{{ img.image_url }}" 
+               style="height:80px; border-radius:6px; border:1px solid #ddd; padding:2px;">
+          <!-- чекбокс для удаления -->
+          <div class="text-center">
+            <label>
+              <input type="checkbox" name="delete_image_id" value="{{ img.id }}"> Удалить
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+    <!-- 🆕 Видео -->
+     <div class="mb-3">
+  <label class="form-label">Видео (ссылки)</label>
+  <div id="video-links">
+    {% if product and product.videos %}
+      {% for v in product.videos %}
+        <div class="d-flex mb-2">
+          <input type="text" name="video_url" class="form-control" value="{{ v.video_url }}">
+          <input type="text" name="video_title" class="form-control ms-2" value="{{ v.title or '' }}" placeholder="Подпись">
+          <label class="ms-2">
+            <input type="checkbox" name="delete_video_id" value="{{ v.id }}"> Удалить
+          </label>
+        </div>
+      {% endfor %}
+    {% endif %}
+    <!-- поле для новых ссылок -->
+    <div class="d-flex mb-2">
+      <input type="text" name="new_video_url" class="form-control" placeholder="Вставьте ссылку на видео">
+      <input type="text" name="new_video_title" class="form-control ms-2" placeholder="Подпись">
+    </div>
+  </div>
+  <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="addVideoField()">➕ Добавить ещё видео</button>
+</div>
 
     <hr class="my-4">
 
@@ -214,5 +263,14 @@
     if (!area) return;
     area.style.display = (area.style.display === 'none' || area.style.display === '') ? 'block' : 'none';
   }
+function addVideoField() {
+  const div = document.createElement("div");
+  div.classList.add("d-flex","mb-2");
+  div.innerHTML = `
+    <input type="text" name="new_video_url" class="form-control" placeholder="Вставьте ссылку на видео">
+    <input type="text" name="new_video_title" class="form-control ms-2" placeholder="Подпись">
+  `;
+  document.getElementById("video-links").appendChild(div);
+}
 </script>
 {% endblock %}

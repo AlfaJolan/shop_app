@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.db import SessionLocal
-from app.models import Product, Category, Variant, Seller   # 🆕 добавлен Seller
+from app.models import Product, Category, Variant, Seller, ProductImage, ProductVideo   # 🆕 добавили ProductImage, ProductVideo
 from pathlib import Path
 import shutil, uuid, os
 from typing import Optional
@@ -63,7 +63,11 @@ def product_create(
     category_id: int = Form(None),
     unit: str = Form("шт"),
     seller_id: int = Form(...),   # 🆕 добавлено поле продавца
+    description: str = Form(None),   # 🆕 описание
     image: UploadFile = File(None),
+    gallery: list[UploadFile] = File([]),   # 🆕 дополнительные фото
+    new_video_url: list[str] = Form([]),    # 🆕 новые видео ссылки
+    new_video_title: list[str] = Form([]),  # 🆕 подписи к видео
 
     new_name: list[str] = Form([]),
     new_price_net_cost: list[float] = Form([]),
@@ -82,14 +86,35 @@ def product_create(
         with open(UPLOAD_DIR / filename, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
 
-    # 🆕 теперь сохраняем seller_id
+    # 🆕 теперь сохраняем seller_id и description
     product = Product(
         name=name, sku=sku, category_id=category_id,
-        unit=unit, image=filename, seller_id=seller_id
+        unit=unit, image=filename, seller_id=seller_id,
+        description=description
     )
     db.add(product)
     db.commit()
     db.refresh(product)
+
+    # 🆕 создаём папку для галереи
+    gallery_dir = UPLOAD_DIR / str(product.id) / "gallery"
+    gallery_dir.mkdir(parents=True, exist_ok=True)
+
+    # 🆕 сохраняем доп. фото
+    for file in gallery:
+        if file and file.filename:
+            ext = Path(file.filename).suffix
+            fname = f"{uuid.uuid4().hex}{ext}"
+            with open(gallery_dir / fname, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            db.add(ProductImage(product_id=product.id, image_url=fname))
+
+    # 🆕 сохраняем видео ссылки
+    for i, url in enumerate(new_video_url):
+        if not url:
+            continue
+        title = new_video_title[i] if i < len(new_video_title) else None
+        db.add(ProductVideo(product_id=product.id, video_url=url, title=title, sort_order=i))
 
     # новые варианты
     for i in range(len(new_name)):
@@ -111,6 +136,7 @@ def product_create(
 
     db.commit()
     return RedirectResponse("/admin/catalog/products", status_code=303)
+
 
 
 
@@ -140,7 +166,16 @@ def product_update(
     category_id: int = Form(None),
     unit: str = Form("шт"),
     seller_id: int = Form(...),   # 🆕 поле продавца
+    description: str = Form(None),   # 🆕 описание
     image: UploadFile = File(None),
+    gallery: list[UploadFile] = File([]),   # 🆕 дополнительные фото
+    delete_image_id: list[int] = Form([]),  # 🆕 удаление фото
+    video_url: list[str] = Form([]),        # 🆕 существующие видео
+    video_title: list[str] = Form([]),      # 🆕 подписи для существующих
+    video_id: list[int] = Form([]),         # 🆕 id существующих видео
+    delete_video_id: list[int] = Form([]),  # 🆕 удаление видео
+    new_video_url: list[str] = Form([]),    # 🆕 новые ссылки
+    new_video_title: list[str] = Form([]),  # 🆕 подписи к новым
 
     var_id: list[int] = Form([]),
     var_name: list[str] = Form([]),
@@ -185,14 +220,60 @@ def product_update(
 
         product.image = new_filename
 
+    # 🆕 описание
+    product.description = description
+    # 🆕 обновляем продавца
+    product.seller_id = seller_id
     # обновляем товар
     product.name = name
     product.sku = sku
     product.category_id = category_id
     product.unit = unit
-    product.seller_id = seller_id   # 🆕 обновляем продавца
 
-    # существующие варианты
+    # 🆕 создаём папку для галереи
+    gallery_dir = UPLOAD_DIR / str(product.id) / "gallery"
+    gallery_dir.mkdir(parents=True, exist_ok=True)
+
+    # 🆕 удаляем отмеченные фото
+    for img_id in delete_image_id:
+        img = db.query(ProductImage).get(img_id)
+        if img:
+            try:
+                os.remove(gallery_dir / img.image_url)
+            except Exception:
+                pass
+            db.delete(img)
+
+    # 🆕 сохраняем новые фото
+    for file in gallery:
+        if file and file.filename:
+            ext = Path(file.filename).suffix
+            fname = f"{uuid.uuid4().hex}{ext}"
+            with open(gallery_dir / fname, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            db.add(ProductImage(product_id=product.id, image_url=fname))
+
+    # 🆕 удаляем отмеченные видео
+    for vid in delete_video_id:
+        v = db.query(ProductVideo).get(vid)
+        if v:
+            db.delete(v)
+
+    # 🆕 обновляем существующие видео (по id)
+    for i, vid in enumerate(video_id):
+        v = db.query(ProductVideo).get(vid)
+        if v:
+            v.video_url = video_url[i] if i < len(video_url) else v.video_url
+            v.title = video_title[i] if i < len(video_title) else v.title
+
+    # 🆕 новые видео
+    for i, url in enumerate(new_video_url):
+        if not url:
+            continue
+        title = new_video_title[i] if i < len(new_video_title) else None
+        db.add(ProductVideo(product_id=product.id, video_url=url, title=title, sort_order=i))
+
+    # --- ниже идёт оригинальная логика обновления вариантов ---
     for i in range(len(var_id)):
         vid = var_id[i]
         v = db.query(Variant).get(vid)
