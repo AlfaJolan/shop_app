@@ -68,7 +68,6 @@
               <tr>
                 <th>Наименование</th>
                 <th>Цена</th>
-                <th>Себестоимость</th>
                 <th>Остаток</th>
               </tr>
             </thead>
@@ -77,7 +76,6 @@
                 <tr>
                   <td>{{ v.name }}</td>
                   <td><span class="fw-bold text-success">{{ v.unit_price }} ₸</span></td>
-                  <td>{{ v.unit_price_net_cost }} ₸</td>
                   <td>{{ v.stock or 0 }}</td>
                 </tr>
               {% endfor %}

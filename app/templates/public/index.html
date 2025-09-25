@@ -47,13 +47,14 @@
     <div class="col">
       <div class="card h-100 shadow-sm">
   <!-- 🔹 Картинка с фиксированным соотношением 4:5 -->
-  <div class="product-img-wrapper">
-    {% if p.image %}
-      <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}">
-    {% else %}
-      <img src="/static/no-photo.webp" alt="нет фото">
-    {% endif %}
-  </div>
+  <a href="/products/{{ p.id }}" class="product-img-wrapper">
+  {% if p.image %}
+    <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}">
+  {% else %}
+    <img src="/static/no-photo.webp" alt="нет фото">
+  {% endif %}
+</a>
+
 
   <div class="card-body d-flex flex-column">
     <h6 class="card-title mb-2">{{ p.name }}</h6>
@@ -307,10 +308,15 @@
       <div class="card h-100 shadow-sm">
         <!-- 🔹 Фото -->
         <div class="product-img-wrapper">
-          ${p.image 
-            ? `<img src="/static/uploads/products/${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">`
-            : `<img src="/static/no-photo.webp" alt="нет фото">`}
-        </div>
+  ${p.image 
+    ? `<a href="/products/${p.id}">
+         <img src="/static/uploads/products/${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+       </a>`
+    : `<a href="/products/${p.id}">
+         <img src="/static/no-photo.webp" alt="нет фото">
+       </a>`}
+</div>
+
 
         <div class="card-body d-flex flex-column">
           <!-- 🔹 Название товара -->
