@@ -66,22 +66,32 @@
         <div class="list-group-item" data-variant-id="{{ l.variant_id }}">
           <div class="fw-semibold">{{ l.product_name }}</div>
           <div class="small text-muted mb-2">{{ l.variant_name }}</div>
+
           <div class="d-flex justify-content-between align-items-center">
             <span>{{ "%.2f"|format(l.unit_price) }} ₸</span>
             <span class="fw-semibold line-total">{{ "%.2f"|format(l.line_total) }} ₸</span>
           </div>
+
+          <!-- обновление количества -->
           <form method="post" action="/cart/update" class="cart-update-form d-flex align-items-center gap-2 mt-2">
             <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
             <input type="number" name="qty" value="{{ l.qty }}" min="0" max="{{ l.stock }}"
                    class="form-control form-control-sm" style="width:80px;"
                    onchange="this.form.submit()">
             <span class="small text-muted">из {{ l.stock }}</span>
-            <button type="submit" formaction="/cart/remove" class="btn btn-sm btn-outline-danger ms-auto cart-remove-form">Удалить</button>
+          </form>
+
+          <!-- удаление -->
+          <form method="post" action="/cart/remove" class="mt-2">
+            <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Удалить</button>
           </form>
         </div>
       {% endfor %}
     </div>
-    <div class="text-end fw-bold mb-3" id="cart-total-mobile">Итого: {{ "%.2f"|format(total) }} ₸</div>
+    <div class="text-end fw-bold mb-3" id="cart-total-mobile">
+      Итого: {{ "%.2f"|format(total) }} ₸
+    </div>
   </div>
 
   <!-- Форма оформления заказа -->
