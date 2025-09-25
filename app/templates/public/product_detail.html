@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+  <div class="row g-4">
+    <!-- Левая колонка: фото (карусель) -->
+    <div class="col-lg-6">
+      {% if product.image or product.images %}
+      <div id="productCarousel" class="carousel slide shadow-sm border rounded" data-bs-ride="carousel">
+        <div class="carousel-inner text-center bg-white">
+          <!-- Главное фото -->
+          {% if product.image %}
+          <div class="carousel-item active">
+            <img src="/static/uploads/products/{{ product.image }}" 
+                 class="d-block mx-auto img-fluid rounded"
+                 style="max-height:400px; object-fit:contain;" 
+                 alt="{{ product.name }}">
+          </div>
+          {% endif %}
+          <!-- Доп. фото -->
+          {% for img in product.images %}
+          <div class="carousel-item {% if not product.image and loop.first %}active{% endif %}">
+            <img src="/static/uploads/products/{{ product.id }}/gallery/{{ img.image_url }}" 
+                 class="d-block mx-auto img-fluid rounded"
+                 style="max-height:400px; object-fit:contain;" 
+                 alt="Фото {{ loop.index }}">
+          </div>
+          {% endfor %}
+        </div>
+        <!-- Стрелки -->
+        <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+          <span class="carousel-control-next-icon"></span>
+        </button>
+      </div>
+      {% else %}
+        <div class="bg-light d-flex align-items-center justify-content-center rounded" style="height:400px;">
+          <span class="text-muted">Нет фото</span>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Правая колонка: инфо -->
+    <div class="col-lg-6">
+      <h1 class="fw-bold">{{ product.name }}</h1>
+      <p class="text-muted mb-1">SKU: {{ product.sku }}</p>
+
+      <!-- Цена -->
+      {% if product.variants %}
+        {% set min_price = product.variants | map(attribute='unit_price') | min %}
+        <h3 class="text-danger fw-bold">от {{ min_price }} ₸</h3>
+      {% else %}
+        <h3 class="text-muted">Цена не указана</h3>
+      {% endif %}
+
+      <!-- Описание -->
+      {% if product.description %}
+        <p class="mt-4">{{ product.description }}</p>
+      {% endif %}
+
+      <!-- Варианты -->
+      {% if product.variants %}
+        <h5 class="mt-4 mb-3">Варианты:</h5>
+        <div class="table-responsive">
+          <table class="table table-striped table-bordered align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Наименование</th>
+                <th>Цена</th>
+                <th>Себестоимость</th>
+                <th>Остаток</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in product.variants %}
+                <tr>
+                  <td>{{ v.name }}</td>
+                  <td><span class="fw-bold text-success">{{ v.unit_price }} ₸</span></td>
+                  <td>{{ v.unit_price_net_cost }} ₸</td>
+                  <td>{{ v.stock or 0 }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Видео блок -->
+  {% if product.videos %}
+  <div class="row mt-5">
+    <div class="col-12">
+      <h3 class="fw-bold mb-4 text-center">🎬 Видеообзоры</h3>
+      {% for v in product.videos %}
+      <div class="video-card mb-5 shadow-sm rounded overflow-hidden">
+        <div class="ratio ratio-16x9">
+          <iframe 
+            src="https://www.youtube.com/embed/{{ v.video_url }}" 
+            title="{{ v.title or 'Видеообзор' }}" 
+            class="w-100 h-100"
+            allowfullscreen>
+          </iframe>
+        </div>
+        {% if v.title %}
+        <p class="p-3 m-0 text-center bg-light">{{ v.title }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+</div>
+
+<!-- Модалка для видео -->
+<div class="modal fade" id="videoModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content bg-dark">
+      <div class="modal-body p-0">
+        <iframe id="videoFrame" width="100%" height="600" 
+                src="" frameborder="0" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openVideo(url) {
+  const frame = document.getElementById("videoFrame");
+
+  // Достаём ID видео из разных форматов (watch?v=, youtu.be/, embed/)
+  let videoId = "";
+  try {
+    if (url.includes("watch?v=")) {
+      videoId = url.split("watch?v=")[1].split("&")[0];
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1].split("?")[0];
+    } else if (url.includes("embed/")) {
+      videoId = url.split("embed/")[1].split("?")[0];
+    }
+  } catch (e) {
+    console.error("Не удалось распарсить ссылку", url);
+  }
+
+  if (videoId) {
+    frame.src = "https://www.youtube.com/embed/" + videoId;
+    const modal = new bootstrap.Modal(document.getElementById("videoModal"));
+    modal.show();
+  } else {
+    alert("Неверная ссылка на видео");
+  }
+}
+
+// Чистим iframe при закрытии модалки
+document.getElementById('videoModal').addEventListener('hidden.bs.modal', function () {
+  document.getElementById("videoFrame").src = "";
+});
+</script>
+
+{% endblock %}

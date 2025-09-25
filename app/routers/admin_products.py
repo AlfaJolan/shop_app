@@ -28,6 +28,15 @@ def safe_int(val: str) -> int:
         return int(val)
     except (TypeError, ValueError):
         return 0
+def extract_youtube_id(url: str) -> str:
+    """Вытаскиваем только ID из YouTube URL"""
+    if "v=" in url:
+        return url.split("v=")[-1].split("&")[0]
+    if "youtu.be/" in url:
+        return url.split("youtu.be/")[-1].split("?")[0]
+    if "/shorts/" in url:
+        return url.split("/shorts/")[-1].split("?")[0]
+    return url  # если уже ID
 
 
 
@@ -40,6 +49,16 @@ def products_index(request: Request, db: Session = Depends(get_db)):
         "products": products,
     })
 
+# 🔹 страница товара
+@router.get("/{product_id}")
+def product_detail(product_id: int, request: Request, db: Session = Depends(get_db)):
+    product = db.query(Product).get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return templates.TemplateResponse("public/product_detail.html", {
+        "request": request,
+        "product": product,
+    })
 
 # 🆕 форма создания
 @router.get("/new")
@@ -114,7 +133,7 @@ def product_create(
         if not url:
             continue
         title = new_video_title[i] if i < len(new_video_title) else None
-        db.add(ProductVideo(product_id=product.id, video_url=url, title=title, sort_order=i))
+        db.add(ProductVideo(product_id=product.id, video_url= extract_youtube_id(url), title=title, sort_order=i))
 
     # новые варианты
     for i in range(len(new_name)):
@@ -271,7 +290,7 @@ def product_update(
         if not url:
             continue
         title = new_video_title[i] if i < len(new_video_title) else None
-        db.add(ProductVideo(product_id=product.id, video_url=url, title=title, sort_order=i))
+        db.add(ProductVideo(product_id=product.id, video_url= extract_youtube_id(url), title=title, sort_order=i))
 
     # --- ниже идёт оригинальная логика обновления вариантов ---
     for i in range(len(var_id)):
