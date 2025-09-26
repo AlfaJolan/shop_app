@@ -38,7 +38,7 @@ from app.routers import (
     public, cart, invoice as invoice_router, admin_invoice as admin_inv_router,
     admin_dashboard, admin_orders, admin_catalog as admin_catalog_router,
     admin_products as admin_products_router, auth as auth_router,
-    admin_seller as admin_sellers_router, search as search_router, admin_users, products as products_router
+    admin_seller as admin_sellers_router, search as search_router, admin_users, products as products_router, ws_orders as ws_orders_router
 )
 from app.telegram_subscribe import start_polling
 
@@ -55,6 +55,7 @@ app.include_router(auth_router.router)
 app.include_router(search_router.router)
 app.include_router(admin_users.router)
 app.include_router(products_router.router)
+app.include_router(ws_orders_router.router)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Переделать этот момент под отдельные файлы
@@ -65,6 +66,10 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONTACTS = json.load(f)
 templates.env.globals["contacts"] = CONTACTS  # теперь contacts доступны во всех шаблонах
 app.state.contacts = CONTACTS                 # ← добавил
+
+import time
+
+templates.env.globals["build_ts"] = str(int(time.time()))
 
 # ==== Обработчик ошибок (404) ====
 @app.exception_handler(StarletteHTTPException)

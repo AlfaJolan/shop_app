@@ -23,6 +23,8 @@ ACCESS_MATRIX = {
 class RBACMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
+        if request.scope["type"] == "websocket":
+            return await call_next(request)
 
         # Проверяем только разделы админки (кроме логина/логаута)
         if path.startswith("/admin") and path not in ["/login", "/logout"]:

@@ -182,6 +182,17 @@ async function fetchOrders(){
 document.getElementById("statusFilter").addEventListener("change", fetchOrders);
 document.getElementById("refreshBtn").addEventListener("click", fetchOrders);
 setInterval(fetchOrders, 5000);
+
+const params = new URLSearchParams(window.location.search);
+const urlStatus = params.get("status");
+
+// если в URL есть ?status=..., выставляем в селекте
+if (urlStatus) {
+  document.getElementById("statusFilter").value = urlStatus;
+} else {
+  document.getElementById("statusFilter").value = "new"; // дефолт
+}
+
 fetchOrders();
 </script>
 {% endblock %}
