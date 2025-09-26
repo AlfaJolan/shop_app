@@ -37,34 +37,6 @@ def run_seed():
         db.refresh(category)
         print(f"✅ Категория создана: {category.name}")
 
-        # --- 21 Товар ---
-        for i in range(1, 22):  # 1..21
-            product = Product(
-                name=str(i),
-                sku=f"SKU{i:03d}",
-                unit="шт",
-                image=f"{i}.jpg",
-                is_active=True,
-                category_id=category.id,
-                seller_id=seller.id,
-            )
-            db.add(product)
-            db.flush()
-
-            variant = Variant(
-                product_id=product.id,
-                name="Основной вариант",
-                pack_size=1,
-                unit_price=Decimal(i),  # цена = имя
-                unit_price_net_cost = Decimal(i-0.2),
-                stock=20,
-                is_active=True,
-            )
-            db.add(variant)
-
-            db.commit()
-            print(f"✅ Товар создан: {product.name}")
-
         # --- Пользователи ---
         users = [
             ("admin", "123456", UserRole.ADMIN.value),
