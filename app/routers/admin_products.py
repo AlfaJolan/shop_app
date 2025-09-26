@@ -49,17 +49,6 @@ def products_index(request: Request, db: Session = Depends(get_db)):
         "products": products,
     })
 
-# 🔹 страница товара
-@router.get("/{product_id}")
-def product_detail(product_id: int, request: Request, db: Session = Depends(get_db)):
-    product = db.query(Product).get(product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Товар не найден")
-    return templates.TemplateResponse("public/product_detail.html", {
-        "request": request,
-        "product": product,
-    })
-
 # 🆕 форма создания
 @router.get("/new")
 def product_new(request: Request, db: Session = Depends(get_db)):
