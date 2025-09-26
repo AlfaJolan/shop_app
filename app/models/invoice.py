@@ -54,9 +54,16 @@ class Invoice(Base):
 
     # Аудит-журнал изменений
     audits = relationship("InvoiceAudit", back_populates="invoice", cascade="all, delete-orphan")
+    # Оплачено ли (для простоты, без учёта частичных оплат)
+    is_paid: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
+    # 🧾 Загруженные чеки
+    receipts: Mapped[List["InvoiceReceipt"]] = relationship(
+        "InvoiceReceipt", back_populates="invoice", cascade="all, delete-orphan"
+    )
     # Хелпер: пересчитать итог
     def recompute_totals(self):
+
         self.total_amount_final = sum((x.line_total_final for x in self.items), Decimal("0"))
 
 
@@ -99,7 +106,18 @@ class InvoiceItem(Base):
         self.line_total_final = Decimal(str(self.unit_price_final)) * int(self.qty_final)
 
 
+class InvoiceReceipt(Base):
+    __tablename__ = "invoice_receipts"
 
+    id: Mapped[int] = mapped_column(primary_key=True)
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False, index=True)
+
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    expired_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # связь обратно к накладной
+    invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="receipts")
 
 # Составной индекс по имени/телефону — удобно для поиска
 Index("ix_invoices_customer_phone", Invoice.customer_name, Invoice.phone)
