@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.invoice import Invoice
+from app.models.invoice import Invoice, InvoiceReceipt  # 🆕 добавил InvoiceReceipt
 
 # ===== PDF =====
 from reportlab.lib.pagesizes import A4
@@ -33,6 +33,14 @@ except Exception:
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
 
+# 🆕 для чеков
+from pathlib import Path        # 🆕 для сохранения чеков
+import shutil                   # 🆕 копирование файлов
+import uuid                     # 🆕 генерация уникальных имён
+from datetime import datetime, timedelta  # 🆕 время загрузки/истечения
+
+from fastapi import APIRouter, Request, Depends, HTTPException, Query, UploadFile, File  # 🆕 UploadFile, File
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse          # 🆕 RedirectResponse
 
 def _get_invoice_checked(db: Session, invoice_id: int, pkey: str) -> Invoice:
     """Проверка pkey и получение накладной."""
@@ -261,4 +269,86 @@ def invoice_export_xlsx(
         bio,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers=headers,
+    )
+
+UPLOAD_ROOT = Path("app/static/uploads/receipts")  # 🆕 папка для чеков
+
+# ---------- 🆕 Загрузка чеков ----------
+@router.post("/invoice/{invoice_id}/receipts/upload")
+async def upload_receipt(
+    request: Request,
+    invoice_id: int,
+    pkey: str = Query(...),
+    files: list[UploadFile] = File(...),      # можно несколько файлов
+    db: Session = Depends(get_db),
+):
+    inv = _get_invoice_checked(db, invoice_id, pkey)
+
+    saved = []
+    for f in files:
+        if not f.filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Можно загрузить только PDF-файлы")
+
+        # генерим уникальное имя файла
+        ext = ".pdf"
+        safe_name = f"{uuid.uuid4().hex}{ext}"
+
+        # создаём папку для инвойса
+        inv_dir = UPLOAD_ROOT / str(inv.id)
+        inv_dir.mkdir(parents=True, exist_ok=True)
+
+        # сохраняем файл
+        dst = inv_dir / safe_name
+        with dst.open("wb") as buf:
+            shutil.copyfileobj(f.file, buf)
+
+        # запись в БД
+        rec = InvoiceReceipt(
+            invoice_id=inv.id,
+            file_path=str(dst).replace("\\", "/"),  # сохраняем относительный путь
+            uploaded_at=datetime.utcnow(),
+            expired_at=datetime.utcnow() + timedelta(days=2),
+            status="pending",
+            amount=None,
+        )
+        db.add(rec)
+        saved.append(rec)
+
+    db.commit()
+
+    # редирект обратно на страницу накладной
+    invoice_url = str(request.url_for("invoice_public", invoice_id=inv.id)) + f"?pkey={inv.pkey}"
+    return RedirectResponse(invoice_url, status_code=303)
+
+from fastapi.responses import FileResponse
+from app.models.invoice import Invoice, InvoiceReceipt
+
+# ---------- 🆕 Просмотр чека ----------
+@router.get("/invoice/{invoice_id}/receipts/{receipt_id}")
+def view_receipt(
+    invoice_id: int,
+    receipt_id: int,
+    pkey: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    inv = _get_invoice_checked(db, invoice_id, pkey)
+
+    rec = (
+        db.query(InvoiceReceipt)
+        .filter(
+            InvoiceReceipt.id == receipt_id,
+            InvoiceReceipt.invoice_id == inv.id
+        )
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="Чек не найден")
+
+    if not os.path.exists(rec.file_path):
+        raise HTTPException(status_code=410, detail="Файл удалён")
+
+    return FileResponse(
+        rec.file_path,
+        media_type="application/pdf",
+        filename=f"receipt_{invoice_id}_{receipt_id}.pdf"
     )

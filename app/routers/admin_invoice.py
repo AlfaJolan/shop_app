@@ -8,9 +8,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.invoice import Invoice, InvoiceItem
+from app.models.invoice import Invoice, InvoiceItem, InvoiceReceipt
 from app.models.invoice_audit import InvoiceAudit  # Убедись, что этот модуль импортируется в app/models/__init__.py
 from app.models.catalog import Variant  # 🔹 импорт для работы со складом
+from datetime import datetime                  # 🆕 для отметки времени
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -56,6 +57,7 @@ def edit_invoice(request: Request, invoice_id: int, db: Session = Depends(get_db
         "request": request,
         "inv": inv,
         "items": inv.items,
+        "receipts": inv.receipts,   # 🆕 передаём чеки в шаблон
     })
 
 
@@ -237,4 +239,60 @@ def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
     inv.recompute_totals()
     db.commit()
 
+    return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
+
+@router.post("/{invoice_id}/receipts/{receipt_id}/approve")
+async def approve_receipt(invoice_id: int, receipt_id: int, request: Request, db: Session = Depends(get_db)):
+    inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
+
+    rec: Optional[InvoiceReceipt] = db.query(InvoiceReceipt).get(receipt_id)
+    if not rec or rec.invoice_id != inv.id:
+        raise HTTPException(status_code=404, detail="Чек не найден")
+
+    form = await request.form()
+    amount_str = form.get("amount")
+    try:
+        rec.amount = float(amount_str)
+    except Exception:
+        rec.amount = None
+
+    rec.status = "approved"
+
+    # если хотя бы один чек approved → ставим is_paid=True
+    #inv.is_paid = True
+    #inv.status = "paid"
+    #inv.status_changed_at = datetime.utcnow()
+
+    db.commit()
+    return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
+
+
+@router.post("/{invoice_id}/receipts/{receipt_id}/reject")
+async def reject_receipt(invoice_id: int, receipt_id: int, db: Session = Depends(get_db)):
+    inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
+
+    rec: Optional[InvoiceReceipt] = db.query(InvoiceReceipt).get(receipt_id)
+    if not rec or rec.invoice_id != inv.id:
+        raise HTTPException(status_code=404, detail="Чек не найден")
+
+    rec.status = "rejected"
+
+    db.commit()
+    return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
+
+@router.post("/{invoice_id}/mark-paid")
+def mark_invoice_paid(invoice_id: int, db: Session = Depends(get_db)):
+    inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
+
+    inv.is_paid = True
+    inv.status = "paid"
+    inv.status_changed_at = datetime.utcnow()
+
+    db.commit()
     return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)

@@ -97,4 +97,56 @@
     <a href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}" style="margin-left:12px;">Публичная ссылка</a>
   </div>
 </form>
+
+<div class="mb-3 mt-4">   <!-- 🆕 добавил mt-4 -->
+  {% if not inv.is_paid %}
+    <form action="/admin/invoices/{{ inv.id }}/mark-paid" method="post">
+      <button type="submit" class="btn btn-success">
+        💳 Пометить как оплачено
+      </button>
+    </form>
+  {% else %}
+    <div class="alert alert-success">
+      ✅ Оплачено
+    </div>
+  {% endif %}
+</div>
+
+
+<h4 class="mt-4">Загруженные чеки</h4>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Файл</th>
+      <th>Статус</th>
+      <th>Сумма</th>
+      <th>Действия</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in receipts %}
+    <tr>
+      <td>{{ r.id }}</td>
+      <td><a href="/invoice/{{ inv.id }}/receipts/{{ r.id }}?pkey={{ inv.pkey }}" target="_blank">Открыть PDF</a></td>
+      <td>{{ r.status }}</td>
+      <td>{{ r.amount or "—" }}</td>
+      <td>
+        {% if r.status == "pending" %}
+        <form action="/admin/invoices/{{ inv.id }}/receipts/{{ r.id }}/approve" method="post" style="display:inline;">
+          <input type="number" name="amount" step="0.01" required placeholder="Сумма">
+          <button type="submit" class="btn btn-sm btn-success">✅ Подтвердить</button>
+        </form>
+        <form action="/admin/invoices/{{ inv.id }}/receipts/{{ r.id }}/reject" method="post" style="display:inline;">
+          <button type="submit" class="btn btn-sm btn-danger">❌ Отклонить</button>
+        </form>
+        {% else %}
+          <span class="badge bg-secondary">{{ r.status }}</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 {% endblock %}
