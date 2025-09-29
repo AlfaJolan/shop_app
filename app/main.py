@@ -7,6 +7,8 @@ from app.db import Base, engine
 import app.models  # noqa: F401
 from sqlalchemy.orm import configure_mappers
 from app import config
+from apscheduler.schedulers.background import BackgroundScheduler
+from app.tasks.cleanup_receipts import cleanup_old_receipts
 
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -85,6 +87,14 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.get("/__routes")
 def __routes():
     return [getattr(r, "path", str(r)) for r in app.routes]
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(cleanup_old_receipts, "interval", hours=24)  # раз в сутки
+scheduler.start()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
 
 @app.on_event("startup")
 async def startup_event():
