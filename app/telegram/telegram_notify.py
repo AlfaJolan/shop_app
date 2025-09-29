@@ -68,6 +68,22 @@ class TelegramNotifier:
         ]
         self.send("\n".join(msg))
 
+def notify_receipt_uploaded(self, invoice_id, customer_name):
+    msg = [
+        f"🧾 Новый чек к накладной #{invoice_id}",
+        f"👤 Клиент: {customer_name or '—'}",
+    ]
+    self.send("\n".join(msg))
+
+def notify_receipt_status_changed(self, invoice_id, receipt_id, status, amount=None):
+    msg = [
+        f"📑 Чек #{receipt_id} по накладной #{invoice_id}",
+        f"⚡ Статус: {status}",
+    ]
+    if amount:
+        msg.append(f"💰 Сумма: {amount:.2f} ₸")
+    self.send("\n".join(msg))
+
 
 # глобальный экземпляр
 notifier = TelegramNotifier(
