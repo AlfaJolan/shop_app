@@ -115,6 +115,8 @@ class InvoiceReceipt(Base):
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     expired_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending/approved/rejected/expired
+    amount: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
 
     # связь обратно к накладной
     invoice: Mapped["Invoice"] = relationship("Invoice", back_populates="receipts")
