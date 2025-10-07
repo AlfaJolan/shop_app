@@ -96,7 +96,8 @@
 
   <!-- Форма оформления заказа -->
   <h3 class="mt-4">Оформление заказа</h3>
-  <form method="post" action="/checkout" class="row g-3" style="max-width:600px;">
+  <!-- 🧾 добавлено enctype и поле для чека -->
+  <form method="post" action="/checkout" enctype="multipart/form-data" class="row g-3" style="max-width:600px;">
     <div class="col-12 col-md-6">
       <label class="form-label">Имя</label>
       <input name="customer_name" class="form-control" placeholder="Ваше имя">
@@ -117,6 +118,14 @@
       <label class="form-label">Комментарий</label>
       <textarea name="comment" rows="3" class="form-control" placeholder="Примечание к заказу (необязательно)"></textarea>
     </div>
+
+    <!-- 🧾 Прикрепление чека -->
+    <div class="col-12">
+      <label class="form-label">Прикрепить чек (PDF, необязательно)</label>
+      <input type="file" name="files" multiple accept="application/pdf" class="form-control">
+      <div class="form-text text-muted">Можно прикрепить один или несколько PDF-файлов чеков.</div>
+    </div>
+
     <div class="col-12">
       <button type="submit" class="btn btn-primary w-100 py-2">Оформить заказ</button>
     </div>

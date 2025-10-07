@@ -1,16 +1,20 @@
 from typing import Dict, List
 from decimal import Decimal
-from fastapi import APIRouter, Request, Form, Depends
+from fastapi import APIRouter, Request, Form, Depends, UploadFile, File  # 🧾 NEW
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse  # 🔹 добавили JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+
+from pathlib import Path  # 🧾 NEW
+import shutil, uuid  # 🧾 NEW
+from datetime import datetime, timedelta  # 🧾 NEW
 
 from app.db import get_db
 from app.models.catalog import Product, Variant
 # ❌ старое:
 # from app.models.order import Order, OrderItem
 # ✅ новое:
-from app.models.invoice import Invoice, InvoiceItem
+from app.models.invoice import Invoice, InvoiceItem, InvoiceReceipt  # 🧾 NEW
 from app.telegram.telegram_notify import notifier
 
 # ⬇️ сервис создания накладной (оставляем твой вариант)
@@ -216,8 +220,14 @@ async def checkout(
     phone: str = Form(""),
     seller_name: str = Form(""),
     city_name: str = Form(""),
-    comment: str = Form("")
+    comment: str = Form(""),
+    files: list[UploadFile] = File(None)  # 🧾 NEW — файлы чеков (опционально)
 ):
+    """
+    Универсальная форма:
+    - если чек не прикреплён → обычная накладная
+    - если чек прикреплён → накладная + InvoiceReceipt
+    """
     cart = _get_cart(request)
     lines = _cart_lines(db, cart)
     if not lines:
@@ -260,25 +270,64 @@ async def checkout(
         v.stock = int(v.stock) - int(l["qty"])
     db.commit()
 
-    _set_cart(request, {})
-    items = [
-        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
-        for item in inv.items
-    ]
+    # 🧾 если прикреплены файлы чеков
+    if files:
+        UPLOAD_ROOT = Path("app/static/uploads/receipts")
+        inv_dir = UPLOAD_ROOT / str(inv.id)
+        inv_dir.mkdir(parents=True, exist_ok=True)
 
-    notifier.notify_invoice_created(
-        invoice_id=inv.id,
-        invoice_pkey=inv.pkey,
-        customer_name=inv.customer_name,
-        phone=inv.phone,
-        comment=inv.comment,
-        items=items
-    )
+        for f in files:
+            if not f.filename.lower().endswith(".pdf"):
+                continue
+            safe_name = f"{uuid.uuid4().hex}.pdf"
+            dst = inv_dir / safe_name
+            with dst.open("wb") as buf:
+                shutil.copyfileobj(f.file, buf)
+            rec = InvoiceReceipt(
+                invoice_id=inv.id,
+                file_path=str(dst).replace("\\", "/"),
+                uploaded_at=datetime.utcnow(),
+                expired_at=datetime.utcnow() + timedelta(days=2),
+                status="pending",
+                amount=None,
+            )
+            db.add(rec)
+        db.commit()
+
+        # стандартное уведомление, если чек не прикреплён
+        items = [
+            {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
+            for item in inv.items
+        ]
+        notifier.notify_invoice_created(
+            invoice_id=inv.id,
+            invoice_pkey=inv.pkey,
+            customer_name=inv.customer_name,
+            phone=inv.phone,
+            comment=inv.comment,
+            items=items
+        )
+    else:
+        # стандартное уведомление, если чек не прикреплён
+        items = [
+            {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
+            for item in inv.items
+        ]
+        notifier.notify_invoice_created(
+            invoice_id=inv.id,
+            invoice_pkey=inv.pkey,
+            customer_name=inv.customer_name,
+            phone=inv.phone,
+            comment=inv.comment,
+            items=items
+        )
+
+    _set_cart(request, {})
 
     return RedirectResponse(
-    url=f"/invoice/{inv.id}?pkey={inv.pkey}", 
-    status_code=303
-)
+        url=f"/invoice/{inv.id}?pkey={inv.pkey}",
+        status_code=303
+    )
 
 # ----------------------- SET (новый) -----------------------
 @router.post("/cart/set")
@@ -324,7 +373,6 @@ async def cart_set(
 
     return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
-
 # ----------------------- STATE (новый) -----------------------
 @router.get("/cart/state")
 async def cart_state(request: Request, db: Session = Depends(get_db)):
@@ -363,6 +411,3 @@ async def cart_clear(request: Request, db: Session = Depends(get_db)):
         return {"ok": True, "total_items": 0, "total_sum": 0, "items": []}
 
     return RedirectResponse(url="/cart", status_code=303)
-
-
-
