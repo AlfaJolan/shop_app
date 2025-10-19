@@ -9,6 +9,7 @@ from sqlalchemy.orm import configure_mappers
 from app import config
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.tasks.cleanup_receipts import cleanup_old_receipts
+from app.analytics.scheduler import start_analytics_scheduler
 
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -91,6 +92,11 @@ def __routes():
 scheduler = BackgroundScheduler()
 scheduler.add_job(cleanup_old_receipts, "interval", hours=24)  # раз в сутки
 scheduler.start()
+
+# ... внутри create_app() или после инициализации приложения
+start_analytics_scheduler()
+from app.analytics.scheduler import generate_analytics_report
+generate_analytics_report()
 
 @app.on_event("shutdown")
 def shutdown_event():
