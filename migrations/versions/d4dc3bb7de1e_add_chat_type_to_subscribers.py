@@ -21,7 +21,7 @@ def upgrade() -> None:
     """Upgrade schema."""
 
     # === обновления от автогенерации ===
-    op.drop_index(op.f('ix_invoice_receipts_invoice_status'), table_name='invoice_receipts')
+    #op.drop_index(op.f('ix_invoice_receipts_invoice_status'), table_name='invoice_receipts')
     op.create_index(op.f('ix_invoice_receipts_status'), 'invoice_receipts', ['status'], unique=False)
     op.create_index(op.f('ix_invoices_is_paid'), 'invoices', ['is_paid'], unique=False)
 
