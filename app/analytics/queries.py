@@ -60,6 +60,37 @@ def get_top_sellers(db, start_date, end_date, limit=10, asc=False):
 
 
 # ============================================================
+# 🆕 ТОП / АНТиТОП ТОРГОВЦЕВ
+# ============================================================
+
+def get_top_salespersons(db, start_date, end_date, limit=10, asc=False):
+    """Топ или антитоп торговцев (по revenue, потом qty)."""
+    order = "ASC" if asc else "DESC"
+    q = text(f"""
+        SELECT
+            COALESCE(sp.name, 'Без продавца') AS name,
+            SUM(ii.qty_final) AS qty,
+            SUM(ii.line_total_final) AS revenue,
+            SUM((ii.unit_price_final - ii.unit_price_net_cost) * ii.qty_final) AS margin
+        FROM invoice_items ii
+        JOIN invoices inv ON inv.id = ii.invoice_id
+        LEFT JOIN salespersons sp ON sp.id = inv.salesperson_id
+        WHERE inv.created_at BETWEEN :start_date AND :end_date
+          AND inv.status <> 'cancelled'
+        GROUP BY COALESCE(sp.name, 'Без продавца')
+        ORDER BY revenue {order}, qty {order}
+        LIMIT :limit;
+    """)
+    return [
+        dict(r)
+        for r in db.execute(
+            q, {"start_date": start_date, "end_date": end_date, "limit": limit}
+        ).mappings().all()
+    ]
+
+
+
+# ============================================================
 # ТОП / АНТиТОП ТОВАРОВ
 # ============================================================
 
@@ -145,8 +176,8 @@ def get_daily_dynamics(db, days=7):
 
 def get_entity_dynamics(db, days=7, entity="seller", asc=False):
     """
-    Динамика для топ/антитоп продавцов или товаров.
-    entity = 'seller' или 'product'
+    Динамика для топ/антитоп продавцов, торговцев или товаров.
+    entity = 'seller', 'salesperson' или 'product'
     asc = False (топ), True (антитоп)
     """
     start_date, end_date = _period_days(days)
@@ -156,6 +187,10 @@ def get_entity_dynamics(db, days=7, entity="seller", asc=False):
         id_field = "ii.seller_id"
         name_field = "COALESCE(ii.seller_name, s.name)"
         join_extra = "LEFT JOIN sellers s ON s.id = ii.seller_id"
+    elif entity == "salesperson":
+        id_field = "ii.salesperson_id"
+        name_field = "COALESCE(ii.salesperson_name, sp.name)"
+        join_extra = "LEFT JOIN salespersons sp ON sp.id = ii.salesperson_id"
     else:
         id_field = "ii.product_id"
         name_field = "ii.product_name"

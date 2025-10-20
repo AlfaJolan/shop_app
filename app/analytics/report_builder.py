@@ -66,6 +66,12 @@ def build_daily_report():
         bad_products = queries.get_top_products(db, datetime.combine(today, datetime.min.time()),
                                                 datetime.combine(today + timedelta(days=1), datetime.min.time()), asc=True)
 
+        # 🆕 Топы по торговцам
+        top_salespersons = queries.get_top_salespersons(db, datetime.combine(today, datetime.min.time()),
+                                                        datetime.combine(today + timedelta(days=1), datetime.min.time()))
+        bad_salespersons = queries.get_top_salespersons(db, datetime.combine(today, datetime.min.time()),
+                                                        datetime.combine(today + timedelta(days=1), datetime.min.time()), asc=True)
+
         # --- Города ---
         city_sellers = queries.get_cities(db, datetime.combine(today, datetime.min.time()),
                                           datetime.combine(today + timedelta(days=1), datetime.min.time()), by="sellers")
@@ -103,6 +109,14 @@ def build_daily_report():
         msg.append("\n📉 <b>Антитоп-10 продавцов</b>:\n")
         for i, s in enumerate(bad_sellers, start=1):
             msg.append(f"{i}. {s['name']} — {_fmt_kzt(s['revenue'])} ({int(s['qty'])} шт)")
+
+        # 🆕 --- Топ торговцев ---
+        msg.append("\n🧑‍💼 <b>Топ-10 торговцев</b>:\n")
+        for i, sp in enumerate(top_salespersons, start=1):
+            msg.append(f"{i}. {sp['name']} — {_fmt_kzt(sp['revenue'])} ({int(sp['qty'])} шт, маржа {_fmt_kzt(sp['margin'])})")
+        msg.append("\n📉 <b>Антитоп-10 торговцев</b>:\n")
+        for i, sp in enumerate(bad_salespersons, start=1):
+            msg.append(f"{i}. {sp['name']} — {_fmt_kzt(sp['revenue'])} ({int(sp['qty'])} шт)")
 
         # --- Топ товаров ---
         msg.append("\n🏷️ <b>Топ-10 товаров</b>:\n")
@@ -155,12 +169,14 @@ def send_daily_report():
         data7 = queries.get_daily_dynamics(db, days=7)
         top_sellers_7 = queries.get_top_sellers(db, *(queries._period_days(7)))
         top_products_7 = queries.get_top_products(db, *(queries._period_days(7)))
+        top_salespersons_7 = queries.get_top_salespersons(db, *(queries._period_days(7)))  # 🆕
         cities_7 = queries.get_cities(db, *(queries._period_days(7)))
 
         # --- Получаем данные для графиков (30 дней) ---
         data30 = queries.get_daily_dynamics(db, days=30)
         top_sellers_30 = queries.get_top_sellers(db, *(queries._period_days(30)))
         top_products_30 = queries.get_top_products(db, *(queries._period_days(30)))
+        top_salespersons_30 = queries.get_top_salespersons(db, *(queries._period_days(30)))  # 🆕
         cities_30 = queries.get_cities(db, *(queries._period_days(30)))
 
         # 🆕 Доп. данные: категории и heatmap
@@ -171,12 +187,14 @@ def send_daily_report():
         img_dynamics_7 = plots.plot_sales_dynamics(data7, "7")
         img_top_sellers_7 = plots.plot_bar_top(top_sellers_7, "Топ продавцов за 7 дней")
         img_top_products_7 = plots.plot_bar_top(top_products_7, "Топ товаров за 7 дней")
+        img_top_salespersons_7 = plots.plot_bar_top(top_salespersons_7, "Топ торговцев за 7 дней")  # 🆕
         img_city_7 = plots.plot_city_pie(cities_7, "Продажи по городам (7 дней)")
 
         # --- Строим графики за 30 дней ---
         img_dynamics_30 = plots.plot_sales_dynamics(data30, "30")
         img_top_sellers_30 = plots.plot_bar_top(top_sellers_30, "Топ продавцов за 30 дней")
         img_top_products_30 = plots.plot_bar_top(top_products_30, "Топ товаров за 30 дней")
+        img_top_salespersons_30 = plots.plot_bar_top(top_salespersons_30, "Топ торговцев за 30 дней")  # 🆕
         img_city_30 = plots.plot_city_pie(cities_30, "Продажи по городам (30 дней)")
 
         # 🆕 Новые графики: топ категорий (30д) и тепловая карта (30д)
@@ -188,7 +206,7 @@ def send_daily_report():
             if 0 <= dow < 7 and 0 <= hour < 24:
                 matrix[dow, hour] = rev
         img_heatmap_30 = plots.plot_heatmap_demand(matrix, "Активность заказов по дням/часам (30 дней)")  # 🆕
-                # 🆕 Тепловая карта за 7 дней
+        # 🆕 Тепловая карта за 7 дней
         heat_rows_7 = queries.get_hourly_heatmap(db, *(queries._period_days(7)))  # 🆕
         matrix_7 = np.zeros((7, 24), dtype=float)  # 🆕
         for r in heat_rows_7:
@@ -202,8 +220,8 @@ def send_daily_report():
 
         # --- Отправляем графики ---
         for img in [
-            img_dynamics_7, img_top_sellers_7, img_top_products_7, img_city_7,
-            img_dynamics_30, img_top_sellers_30, img_top_products_30, img_city_30,
+            img_dynamics_7, img_top_sellers_7, img_top_products_7, img_top_salespersons_7, img_city_7,
+            img_dynamics_30, img_top_sellers_30, img_top_products_30, img_top_salespersons_30, img_city_30,
             img_top_categories_30, img_heatmap_30, img_heatmap_7  # 🆕 добавлены новые
         ]:
             if img:
