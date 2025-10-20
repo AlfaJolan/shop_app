@@ -1,6 +1,13 @@
 # app/analytics/plots.py
 import io
 from datetime import datetime
+# === Фикс emoji warning (Arial не поддерживает эмодзи) ===
+import matplotlib
+matplotlib.rcParams["font.family"] = "DejaVu Sans"        # ✅ кириллица + emoji
+matplotlib.rcParams["axes.unicode_minus"] = False          # чтобы "–" отображался корректно
+import warnings
+warnings.filterwarnings("ignore", message="Glyph.*missing")  # необязательно, просто тише лог
+# ==========================================================
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 import matplotlib.dates as mdates
@@ -14,6 +21,7 @@ def _format_kzt(x, _):
 
 def _prepare_figure(title: str, figsize=(8, 4)):
     """Создаёт фигуру с единым стилем."""
+    plt.rcParams["font.family"] = "DejaVu Sans"   # 🆕 исправляет предупреждение о глифах
     plt.style.use("seaborn-v0_8-whitegrid")
     fig, ax = plt.subplots(figsize=figsize)
     fig.patch.set_facecolor("#fafafa")
