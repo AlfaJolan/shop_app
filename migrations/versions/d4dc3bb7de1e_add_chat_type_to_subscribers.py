@@ -5,7 +5,6 @@ Revises: add_invoice_receipts_table
 Create Date: 2025-10-19 21:18:02.269972
 """
 from typing import Sequence, Union
-
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -21,9 +20,13 @@ def upgrade() -> None:
     """Upgrade schema."""
 
     # === обновления от автогенерации ===
-    #op.drop_index(op.f('ix_invoice_receipts_invoice_status'), table_name='invoice_receipts')
-    op.create_index(op.f('ix_invoice_receipts_status'), 'invoice_receipts', ['status'], unique=False)
-    op.create_index(op.f('ix_invoices_is_paid'), 'invoices', ['is_paid'], unique=False)
+    # op.drop_index(op.f('ix_invoice_receipts_invoice_status'), table_name='invoice_receipts')
+
+    # 🧩 безопасно создаём индекс, если его ещё нет
+    op.execute("CREATE INDEX IF NOT EXISTS ix_invoice_receipts_status ON invoice_receipts (status);")
+
+    # 🧩 аналогично — проверяем, существует ли индекс перед созданием
+    op.execute("CREATE INDEX IF NOT EXISTS ix_invoices_is_paid ON invoices (is_paid);")
 
     # === исправленный блок добавления chat_type ===
     # 1️⃣ Добавляем колонку nullable=True, чтобы не упала миграция
@@ -58,11 +61,15 @@ def downgrade() -> None:
         existing_server_default=sa.text('now()')
     )
     op.drop_column('subscribers', 'chat_type')
-    op.drop_index(op.f('ix_invoices_is_paid'), table_name='invoices')
-    op.drop_index(op.f('ix_invoice_receipts_status'), table_name='invoice_receipts')
-    op.create_index(
-        op.f('ix_invoice_receipts_invoice_status'),
-        'invoice_receipts',
-        ['invoice_id', 'status'],
-        unique=False
-    )
+
+    # 🧩 безопасное удаление индексов
+    op.execute("DROP INDEX IF EXISTS ix_invoices_is_paid;")
+    op.execute("DROP INDEX IF EXISTS ix_invoice_receipts_status;")
+
+    # если нужно вернуть старый индекс, можно раскомментировать:
+    # op.create_index(
+    #     op.f('ix_invoice_receipts_invoice_status'),
+    #     'invoice_receipts',
+    #     ['invoice_id', 'status'],
+    #     unique=False
+    # )
