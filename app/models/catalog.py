@@ -2,6 +2,7 @@ from typing import List, Optional
 from sqlalchemy import String, ForeignKey, Integer, Numeric, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
+from app.models.salesperson import Salesperson
 
 
 
@@ -14,9 +15,8 @@ class Seller(Base):
 
     # отношение: один продавец → много продуктов
     products: Mapped[List["Product"]] = relationship("Product", back_populates="seller")
-    salespersons = relationship("Salesperson", back_populates="seller", cascade="all, delete-orphan")
-
-
+    # отношение: один продавец → много продавцов (Salespersons)
+    salespersons: Mapped[List["Salesperson"]] = relationship("Salesperson", back_populates="seller")
 class Category(Base):
     __tablename__ = "categories"
     id: Mapped[int] = mapped_column(primary_key=True)

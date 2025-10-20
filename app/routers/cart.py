@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Form, Depends, UploadFile, File  # 🧾 
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse  # 🔹 добавили JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from app.models.salesperson import Salesperson
 
 from pathlib import Path  # 🧾 NEW
 import shutil, uuid  # 🧾 NEW

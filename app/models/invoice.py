@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 # app/routers/invoice.py (добавьте рядом с остальными import)
 from urllib.parse import quote
+from app.models.salesperson import Salesperson
 
 def _content_disposition_utf8(pretty_filename_utf8: str, fallback_ascii: str) -> str:
     """
