@@ -41,7 +41,8 @@ from app.routers import (
     public, cart, invoice as invoice_router, admin_invoice as admin_inv_router,
     admin_dashboard, admin_orders, admin_catalog as admin_catalog_router,
     admin_products as admin_products_router, auth as auth_router,
-    admin_seller as admin_sellers_router, search as search_router, admin_users, products as products_router, ws_orders as ws_orders_router
+    admin_seller as admin_sellers_router, search as search_router, admin_users, products as products_router, ws_orders as ws_orders_router,
+    admin_salespersons as salespersons_router
 )
 from app.telegram_subscribe import start_polling
 
@@ -59,6 +60,8 @@ app.include_router(search_router.router)
 app.include_router(admin_users.router)
 app.include_router(products_router.router)
 app.include_router(ws_orders_router.router)
+app.include_router(salespersons_router.router)
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Переделать этот момент под отдельные файлы

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-4">👥 Продавцы</h2>
+
+<form method="post" action="/admin/salespersons/create" class="row g-3 mb-4" style="max-width:600px;">
+  <div class="col-md-4">
+    <label class="form-label">Имя</label>
+    <input name="name" class="form-control" required>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Телефон</label>
+    <input name="phone" class="form-control">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Магазин</label>
+    <select name="seller_id" class="form-select" required>
+      <option value="">— Выберите магазин —</option>
+      {% for s in sellers %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Добавить продавца</button>
+  </div>
+</form>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Имя</th>
+      <th>Телефон</th>
+      <th>Магазин</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sp in salespersons %}
+      <tr>
+        <td>{{ sp.id }}</td>
+        <td>{{ sp.name }}</td>
+        <td>{{ sp.phone or "—" }}</td>
+        <td>{{ sp.seller.name if sp.seller else "—" }}</td>
+        <td>
+          <form method="post" action="/admin/salespersons/delete" style="display:inline;">
+            <input type="hidden" name="id" value="{{ sp.id }}">
+            <button class="btn btn-sm btn-outline-danger">Удалить</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
