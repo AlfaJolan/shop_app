@@ -5,6 +5,7 @@ from app.analytics import queries
 from app.analytics import plots  # ✅ добавлено для построения графиков
 from app.telegram.telegram_notify import notifier
 from pytz import timezone
+import numpy as np  # 🆕 для heatmap матрицы
 
 
 def _fmt_kzt(value):
@@ -75,6 +76,14 @@ def build_daily_report():
         summary_7 = queries.get_summary(db, *(queries._period_days(7)))
         summary_30 = queries.get_summary(db, *(queries._period_days(30)))
 
+        # 🆕 Доп. метрики (AOV, корзина, % маржи)
+        aov_7 = queries.get_avg_order_value(db, *(queries._period_days(7)))             # 🆕
+        aov_30 = queries.get_avg_order_value(db, *(queries._period_days(30)))           # 🆕
+        basket_7 = queries.get_avg_basket_size(db, *(queries._period_days(7)))          # 🆕
+        basket_30 = queries.get_avg_basket_size(db, *(queries._period_days(30)))        # 🆕
+        margin_pct_7 = (summary_7["margin"] / summary_7["revenue"] * 100) if summary_7["revenue"] else 0.0  # 🆕
+        margin_pct_30 = (summary_30["margin"] / summary_30["revenue"] * 100) if summary_30["revenue"] else 0.0  # 🆕
+
         # =======================================================
         # Формируем сообщение
         # =======================================================
@@ -115,12 +124,16 @@ def build_daily_report():
         msg.append("\n📅 <b>Итоги за 7 дней</b>:\n"
                    f"Выручка: {_fmt_kzt(summary_7['revenue'])}\n"
                    f"Кол-во: {summary_7['qty']}\n"
-                   f"Маржа: {_fmt_kzt(summary_7['margin'])}\n")
+                   f"Маржа: {_fmt_kzt(summary_7['margin'])} ({margin_pct_7:.1f}%)\n"  # 🆕
+                   f"🧾 AOV: {_fmt_kzt(aov_7)} | Корзина: {basket_7:.2f} шт/заказ\n"   # 🆕
+                   )
 
         msg.append("\n📅 <b>Итоги за 30 дней</b>:\n"
                    f"Выручка: {_fmt_kzt(summary_30['revenue'])}\n"
                    f"Кол-во: {summary_30['qty']}\n"
-                   f"Маржа: {_fmt_kzt(summary_30['margin'])}\n")
+                   f"Маржа: {_fmt_kzt(summary_30['margin'])} ({margin_pct_30:.1f}%)\n"  # 🆕
+                   f"🧾 AOV: {_fmt_kzt(aov_30)} | Корзина: {basket_30:.2f} шт/заказ\n"   # 🆕
+                   )
 
         return "\n".join(msg)
 
@@ -150,6 +163,10 @@ def send_daily_report():
         top_products_30 = queries.get_top_products(db, *(queries._period_days(30)))
         cities_30 = queries.get_cities(db, *(queries._period_days(30)))
 
+        # 🆕 Доп. данные: категории и heatmap
+        top_categories_30 = queries.get_top_categories(db, *(queries._period_days(30)))  # 🆕
+        heat_rows = queries.get_hourly_heatmap(db, *(queries._period_days(30)))          # 🆕
+
         # --- Строим графики за 7 дней ---
         img_dynamics_7 = plots.plot_sales_dynamics(data7, "7")
         img_top_sellers_7 = plots.plot_bar_top(top_sellers_7, "Топ продавцов за 7 дней")
@@ -162,13 +179,24 @@ def send_daily_report():
         img_top_products_30 = plots.plot_bar_top(top_products_30, "Топ товаров за 30 дней")
         img_city_30 = plots.plot_city_pie(cities_30, "Продажи по городам (30 дней)")
 
+        # 🆕 Новые графики: топ категорий (30д) и тепловая карта (30д)
+        img_top_categories_30 = plots.plot_top_categories(top_categories_30, "Топ категорий (30 дней)")  # 🆕
+        # подготовка матрицы heatmap 7x24
+        matrix = np.zeros((7, 24), dtype=float)  # 🆕
+        for r in heat_rows:
+            dow, hour, rev = int(r["dow"]), int(r["hour"]), float(r["revenue"])
+            if 0 <= dow < 7 and 0 <= hour < 24:
+                matrix[dow, hour] = rev
+        img_heatmap_30 = plots.plot_heatmap_demand(matrix, "Активность заказов по дням/часам (30 дней)")  # 🆕
+
         # --- Отправляем текстовый отчёт ---
         notifier.send_analytics(message)
 
         # --- Отправляем графики ---
         for img in [
             img_dynamics_7, img_top_sellers_7, img_top_products_7, img_city_7,
-            img_dynamics_30, img_top_sellers_30, img_top_products_30, img_city_30
+            img_dynamics_30, img_top_sellers_30, img_top_products_30, img_city_30,
+            img_top_categories_30, img_heatmap_30  # 🆕 добавлены новые
         ]:
             if img:
                 notifier.send_photo_analytics(img)

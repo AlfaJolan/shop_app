@@ -189,3 +189,95 @@ def get_entity_dynamics(db, days=7, entity="seller", asc=False):
         ORDER BY day, {name_field};
     """)
     return [dict(r) for r in db.execute(q, {"start_date": start_date, "end_date": end_date}).mappings().all()]
+
+
+# ============================================================
+# 🆕 ДОП. МЕТРИКИ: AOV, СРЕД. КОРЗИНА, КАТЕГОРИИ, HEATMAP
+# ============================================================
+
+def get_avg_order_value(db, start_date, end_date):
+    """🆕 Средний чек (AOV) = выручка / количество уникальных заказов."""
+    q = text("""
+        SELECT
+            COALESCE(SUM(ii.line_total_final), 0) AS revenue,
+            COUNT(DISTINCT ii.invoice_id) AS orders
+        FROM invoice_items ii
+        JOIN invoices inv ON inv.id = ii.invoice_id
+        WHERE inv.created_at BETWEEN :start_date AND :end_date
+          AND inv.status <> 'cancelled';
+    """)
+    row = db.execute(q, {"start_date": start_date, "end_date": end_date}).mappings().first()
+    revenue = float(row["revenue"] or 0)
+    orders = int(row["orders"] or 0)
+    return revenue / orders if orders else 0.0
+
+
+def get_avg_basket_size(db, start_date, end_date):
+    """🆕 Средняя корзина (SKU/заказ). Здесь считаем как среднее количество единиц товара на заказ."""
+    q = text("""
+        SELECT
+            COALESCE(SUM(ii.qty_final), 0) AS total_qty,
+            COUNT(DISTINCT ii.invoice_id) AS orders
+        FROM invoice_items ii
+        JOIN invoices inv ON inv.id = ii.invoice_id
+        WHERE inv.created_at BETWEEN :start_date AND :end_date
+          AND inv.status <> 'cancelled';
+    """)
+    row = db.execute(q, {"start_date": start_date, "end_date": end_date}).mappings().first()
+    total_qty = float(row["total_qty"] or 0)
+    orders = int(row["orders"] or 0)
+    return total_qty / orders if orders else 0.0
+
+
+def get_top_categories(db, start_date, end_date, limit=10):
+    """🆕 Топ категорий с вкладом в выручку (%)"""
+    q = text("""
+        WITH base AS (
+            SELECT
+                c.name AS name,
+                SUM(ii.line_total_final) AS revenue
+            FROM invoice_items ii
+            JOIN invoices inv ON inv.id = ii.invoice_id
+            LEFT JOIN products p ON p.id = ii.product_id
+            LEFT JOIN categories c ON c.id = p.category_id
+            WHERE inv.created_at BETWEEN :start_date AND :end_date
+              AND inv.status <> 'cancelled'
+            GROUP BY c.name
+        )
+        SELECT
+            name,
+            revenue,
+            CASE WHEN (SELECT COALESCE(SUM(revenue),0) FROM base) = 0 THEN 0
+                 ELSE revenue * 100.0 / (SELECT SUM(revenue) FROM base)
+            END AS share_pct
+        FROM base
+        ORDER BY revenue DESC
+        LIMIT :limit;
+    """)
+    return [dict(r) for r in db.execute(q, {"start_date": start_date, "end_date": end_date, "limit": limit}).mappings().all()]
+
+
+def get_hourly_heatmap(db, start_date, end_date):
+    """
+    🆕 Тепловая карта: выручка по дням недели (0=Пн..6=Вс) и часам (0..23).
+    Возвращает список словарей: {'dow': 0..6, 'hour': 0..23, 'revenue': ...}
+    """
+    q = text("""
+        SELECT
+            CAST(EXTRACT(DOW FROM inv.created_at) AS INT) AS dow,  -- 0=Вc в PG, нормализуем ниже
+            CAST(EXTRACT(HOUR FROM inv.created_at) AS INT) AS hour,
+            SUM(ii.line_total_final) AS revenue
+        FROM invoice_items ii
+        JOIN invoices inv ON inv.id = ii.invoice_id
+        WHERE inv.created_at BETWEEN :start_date AND :end_date
+          AND inv.status <> 'cancelled'
+        GROUP BY 1, 2;
+    """)
+    # В Postgres DOW: 0=Sunday..6=Saturday → преобразуем к 0=Пн..6=Вс
+    rows = [dict(r) for r in db.execute(q, {"start_date": start_date, "end_date": end_date}).mappings().all()]
+    for r in rows:
+        pg_dow = r["dow"]
+        # Преобразование: Пн=1 → 0; Вт=2→1; ...; Вс=0→6
+        r["dow"] = (pg_dow - 1) % 7
+        r["revenue"] = float(r["revenue"] or 0.0)
+    return rows
