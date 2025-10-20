@@ -138,27 +138,42 @@ def send_daily_report():
     try:
         message = build_daily_report()
 
-        # --- Получаем данные для графиков ---
+        # --- Получаем данные для графиков (7 дней) ---
         data7 = queries.get_daily_dynamics(db, days=7)
-        top_sellers = queries.get_top_sellers(db, *(queries._period_days(7)))
-        top_products = queries.get_top_products(db, *(queries._period_days(7)))
-        cities = queries.get_cities(db, *(queries._period_days(7)))
+        top_sellers_7 = queries.get_top_sellers(db, *(queries._period_days(7)))
+        top_products_7 = queries.get_top_products(db, *(queries._period_days(7)))
+        cities_7 = queries.get_cities(db, *(queries._period_days(7)))
 
-        # --- Строим графики ---
-        img_dynamics = plots.plot_sales_dynamics(data7, "7")
-        img_top_sellers = plots.plot_bar_top(top_sellers, "Топ продавцов за 7 дней")
-        img_top_products = plots.plot_bar_top(top_products, "Топ товаров за 7 дней")
-        img_city = plots.plot_city_pie(cities, "Продажи по городам")
+        # --- Получаем данные для графиков (30 дней) ---
+        data30 = queries.get_daily_dynamics(db, days=30)
+        top_sellers_30 = queries.get_top_sellers(db, *(queries._period_days(30)))
+        top_products_30 = queries.get_top_products(db, *(queries._period_days(30)))
+        cities_30 = queries.get_cities(db, *(queries._period_days(30)))
+
+        # --- Строим графики за 7 дней ---
+        img_dynamics_7 = plots.plot_sales_dynamics(data7, "7")
+        img_top_sellers_7 = plots.plot_bar_top(top_sellers_7, "Топ продавцов за 7 дней")
+        img_top_products_7 = plots.plot_bar_top(top_products_7, "Топ товаров за 7 дней")
+        img_city_7 = plots.plot_city_pie(cities_7, "Продажи по городам (7 дней)")
+
+        # --- Строим графики за 30 дней ---
+        img_dynamics_30 = plots.plot_sales_dynamics(data30, "30")
+        img_top_sellers_30 = plots.plot_bar_top(top_sellers_30, "Топ продавцов за 30 дней")
+        img_top_products_30 = plots.plot_bar_top(top_products_30, "Топ товаров за 30 дней")
+        img_city_30 = plots.plot_city_pie(cities_30, "Продажи по городам (30 дней)")
 
         # --- Отправляем текстовый отчёт ---
         notifier.send_analytics(message)
 
         # --- Отправляем графики ---
-        for img in [img_dynamics, img_top_sellers, img_top_products, img_city]:
+        for img in [
+            img_dynamics_7, img_top_sellers_7, img_top_products_7, img_city_7,
+            img_dynamics_30, img_top_sellers_30, img_top_products_30, img_city_30
+        ]:
             if img:
                 notifier.send_photo_analytics(img)
 
-        print("[AnalyticsReport] Отчёт и графики отправлены в Telegram.")
+        print("[AnalyticsReport] Отчёт и графики (7 и 30 дней) отправлены в Telegram.")
     except Exception as e:
         print("[AnalyticsReport] Ошибка при отправке отчёта:", e)
     finally:

@@ -3,6 +3,7 @@ import io
 from datetime import datetime
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+import matplotlib.dates as mdates
 
 
 def _format_kzt(x, _):
@@ -12,10 +13,11 @@ def _format_kzt(x, _):
 
 def _prepare_figure(title: str, figsize=(8, 4)):
     """Создаёт фигуру с единым стилем."""
-    plt.style.use("ggplot")
+    plt.style.use("seaborn-v0_8-colorblind")
     fig, ax = plt.subplots(figsize=figsize)
-    ax.set_title(title, fontsize=12, pad=10, fontweight="bold")
+    ax.set_title(title, fontsize=13, pad=12, fontweight="bold")
     ax.yaxis.set_major_formatter(FuncFormatter(_format_kzt))
+    ax.grid(alpha=0.3)
     return fig, ax
 
 
@@ -31,23 +33,32 @@ def plot_sales_dynamics(data: list[dict], days_label: str = "7"):
     if not data:
         return None
 
-    fig, ax = _prepare_figure(f"Динамика продаж за {days_label} дней")
+    fig, ax = _prepare_figure(f"📈 Динамика продаж за {days_label} дней")
 
-    days = [d["day"] for d in data]
+    # --- Подготовка данных ---
+    days = [datetime.strptime(str(d["day"]), "%Y-%m-%d").date() for d in data]
     revenue = [float(d["revenue"]) for d in data]
     margin = [float(d["margin"]) for d in data]
 
-    ax.plot(days, revenue, marker="o", label="Выручка")
-    ax.plot(days, margin, marker="o", label="Маржа", linestyle="--")
+    # --- Построение графика ---
+    ax.plot(days, revenue, color="#E74C3C", marker="o", linewidth=2, label="Выручка")
+    ax.plot(days, margin, color="#2980B9", marker="o", linewidth=1.8, linestyle="--", label="Маржа")
 
-    ax.legend()
-    ax.set_xlabel("Дата")
-    ax.set_ylabel("₸")
-    ax.grid(True, alpha=0.4)
+    # --- Оформление осей ---
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d.%m"))
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=10))
+    plt.xticks(rotation=45, ha="right", fontsize=9)
 
-    buf = io.BytesIO()
+    ax.set_xlabel("Дата", fontsize=10)
+    ax.set_ylabel("₸", fontsize=10)
+    ax.legend(frameon=True, loc="upper left", fontsize=9)
+    ax.grid(True, alpha=0.3)
+
     fig.tight_layout()
-    fig.savefig(buf, format="png")
+
+    # --- Сохранение ---
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=200)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -73,13 +84,19 @@ def plot_bar_top(data: list[dict], title: str, value_key="revenue", top=True):
         values.reverse()
 
     fig, ax = _prepare_figure(title, figsize=(8, 5))
-    ax.barh(names, values, color="#1f77b4" if top else "#d62728")
-    ax.xaxis.set_major_formatter(FuncFormatter(_format_kzt))
-    ax.set_xlabel("₸")
-    fig.tight_layout()
+    bars = ax.barh(names, values, color="#1E88E5" if top else "#E74C3C")
 
+    # Добавляем подписи на барах
+    ax.bar_label(bars, labels=[f"{v:,.0f} ₸".replace(",", " ") for v in values],
+                 padding=3, fontsize=9)
+
+    ax.xaxis.set_major_formatter(FuncFormatter(_format_kzt))
+    ax.set_xlabel("₸", fontsize=10)
+    ax.invert_yaxis()  # чтобы топ-1 был сверху
+
+    fig.tight_layout()
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=200)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -100,11 +117,22 @@ def plot_city_pie(data: list[dict], title="Продажи по городам"):
     fig, ax = _prepare_figure(title, figsize=(5, 5))
     cities = [d["city"] for d in data]
     revenues = [float(d["revenue"]) for d in data]
-    ax.pie(revenues, labels=cities, autopct="%1.1f%%", startangle=90)
+
+    # Немного ярче палитра
+    colors = plt.cm.Paired(range(len(cities)))
+
+    ax.pie(
+        revenues,
+        labels=cities,
+        autopct="%1.1f%%",
+        startangle=90,
+        colors=colors,
+        textprops={"fontsize": 9}
+    )
     ax.axis("equal")
 
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
+    fig.savefig(buf, format="png", bbox_inches="tight", dpi=200)
     plt.close(fig)
     buf.seek(0)
     return buf
