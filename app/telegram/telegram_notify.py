@@ -15,6 +15,8 @@ class TelegramNotifier:
     # 🔹 Базовый метод отправки сообщений по типу чата
     def _send_to_type(self, message: str, chat_type: str = "sales"):
         """Отправить сообщение только подписчикам определённого типа"""
+        print(f"[DEBUG] _send_to_type() вызван для chat_type={chat_type}")
+
         db: Session = SessionLocal()
         try:
             subscribers = db.query(Subscriber).filter(Subscriber.chat_type == chat_type).all()
@@ -63,6 +65,31 @@ class TelegramNotifier:
     def send_admins(self, message: str):
         """Отправить сообщение только в административные чаты"""
         self._send_to_type(message, "analytics")
+
+    # ============================================================
+    # 🔹 ДОПОЛНЕНО: Отправка фото-графиков в чат аналитики
+    # ============================================================
+    def send_photo_analytics(self, image_bytes):
+        """Отправка графика в чат аналитики (PNG как фото)"""
+        db: Session = SessionLocal()
+        try:
+            analytics_chats = db.query(Subscriber).filter(Subscriber.chat_type == "analytics").all()
+            for sub in analytics_chats:
+                try:
+                    files = {
+                        'photo': ('analytics.png', image_bytes, 'image/png')
+                    }
+                    requests.post(
+                        f"https://api.telegram.org/bot{self.token}/sendPhoto",
+                        data={'chat_id': sub.chat_id},
+                        files=files
+                    )
+                except Exception as e:
+                    print(f"Ошибка при отправке графика {sub.chat_id}: {e}")
+        except Exception as e:
+            print("Ошибка при выборке чатов аналитики:", e)
+        finally:
+            db.close()
 
     def format_items(self, items):
         """Форматирование списка товаров"""

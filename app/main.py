@@ -96,7 +96,30 @@ scheduler.start()
 # ... внутри create_app() или после инициализации приложения
 start_analytics_scheduler()
 from app.analytics.scheduler import generate_analytics_report
-generate_analytics_report()
+@app.on_event("startup")
+def on_startup():
+    """Запуск планировщика при старте приложения"""
+    start_analytics_scheduler()
+    print("[App] Планировщик запущен.")
+
+    # 🔹 Отправим тестовое сообщение в Telegram при первом запуске
+    try:
+        generate_analytics_report()
+        print("[App] Тестовое сообщение аналитики отправлено.")
+    except Exception as e:
+        print("[App] Ошибка при тестовой отправке:", e)
+import requests
+from app.telegram.config_notify import notify_settings
+
+url = f"https://api.telegram.org/bot{notify_settings.TELEGRAM_TOKEN}/sendMessage"
+payload = {
+    "chat_id": "1355132132",   # ← твой chat_id
+    "text": "🔔 Тест аналитики (ручная проверка)",
+    "parse_mode": "HTML"
+}
+r = requests.post(url, data=payload)
+print(r.status_code, r.text)
+
 
 @app.on_event("shutdown")
 def shutdown_event():

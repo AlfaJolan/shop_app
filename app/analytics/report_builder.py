@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from app.db import SessionLocal
 from app.analytics import queries
+from app.analytics import plots  # ✅ добавлено для построения графиков
 from app.telegram.telegram_notify import notifier
 from pytz import timezone
 
@@ -133,9 +134,32 @@ def build_daily_report():
 
 def send_daily_report():
     """Формирует и отправляет ежедневный отчёт в Telegram (чат аналитики)."""
+    db = SessionLocal()
     try:
         message = build_daily_report()
+
+        # --- Получаем данные для графиков ---
+        data7 = queries.get_daily_dynamics(db, days=7)
+        top_sellers = queries.get_top_sellers(db, *(queries._period_days(7)))
+        top_products = queries.get_top_products(db, *(queries._period_days(7)))
+        cities = queries.get_cities(db, *(queries._period_days(7)))
+
+        # --- Строим графики ---
+        img_dynamics = plots.plot_sales_dynamics(data7, "7")
+        img_top_sellers = plots.plot_bar_top(top_sellers, "Топ продавцов за 7 дней")
+        img_top_products = plots.plot_bar_top(top_products, "Топ товаров за 7 дней")
+        img_city = plots.plot_city_pie(cities, "Продажи по городам")
+
+        # --- Отправляем текстовый отчёт ---
         notifier.send_analytics(message)
-        print("[AnalyticsReport] Отчёт отправлен в Telegram.")
+
+        # --- Отправляем графики ---
+        for img in [img_dynamics, img_top_sellers, img_top_products, img_city]:
+            if img:
+                notifier.send_photo_analytics(img)
+
+        print("[AnalyticsReport] Отчёт и графики отправлены в Telegram.")
     except Exception as e:
         print("[AnalyticsReport] Ошибка при отправке отчёта:", e)
+    finally:
+        db.close()
