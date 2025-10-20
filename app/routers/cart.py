@@ -204,11 +204,16 @@ async def cart_view(request: Request, db: Session = Depends(get_db)):
     lines = _cart_lines(db, cart)
     total = sum([l["line_total"] for l in lines], Decimal("0"))
     flash = _pop_flash(request)
+
+    # Получаем список продавцов для выбора в форме
+    salespersons = db.query(Salesperson).order_by(Salesperson.name.asc()).all()
+
     return templates.TemplateResponse("public/cart.html", {
         "request": request,
         "lines": lines,
         "total": total,
-        "flash": flash
+        "flash": flash,
+        "salespersons": salespersons,  # 👈 передаём в шаблон
     })
 
 # ----------------------- CHECKOUT -----------------------
@@ -219,6 +224,7 @@ async def checkout(
     customer_name: str = Form(""),
     phone: str = Form(""),
     seller_name: str = Form(""),
+    salesperson_id: int = Form(None),  # 🔹 добавили
     city_name: str = Form(""),
     comment: str = Form(""),
     files: list[UploadFile] = File(None)  # 🧾 NEW — файлы чеков (опционально)
@@ -260,6 +266,7 @@ async def checkout(
         customer_name=customer_name,
         phone=phone,
         seller_name=seller_name,
+        salesperson_id=salesperson_id,  # 🔹 передаём выбранного продавца
         city_name=city_name,
         comment=comment,
     )

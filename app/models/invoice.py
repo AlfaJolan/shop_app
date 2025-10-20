@@ -61,6 +61,12 @@ class Invoice(Base):
     receipts: Mapped[List["InvoiceReceipt"]] = relationship(
         "InvoiceReceipt", back_populates="invoice", cascade="all, delete-orphan"
     )
+
+    # новый атрибут — продавец, оформивший накладную
+    salesperson_id: Mapped[int | None] = mapped_column(
+        ForeignKey("salespersons.id", ondelete="SET NULL"), nullable=True
+    )
+    salesperson: Mapped["Salesperson"] = relationship(back_populates="invoices")
     # Хелпер: пересчитать итог
     def recompute_totals(self):
 

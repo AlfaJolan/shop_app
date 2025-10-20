@@ -14,6 +14,8 @@ class Seller(Base):
 
     # отношение: один продавец → много продуктов
     products: Mapped[List["Product"]] = relationship("Product", back_populates="seller")
+    salespersons = relationship("Salesperson", back_populates="seller", cascade="all, delete-orphan")
+
 
 class Category(Base):
     __tablename__ = "categories"

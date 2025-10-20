@@ -13,6 +13,7 @@ def create_invoice(
     customer_name: str,
     phone: str,
     seller_name: str,
+    salesperson_id: int | None,
     city_name: str,
     comment: str
 ) -> Invoice:
@@ -24,6 +25,7 @@ def create_invoice(
         customer_name=(customer_name or None),
         phone=(phone or None),
         seller_name=(seller_name or None),
+        salesperson_id=salesperson_id,  # 👈 добавлено
         city_name=(city_name or None),
         comment=(comment or None),
         total_amount_final=Decimal("0.00"),
