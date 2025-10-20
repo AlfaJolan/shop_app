@@ -20,7 +20,7 @@ def _prepare_figure(title: str, figsize=(8, 4)):
     ax.set_facecolor("#fafafa")
     ax.set_title(title, fontsize=14, pad=14, fontweight="bold", color="#2c3e50")
     ax.yaxis.set_major_formatter(FuncFormatter(_format_kzt))
-    ax.grid(alpha=0.2, color="#bdc3c7", linestyle="--", linewidth=0.7)
+    ax.grid(alpha=0.25, color="#bdc3c7", linestyle="--", linewidth=0.7)
     return fig, ax
 
 
@@ -93,38 +93,51 @@ def plot_bar_top(data: list[dict], title: str, value_key="revenue", top=True):
     if not data:
         return None
 
-    # --- Данные и усечение длинных названий ---
-    names = [d["name"][:22] + ("…" if len(d["name"]) > 22 else "") for d in data]
+    # --- Подготовка данных ---
+    names = [d["name"] for d in data]
     values = [float(d[value_key]) for d in data]
 
     if not top:
         names.reverse()
         values.reverse()
 
-    fig, ax = _prepare_figure(title, figsize=(9, 5.2))
-    color = "#3498db" if top else "#e74c3c"
-    bars = ax.barh(names, values, color=color, alpha=0.9)
+    # --- Автоматическая высота графика ---
+    fig_height = max(4.5, len(names) * 0.6)
+    fig, ax = _prepare_figure(title, figsize=(10, fig_height))
 
-    # Добавляем подписи на барах (справа)
-    for bar, v in zip(bars, values):
+    # --- Бары ---
+    color = "#3498db" if top else "#e74c3c"
+    bars = ax.barh(range(len(names)), values, color=color, alpha=0.9, edgecolor="#2c3e50")
+
+    # --- Настоящие подписи оси Y ---
+    ax.set_yticks(range(len(names)))
+    # сокращаем длинные подписи
+    clean_names = [n if len(n) <= 25 else n[:25] + "…" for n in names]
+    ax.set_yticklabels(clean_names, fontsize=10, color="#2c3e50", ha="right")
+
+    # --- Подписи справа от баров ---
+    for i, (bar, val) in enumerate(zip(bars, values)):
         ax.text(
-            v + max(values) * 0.01,
-            bar.get_y() + bar.get_height() / 2,
-            f"{int(v):,} ₸".replace(",", " "),
+            val + max(values) * 0.01,
+            i,
+            f"{int(val):,} ₸".replace(",", " "),
             va="center",
-            fontsize=9,
-            color="#2c3e50"
+            fontsize=9.5,
+            color="#2c3e50",
+            fontweight="medium"
         )
 
-    # --- Оформление осей ---
+    # --- Оформление ---
+    ax.invert_yaxis()  # Топ-1 сверху
     ax.xaxis.set_major_formatter(FuncFormatter(_format_kzt))
-    ax.set_xlabel("₸", fontsize=10, color="#2c3e50")
-    ax.invert_yaxis()  # чтобы топ-1 был сверху
-    ax.tick_params(axis='y', labelsize=9)
-    ax.tick_params(axis='x', labelsize=9)
-    ax.grid(alpha=0.2, linestyle="--")
+    ax.set_xlabel("Выручка (₸)", fontsize=10, color="#2c3e50")
+    ax.tick_params(axis='x', labelsize=9, colors="#2c3e50")
+    ax.grid(alpha=0.25, linestyle="--", linewidth=0.7)
 
+    plt.subplots_adjust(left=0.35, right=0.98)
     fig.tight_layout()
+
+    # --- Сохранение ---
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight", dpi=220)
     plt.close(fig)
@@ -144,12 +157,12 @@ def plot_city_pie(data: list[dict], title="Продажи по городам"):
     if not data:
         return None
 
-    fig, ax = _prepare_figure(title, figsize=(5.8, 5.8))
+    fig, ax = _prepare_figure(title, figsize=(6, 6))
     cities = [d["city"] for d in data]
     revenues = [float(d["revenue"]) for d in data]
 
-    # Немного ярче палитра
-    colors = plt.cm.Set3(np.linspace(0, 1, len(cities)))
+    # --- Цвета ---
+    colors = plt.cm.tab20(np.linspace(0, 1, len(cities)))
 
     wedges, texts, autotexts = ax.pie(
         revenues,
@@ -158,20 +171,19 @@ def plot_city_pie(data: list[dict], title="Продажи по городам"):
         startangle=90,
         colors=colors,
         textprops={"fontsize": 9, "color": "#2c3e50"},
-        wedgeprops={"edgecolor": "white"}
+        wedgeprops={"edgecolor": "white", "linewidth": 0.7}
     )
 
-    # Легенда отдельно справа
     ax.legend(
         wedges,
-        [f"{c}: {int(r):,} ₸".replace(",", " ") for c, r in zip(cities, revenues)],
+        [f"{c}: {int(r):,} ₸".replace(',', ' ') for c, r in zip(cities, revenues)],
         title="Города",
         loc="center left",
         bbox_to_anchor=(1, 0.5),
-        fontsize=8
+        fontsize=8.5
     )
 
-    ax.axis("equal")  # чтобы круг не был эллипсом
+    ax.axis("equal")
     fig.tight_layout()
 
     buf = io.BytesIO()
