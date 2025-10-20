@@ -188,7 +188,15 @@ def send_daily_report():
             if 0 <= dow < 7 and 0 <= hour < 24:
                 matrix[dow, hour] = rev
         img_heatmap_30 = plots.plot_heatmap_demand(matrix, "Активность заказов по дням/часам (30 дней)")  # 🆕
-
+                # 🆕 Тепловая карта за 7 дней
+        heat_rows_7 = queries.get_hourly_heatmap(db, *(queries._period_days(7)))  # 🆕
+        matrix_7 = np.zeros((7, 24), dtype=float)  # 🆕
+        for r in heat_rows_7:
+            dow, hour, rev = int(r["dow"]), int(r["hour"]), float(r["revenue"])
+            if 0 <= dow < 7 and 0 <= hour < 24:
+                matrix_7[dow, hour] = rev
+        img_heatmap_7 = plots.plot_heatmap_demand(matrix_7, "Активность заказов по дням/часам (7 дней)")  # 🆕
+        # 🆕 добавлена тепловая карта за 7 дней
         # --- Отправляем текстовый отчёт ---
         notifier.send_analytics(message)
 
@@ -196,7 +204,7 @@ def send_daily_report():
         for img in [
             img_dynamics_7, img_top_sellers_7, img_top_products_7, img_city_7,
             img_dynamics_30, img_top_sellers_30, img_top_products_30, img_city_30,
-            img_top_categories_30, img_heatmap_30  # 🆕 добавлены новые
+            img_top_categories_30, img_heatmap_30, img_heatmap_7  # 🆕 добавлены новые
         ]:
             if img:
                 notifier.send_photo_analytics(img)

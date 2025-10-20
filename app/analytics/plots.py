@@ -306,7 +306,7 @@ def plot_top_categories(data: list[dict], title: str = "Топ категори�
 # ============================================================
 # 🆕 5. ТЕПЛОВАЯ КАРТА СПРОСА (день × час)
 # ============================================================
-from matplotlib.colors import LogNorm
+from matplotlib.colors import Normalize
 
 def plot_heatmap_demand(matrix: np.ndarray, title: str = "Активность заказов по дням и часам (30 дней)"):
     """
@@ -326,10 +326,10 @@ def plot_heatmap_demand(matrix: np.ndarray, title: str = "Активность �
     days = np.arange(8)
     pcm = ax.pcolormesh(
         hours, days, matrix,
-        cmap="YlOrRd",              # 🎨 теплая палитра
-        edgecolors="white",         # ✅ теперь работает
+        cmap="YlOrRd",              # 🎨 вернули теплую палитру (красно-желтая)
+        edgecolors="white",         # ✅ видимая сетка
         linewidths=0.5,
-        norm=LogNorm(vmin=max(matrix.min(), 1), vmax=matrix.max()) if matrix.max() > 0 else None
+        norm=Normalize(vmin=0, vmax=matrix.max() * 1.05 if matrix.max() > 0 else 1)  # 🆕 мягче контраст
     )
 
     # --- Оси и подписи ---
@@ -351,9 +351,11 @@ def plot_heatmap_demand(matrix: np.ndarray, title: str = "Активность �
             val = matrix[i, j]
             if val <= 0:
                 continue
-            color = "#2c3e50" if val > max_val * 0.4 else "#7f8c8d"
+            # 🆕 Контрастный текст: белый на насыщенном, тёмный на светлом
+            intensity = val / max_val if max_val else 0
+            text_color = "#ffffff" if intensity > 0.6 else "#2c3e50"
             text_val = f"{val/1000:.0f}k" if max_val >= 10000 else f"{int(val)}"
-            ax.text(j + 0.5, i + 0.5, text_val, ha="center", va="center", fontsize=9, color=color)
+            ax.text(j + 0.5, i + 0.5, text_val, ha="center", va="center", fontsize=9, color=text_color)
 
     # --- Цветовая шкала ---
     cbar = fig.colorbar(pcm, ax=ax)
@@ -366,6 +368,7 @@ def plot_heatmap_demand(matrix: np.ndarray, title: str = "Активность �
     plt.close(fig)
     buf.seek(0)
     return buf
+
 
 
 def plot_heatmap_demand2(matrix: np.ndarray, title: str = "Активность заказов по дням и часам"):
