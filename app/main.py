@@ -114,14 +114,14 @@ def on_startup():
 import requests
 from app.telegram.config_notify import notify_settings
 
-url = f"https://api.telegram.org/bot{notify_settings.TELEGRAM_TOKEN}/sendMessage"
-payload = {
-    "chat_id": "1355132132",   # ← твой chat_id
-    "text": "🔔 Тест аналитики (ручная проверка)",
-    "parse_mode": "HTML"
-}
-r = requests.post(url, data=payload)
-print(r.status_code, r.text)
+#url = f"https://api.telegram.org/bot{notify_settings.TELEGRAM_TOKEN}/sendMessage"
+#payload = {
+#    "chat_id": "1355132132",   # ← твой chat_id
+#    "text": "🔔 Тест аналитики (ручная проверка)",
+#    "parse_mode": "HTML"
+#}
+#r = requests.post(url, data=payload)
+#print(r.status_code, r.text)
 
 
 @app.on_event("shutdown")

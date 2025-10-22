@@ -29,6 +29,7 @@ def generate_analytics_report1():
     except Exception as e:
         print(f"[AnalyticsScheduler] Ошибка при отправке: {e}")
 
+
 def generate_analytics_report():
     """
     Основная функция планировщика.
@@ -43,13 +44,14 @@ def generate_analytics_report():
     except Exception as e:
         print(f"[AnalyticsScheduler] Ошибка при отправке отчёта: {e}")
 
+
 def start_analytics_scheduler():
     """
     Запускает ежедневную задачу в 20:00 по времени Алматы.
     Можно добавить и другие периодические задачи по аналогии.
     """
-    # ⚙️ Проверяем, что это не процесс uvicorn reloader
-    if os.getenv("RUN_MAIN") != "true":
+    # ⚙️ Корректно пропускаем только процесс перезагрузчика Uvicorn/Watchfiles
+    if os.environ.get("WATCHFILES_RELOADER") == "true":
         print("[AnalyticsScheduler] Пропускаем запуск в reloader-процессе.")
         return
 
@@ -60,7 +62,7 @@ def start_analytics_scheduler():
         generate_analytics_report,
         trigger="cron",
         hour=20,
-        minute=0,
+        minute=00,
         id="daily_analytics_report",
         replace_existing=True
     )
