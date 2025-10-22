@@ -316,3 +316,45 @@ def get_hourly_heatmap(db, start_date, end_date):
         r["dow"] = (pg_dow - 1) % 7
         r["revenue"] = float(r["revenue"] or 0.0)
     return rows
+
+def get_salesperson_kpi(db, start_date, end_date):
+    """KPI по торговцам: выручка, маржа, средний чек, отмены."""
+    q = text("""
+        WITH base AS (
+            SELECT
+                inv.id AS invoice_id,
+                inv.salesperson_id,
+                sp.name AS salesperson_name,
+                inv.status,
+                SUM(ii.line_total_final) AS revenue,
+                SUM((ii.unit_price_final - ii.unit_price_net_cost) * ii.qty_final) AS margin
+            FROM invoices inv
+            LEFT JOIN salespersons sp ON sp.id = inv.salesperson_id
+            LEFT JOIN invoice_items ii ON ii.invoice_id = inv.id
+            WHERE inv.created_at BETWEEN :start_date AND :end_date
+            GROUP BY inv.id, inv.salesperson_id, sp.name, inv.status
+        ),
+        agg AS (
+            SELECT
+                salesperson_id,
+                COALESCE(salesperson_name, '—') AS name,
+                COUNT(DISTINCT invoice_id) AS orders,
+                SUM(revenue) AS revenue,
+                SUM(margin) AS margin,
+                AVG(revenue) AS avg_order_value,
+                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END)::float / COUNT(*) * 100 AS cancel_rate
+            FROM base
+            GROUP BY salesperson_id, name
+        )
+        SELECT
+            name,
+            orders,
+            revenue,
+            margin,
+            avg_order_value,
+            cancel_rate
+        FROM agg
+        ORDER BY revenue DESC;
+    """)
+    return [dict(r) for r in db.execute(q, {"start_date": start_date, "end_date": end_date}).mappings().all()]
+

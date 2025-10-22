@@ -148,6 +148,19 @@ def build_daily_report():
                    f"Маржа: {_fmt_kzt(summary_30['margin'])} ({margin_pct_30:.1f}%)\n"  # 🆕
                    f"🧾 AOV: {_fmt_kzt(aov_30)} | Корзина: {basket_30:.2f} шт/заказ\n"   # 🆕
                    )
+        # --- KPI по торговцам ---
+        msg.append("\n👨‍💼 <b>KPI по торговцам (30 дней)</b>:\n")
+        kpi_salespersons = queries.get_salesperson_kpi(db, *(queries._period_days(30)))
+        if kpi_salespersons:
+            for s in kpi_salespersons:
+                msg.append(
+                    f"{s['name']} — {_fmt_kzt(s['revenue'])}, "
+                    f"AOV {_fmt_kzt(s['avg_order_value'])}, "
+                    f"Маржа {_fmt_kzt(s['margin'])}, "
+                    f"Отмены {s['cancel_rate']:.1f}%"
+                )
+        else:
+            msg.append("_Нет данных по торговцам за период._")
 
         return "\n".join(msg)
 
@@ -215,14 +228,18 @@ def send_daily_report():
                 matrix_7[dow, hour] = rev
         img_heatmap_7 = plots.plot_heatmap_demand(matrix_7, "Активность заказов по дням/часам (7 дней)")  # 🆕
         # 🆕 добавлена тепловая карта за 7 дней
+
+        # Добавлена отправка новых метрик для продавцев 
         # --- Отправляем текстовый отчёт ---
         notifier.send_analytics(message)
-
+        # графики
+        kpi_salespersons = queries.get_salesperson_kpi(db, *(queries._period_days(30)))
+        img_salesperson_kpi = plots.plot_salesperson_kpi_bars(kpi_salespersons)
         # --- Отправляем графики ---
         for img in [
             img_dynamics_7, img_top_sellers_7, img_top_products_7, img_top_salespersons_7, img_city_7,
             img_dynamics_30, img_top_sellers_30, img_top_products_30, img_top_salespersons_30, img_city_30,
-            img_top_categories_30, img_heatmap_30, img_heatmap_7  # 🆕 добавлены новые
+            img_top_categories_30, img_heatmap_30, img_heatmap_7, img_salesperson_kpi  # 🆕 добавлены новые
         ]:
             if img:
                 notifier.send_photo_analytics(img)

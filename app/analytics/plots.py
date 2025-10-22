@@ -403,3 +403,33 @@ def plot_heatmap_demand2(matrix: np.ndarray, title: str = "Активность 
     plt.close(fig)
     buf.seek(0)
     return buf
+
+import io
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+
+def plot_salesperson_kpi_bars(data):
+    """Бар-чарт: выручка и маржа по торговцам."""
+    if not data:
+        return None
+
+    names = [d["name"] for d in data]
+    revenue = [d["revenue"] for d in data]
+    margin = [d["margin"] for d in data]
+
+    plt.style.use("seaborn-v0_8-whitegrid")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.bar(names, revenue, label="Выручка", alpha=0.7)
+    ax.bar(names, margin, label="Маржа", alpha=0.7)
+    ax.set_title("KPI по торговцам", fontsize=14, pad=12)
+    ax.set_ylabel("₸")
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{int(x):,}".replace(",", " ")))
+    ax.legend()
+    plt.xticks(rotation=15)
+
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close(fig)
+    return buf
