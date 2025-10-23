@@ -6,6 +6,7 @@ from app.analytics import plots  # ✅ добавлено для построе�
 from app.telegram.telegram_notify import notifier
 from pytz import timezone
 import numpy as np  # 🆕 для heatmap матрицы
+import traceback
 
 
 def _fmt_kzt(value):
@@ -247,5 +248,7 @@ def send_daily_report():
         print("[AnalyticsReport] Отчёт и графики (7 и 30 дней) отправлены в Telegram.")
     except Exception as e:
         print("[AnalyticsReport] Ошибка при отправке отчёта:", e)
+        traceback.print_exc()
+
     finally:
         db.close()

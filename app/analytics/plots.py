@@ -86,7 +86,11 @@ def plot_sales_dynamics(data: list[dict], days_label: str = "7"):
         win = 7 if len(y) >= 7 else max(3, (len(y)//2)*2 + 1)  # нечётное окно
         sma = np.convolve(y, np.ones(win)/win, mode="valid")
         sma_x = days[win - 1:]
-        ax.plot(sma_x, sma, linewidth=2.0, alpha=0.9, label=f"SMA({win})")
+        # ✅ Проверка на совпадение длин массивов перед построением
+        if len(sma_x) == 0 or len(sma) == 0 or len(sma_x) != len(sma):
+            print(f"[AnalyticsReport] Пропуск SMA({win}) — x={len(sma_x)}, y={len(sma)}")
+        else:
+            ax.plot(sma_x, sma, linewidth=2.0, alpha=0.9, label=f"SMA({win})")
 
     if len(y) >= 2:
         x = mdates.date2num(days)
@@ -128,6 +132,7 @@ def plot_sales_dynamics(data: list[dict], days_label: str = "7"):
     plt.close(fig)
     buf.seek(0)
     return buf
+
 
 
 # ============================================================

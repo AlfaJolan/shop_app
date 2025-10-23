@@ -21,3 +21,4 @@ PyYAML==6.0.2
 itsdangerous==2.2.0
 pytz==2025.1
 matplotlib==3.9.2
+dotenv
