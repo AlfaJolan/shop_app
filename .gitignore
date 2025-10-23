@@ -44,4 +44,5 @@ Desktop.ini
 app/static/uploads/products/
 app/config.py
 
+.venv/
 .env
