@@ -1,41 +1,69 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">Каталог</h2>
 
-<!-- 🔎 Поиск -->
-<div class="mb-4 position-relative">
-  <input type="text" id="search-input" class="form-control form-control-lg"
-         placeholder="Поиск по товарам, категориям и вариантам...">
-  <div id="suggest-box" class="dropdown-menu w-100"></div>
-</div>
-<!-- 🔹 Список категорий -->
-<div class="categories-dropdown mb-3">
-  <button id="categories-toggle" class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
-          type="button" data-bs-toggle="collapse" data-bs-target="#categories-collapse">
-    <span id="selected-category-label">Все товары</span>
-    <span class="caret">▼</span>
-  </button>
-  <div id="categories-collapse" class="collapse mt-2">
-    <ul class="list-group">
-      <li class="list-group-item category-select active" data-id="">Все товары</li>
-      {% for c in categories %}
-        <li class="list-group-item category-select" data-id="{{ c.id }}">{{ c.name }}</li>
-      {% endfor %}
-    </ul>
+<div class="page-section">
+  <div class="catalog-hero mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div>
+        <h1 class="page-title mb-2">Каталог</h1>
+        <p class="section-subtitle mb-0">
+          Выбирайте товары, варианты и добавляйте их в корзину в пару кликов.
+        </p>
+      </div>
+
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button id="clear-cart" class="btn btn-outline-danger btn-sm">
+          <i class="fa-solid fa-trash-can me-1"></i>
+          Очистить корзину
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Flash -->
 {% if flash %}
-  <div class="alert alert-info">{{ flash }}</div>
+  <div class="alert alert-info mb-4">{{ flash }}</div>
 {% endif %}
 
-<!-- 🔹 Toast контейнер -->
+<!-- Toast контейнер -->
 <div id="toast-container" class="toast-container"></div>
 
-<!-- 🔹 Кнопка очистки корзины -->
-<div class="mb-3">
-  <button id="clear-cart" class="btn btn-outline-danger btn-sm">🗑 Очистить корзину</button>
+<div class="page-section">
+  <div class="catalog-toolbar mb-4">
+    <!-- Поиск -->
+    <div class="search-panel flex-grow-1 position-relative">
+      <input
+        type="text"
+        id="search-input"
+        class="form-control form-control-lg"
+        placeholder="Поиск по товарам, категориям и вариантам..."
+      >
+      <div id="suggest-box" class="dropdown-menu w-100"></div>
+    </div>
+
+    <!-- Категории -->
+    <div class="categories-dropdown">
+      <button
+        id="categories-toggle"
+        class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#categories-collapse"
+      >
+        <span id="selected-category-label">Все товары</span>
+        <span class="caret">▼</span>
+      </button>
+<div id="categories-collapse" class="collapse mt-2 categories-menu-collapse">
+        <ul class="list-group">
+          <li class="list-group-item category-select active" data-id="">Все товары</li>
+          {% for c in categories %}
+            <li class="list-group-item category-select" data-id="{{ c.id }}">{{ c.name }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Динамическая выдача -->
@@ -45,234 +73,114 @@
 <div class="row row-cols-2 row-cols-lg-4 g-4" id="catalog-default">
   {% for p in products %}
     <div class="col">
-      <div class="card h-100 shadow-sm">
-  <!-- 🔹 Картинка с фиксированным соотношением 4:5 -->
-  <a href="/products/{{ p.id }}" class="product-img-wrapper">
-  {% if p.image %}
-    <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}">
-  {% else %}
-    <img src="/static/no-photo.webp" alt="нет фото">
-  {% endif %}
-</a>
+      <div class="card h-100">
 
+        <a href="/products/{{ p.id }}" class="product-img-wrapper">
+          {% if p.image %}
+            <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}">
+          {% else %}
+            <img src="/static/no-photo.webp" alt="нет фото">
+          {% endif %}
+        </a>
 
-  <div class="card-body d-flex flex-column">
-    <h6 class="card-title mb-2">{{ p.name }}</h6>
+        <div class="card-body d-flex flex-column">
+          <h6 class="card-title mb-2">{{ p.name }}</h6>
 
-    {% if p.variants %}
-      <ul class="list-unstyled small flex-grow-1">
-        {% for v in p.variants %}
-          <li class="mb-3 variant-item">
-            <!-- 🔹 имя варианта и цена -->
-            <div class="variant-name fw-semibold">
-              {{ v.name }} — {{ "%.2f"|format(v.unit_price) }} ₸
-            </div>
+          {% if p.variants %}
+            <ul class="list-unstyled small flex-grow-1 mb-3">
+              {% for v in p.variants %}
+                <li class="variant-item">
+                  <div class="variant-name fw-semibold mb-2">
+                    {{ v.name }} — {{ "%.2f"|format(v.unit_price) }} ₸
+                  </div>
 
-            <!-- 🔹 форма добавления в корзину -->
-            <form method="post" action="/cart/set" class="cart-set-form d-flex align-items-center gap-2 mt-1">
-              <input type="hidden" name="product_id" value="{{ p.id }}">
-              <input type="hidden" name="variant_id" value="{{ v.id }}">
-              <input type="hidden" name="stock" value="{{ v.stock if v.stock is defined else '' }}">
-              <button type="button" class="btn btn-sm btn-outline-secondary btn-dec">−</button>
-              <input type="number" name="qty" value="0" min="0"
-                     class="form-control form-control-sm qty-input text-center" style="width:60px;">
-              {% if v.stock is defined and v.stock|int <= 0 %}
-                <button type="button" class="btn btn-sm btn-secondary" disabled>Нет</button>
-              {% else %}
-                <button type="button" class="btn btn-sm btn-primary btn-inc">+</button>
-              {% endif %}
-            </form>
+                  <form method="post" action="/cart/set" class="cart-set-form d-flex align-items-center gap-2 mt-1">
+                    <input type="hidden" name="product_id" value="{{ p.id }}">
+                    <input type="hidden" name="variant_id" value="{{ v.id }}">
+                    <input type="hidden" name="stock" value="{{ v.stock if v.stock is defined else '' }}">
 
-            <!-- 🔹 остаток -->
-            {% if v.stock is defined %}
-              <small class="text-muted">Осталось: {{ v.stock }}</small>
-            {% endif %}
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted small">Нет вариантов</p>
-    {% endif %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-dec">−</button>
 
-    {% if p.seller %}
-      <p class="card-text mt-auto small text-muted">
-        <strong>{{ p.seller.name }}</strong>
-        {% if p.seller.city %} ({{ p.seller.city }}){% endif %}
-      </p>
-    {% endif %}
-  </div>
-  
-</div>
+                    <input
+                      type="number"
+                      name="qty"
+                      value="0"
+                      min="0"
+                      class="form-control form-control-sm qty-input text-center"
+                    >
 
+                    {% if v.stock is defined and v.stock|int <= 0 %}
+                      <button type="button" class="btn btn-sm btn-secondary" disabled>Нет</button>
+                    {% else %}
+                      <button type="button" class="btn btn-sm btn-primary btn-inc">+</button>
+                    {% endif %}
+                  </form>
 
+                  {% if v.stock is defined %}
+                    <small class="text-muted d-block mt-2">Осталось: {{ v.stock }}</small>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="text-muted small mb-3">Нет вариантов</p>
+          {% endif %}
+
+          {% if p.seller %}
+            <p class="card-text mt-auto small text-muted mb-0">
+              <strong>{{ p.seller.name }}</strong>
+              {% if p.seller.city %} ({{ p.seller.city }}){% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </div>
     </div>
   {% endfor %}
 </div>
-<nav>
+
+<nav class="mt-4">
   <ul class="pagination justify-content-center" id="pagination"></ul>
 </nav>
 
 <style>
-/* Подсказки */
-#suggest-box.show { display:block; }
-#suggest-box li { cursor:pointer; padding:.5rem .75rem; }
-#suggest-box li:hover, #suggest-box li.active { background:#f8f9fa; }
-
-/* 🔹 Пагинация */
-.pagination {
-  margin-top: 1rem;
-}
-
-.pagination .page-item {
-  margin: 0 2px;
-}
-
-.pagination .page-link {
-  color: #0d6efd; /* синий Bootstrap */
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.pagination .page-link:hover {
-  background-color: #e9ecef;
-  text-decoration: none;
-}
-
-.pagination .page-item.active .page-link {
-  background-color: #0d6efd;
-  color: #fff;
-  border-color: #0d6efd;
-}
-
-.pagination .page-item.disabled .page-link {
-  color: #6c757d;
-  pointer-events: none;
-  background-color: #f8f9fa;
-  border-color: #dee2e6;
-}
-
-
-/* 🔹 Панель фильтров */
-.filter-bar {
-  justify-content: flex-start;
-}
-
-/* На больших экранах кнопки компактные */
-@media (min-width: 768px) {
-  .filter-bar .btn,
-  .filter-bar .btn-group {
-    flex: 0 auto;
+  .caret {
+    font-size: 0.8rem;
   }
-}
 
-/* На телефонах кнопки растягиваются на всю ширину */
-@media (max-width: 767.98px) {
-  .filter-bar {
-    flex-direction: column;
+  .toast {
+    background: #333;
+    color: #fff;
+    padding: .75rem 1rem;
+    border-radius: .5rem;
+    margin-bottom: .5rem;
+    opacity: 0.95;
+    animation: fadeInOut 3s forwards;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
   }
-  .filter-bar .btn,
-  .filter-bar .btn-group {
-    width: 100%;
+
+  .toast.success { background: #28a745; }
+  .toast.error { background: #dc3545; }
+  .toast.info { background: #17a2b8; }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; transform: translateY(-10px); }
+    10% { opacity: 0.95; transform: translateY(0); }
+    90% { opacity: 0.95; }
+    100% { opacity: 0; transform: translateY(-10px); }
   }
-}
-/* 🔹 Категории (выпадающий список) */
-.categories-dropdown .list-group-item {
-  cursor: pointer;
-}
-.categories-dropdown .list-group-item.active {
-  background-color: #f8f9fa;
-  font-weight: 600;
-}
-.caret {
-  font-size: 0.8rem;
-}
 
+  .qty-input.flash-green { background: #d4edda; transition: background .7s; }
+  .qty-input.flash-red { background: #f8d7da; transition: background .7s; }
 
-/* 🔹 Картинки в карточках — фиксируем 4:5 и показываем полностью */
-.product-img-wrapper {
-  position: relative;
-  width: 100%;
-  padding-top: 125%; /* 4:5 */
-  overflow: hidden;
-  background: #f8f9fa;
-  border-top-left-radius: .5rem;
-  border-top-right-radius: .5rem;
-}
-.product-img-wrapper img {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  object-fit: contain;   /* показываем целиком */
-  background: #fff;      /* подложка */
-  padding: .25rem;       /* отступ вокруг */
-  display: block;
-}
+  @media (max-width: 767.98px) {
+    .categories-dropdown {
+      width: 100%;
+    }
 
-/* 🔹 Варианты товара */
-.variant-item {
-  border-bottom: 1px dashed #e9ecef;
-  padding-bottom: .5rem;
-}
-.variant-item:last-child {
-  border-bottom: none;
-}
-.variant-name {
-  font-size: 0.9rem;
-}
-.variant-item small {
-  display: block;
-  margin-top: .25rem;
-  font-size: 0.75rem;
-  color: #6c757d;
-}
-
-/* 🔹 На очень маленьких экранах */
-@media (max-width: 576px) {
-  .card-title { font-size: 0.9rem; }
-  .card-body { padding: 0.5rem; }
-  .variant-name { font-size: 0.85rem; }
-  .btn, .form-control-sm { font-size: 0.75rem; }
-}
-
-
-/* 🔹 Toast */
-.toast-container {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 2000;
-}
-.toast {
-  background: #333;
-  color: #fff;
-  padding: .75rem 1rem;
-  border-radius: .25rem;
-  margin-bottom: .5rem;
-  opacity: 0.95;
-  animation: fadeInOut 3s forwards;
-}
-.toast.success { background: #28a745; }
-.toast.error { background: #dc3545; }
-.toast.info { background: #17a2b8; }
-
-@keyframes fadeInOut {
-  0% { opacity: 0; transform: translateY(-10px); }
-  10% { opacity: 0.95; transform: translateY(0); }
-  90% { opacity: 0.95; }
-  100% { opacity: 0; transform: translateY(-10px); }
-}
-
-/* 🔹 Подсветка qty */
-.qty-input.flash-green { background: #d4edda; transition: background .7s; }
-.qty-input.flash-red { background: #f8d7da; transition: background .7s; }
-
-/* 🔹 На очень маленьких экранах */
-@media (max-width: 576px) {
-  .card-title { font-size: 0.9rem; }
-  .card-body { padding: 0.5rem; }
-  .btn, .form-control-sm { font-size: 0.75rem; }
-}
+    .categories-dropdown .btn {
+      width: 100%;
+    }
+  }
 </style>
 
 <script>
@@ -300,70 +208,61 @@
   // === Рендер карточек ===
   function renderCards(products){
   if(!products.length){ 
-    $res.innerHTML = "<p>Ничего не найдено.</p>"; 
+    $res.innerHTML = `<div class="col-12"><div class="surface p-4 text-center ez-muted">Ничего не найдено.</div></div>`; 
     return; 
   }
   $res.innerHTML = products.map(p=>`
     <div class="col">
-      <div class="card h-100 shadow-sm">
-        <!-- 🔹 Фото -->
+      <div class="card h-100">
         <div class="product-img-wrapper">
-  ${p.image 
-    ? `<a href="/products/${p.id}">
-         <img src="/static/uploads/products/${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
-       </a>`
-    : `<a href="/products/${p.id}">
-         <img src="/static/no-photo.webp" alt="нет фото">
-       </a>`}
-</div>
-
+          ${p.image 
+            ? `<a href="/products/${p.id}">
+                 <img src="/static/uploads/products/${escapeHtml(p.image)}" alt="${escapeHtml(p.name)}">
+               </a>`
+            : `<a href="/products/${p.id}">
+                 <img src="/static/no-photo.webp" alt="нет фото">
+               </a>`}
+        </div>
 
         <div class="card-body d-flex flex-column">
-          <!-- 🔹 Название товара -->
           <h6 class="card-title mb-2">${highlight(p.name, $in.value)}</h6>
 
-          <!-- 🔹 Варианты -->
           ${p.variants && p.variants.length ? `
-            <ul class="list-unstyled small flex-grow-1">
+            <ul class="list-unstyled small flex-grow-1 mb-3">
               ${p.variants.map(v=>`
-                <li class="mb-3 variant-item">
-                  <!-- имя варианта и цена -->
-                  <div class="variant-name fw-semibold">
+                <li class="variant-item">
+                  <div class="variant-name fw-semibold mb-2">
                     ${escapeHtml(v.name)} — ${Number(v.unit_price).toFixed(2)} ₸
                   </div>
 
-                  <!-- форма управления qty -->
                   <form method="post" action="/cart/set" class="cart-set-form d-flex align-items-center gap-2 mt-1">
                     <input type="hidden" name="product_id" value="${p.id}">
                     <input type="hidden" name="variant_id" value="${v.id}">
                     <input type="hidden" name="stock" value="${v.stock ?? ''}">
                     <button type="button" class="btn btn-sm btn-outline-secondary btn-dec">−</button>
                     <input type="number" name="qty" value="0" min="0"
-                           class="form-control form-control-sm qty-input text-center" style="width:60px;">
+                           class="form-control form-control-sm qty-input text-center">
                     ${v.stock!==null && v.stock!==undefined && v.stock<=0
                       ? `<button type="button" class="btn btn-sm btn-secondary" disabled>Нет</button>`
                       : `<button type="button" class="btn btn-sm btn-primary btn-inc">+</button>`}
                   </form>
 
-                  <!-- остаток -->
                   ${v.stock!==null && v.stock!==undefined 
-                    ? `<small class="text-muted">Осталось: ${v.stock}</small>` 
+                    ? `<small class="text-muted d-block mt-2">Осталось: ${v.stock}</small>` 
                     : ""}
                 </li>
               `).join("")}
             </ul>` 
-          : `<p class="text-muted small">Нет вариантов</p>`}
+          : `<p class="text-muted small mb-3">Нет вариантов</p>`}
 
-          <!-- 🔹 Продавец -->
           ${p.seller 
-            ? `<p class="card-text mt-auto small text-muted"><strong>${escapeHtml(p.seller)}</strong>${p.city?` (${escapeHtml(p.city)})`:""}</p>` 
+            ? `<p class="card-text mt-auto small text-muted mb-0"><strong>${escapeHtml(p.seller)}</strong>${p.city?` (${escapeHtml(p.city)})`:""}</p>` 
             : ""}
         </div>
       </div>
     </div>
   `).join("");
 
-  // 🔹 после перерисовки обновляем qty из корзины
   refreshCartState();
 }
 
@@ -390,8 +289,7 @@
     const q = e.target.value.trim(); clearTimeout(debounceId);
     if(!q){ resetToDefault(); return; }
     debounceId=setTimeout(async ()=>{
-      // 🔹 сброс пагинации Потом допилить
-      currentPage = 1; // сбрасываем страницу при новом поиске
+      currentPage = 1;
       const hints=await fetchSuggest(q); renderSuggest(hints,q);
       const prods=await fetchProductsByQuery(q); showResults(prods);
     },160);
@@ -420,7 +318,6 @@
   
   document.addEventListener("click", (e)=>{ if(!($suggest.contains(e.target)||e.target===$in)){ $suggest.classList.remove("show"); }});
   
-  // 🔹 Toast
   function showToast(msg, type="success"){
     const container = document.getElementById("toast-container");
     const toast = document.createElement("div");
@@ -430,13 +327,11 @@
     setTimeout(()=>toast.remove(), 3000);
   }
 
-  // 🔹 Подсветка qty
   function flashInput(input, type="green"){
     input.classList.add(type === "green" ? "flash-green" : "flash-red");
     setTimeout(()=>input.classList.remove("flash-green","flash-red"), 700);
   }
 
-  // 🔹 AJAX: set qty через +, − и ручной ввод
   document.addEventListener("click", async (e)=>{
     const form = e.target.closest("form.cart-set-form");
     if(!form) return;
@@ -458,7 +353,6 @@
     }
   });
 
-  // 🔹 запоминаем предыдущее значение qty, чтобы подсвечивать корректно
   document.addEventListener("focusin", (e)=>{
     if(e.target.classList.contains("qty-input")){
       e.target.dataset.prev = e.target.value;
@@ -503,7 +397,6 @@
     if (countEl) countEl.textContent = (data.total_items ?? 0);
     if (sumEl) sumEl.textContent = (data.total_sum ?? 0);
 
-    // 🔹 обновляем qty в карточках
     if(data.items){
       data.items.forEach(it=>{
         const input = document.querySelector(`form.cart-set-form input[name=variant_id][value='${it.variant_id}']`)
@@ -514,7 +407,6 @@
     }
   }
 
-  // 🔹 Обновляем корзину и карточки при загрузке страницы
   async function refreshCartState(){
     try{
       const resp = await fetch("/cart/state");
@@ -527,7 +419,6 @@
     }
   }
 
-  // 🔹 Очистка корзины
   const clearBtn = document.getElementById("clear-cart");
   if(clearBtn){
     clearBtn.addEventListener("click", async ()=>{
@@ -549,124 +440,111 @@
 
   let selectedCategoryId = null;
 
-document.querySelectorAll(".category-select").forEach(el=>{
-  el.addEventListener("click", async ()=>{
-    // снять выделение
-    document.querySelectorAll(".category-select").forEach(li => li.classList.remove("active"));
-    el.classList.add("active");
+  document.querySelectorAll(".category-select").forEach(el=>{
+    el.addEventListener("click", async ()=>{
+      document.querySelectorAll(".category-select").forEach(li => li.classList.remove("active"));
+      el.classList.add("active");
 
-    // меняем надпись на кнопке
-    const label = document.getElementById("selected-category-label");
-    label.textContent = el.dataset.id ? el.textContent : "Все товары";
+      const label = document.getElementById("selected-category-label");
+      label.textContent = el.dataset.id ? el.textContent : "Все товары";
 
-    // закрываем список
-    const collapseEl = document.getElementById("categories-collapse");
-    const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
-    bsCollapse.hide();
-    currentPage = 1;
+      const collapseEl = document.getElementById("categories-collapse");
+      const bsCollapse = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl);
+      bsCollapse.hide();
+      currentPage = 1;
 
-    // фильтр
-    selectedCategoryId = el.dataset.id || null;
-    if (selectedCategoryId) {
-      const prods = await fetchProductsBySelection("category", selectedCategoryId);
-      showResults(prods);
-    } else {
-      const prods = await fetchProductsByQuery($in.value.trim());
-      showResults(prods);
-    }
+      selectedCategoryId = el.dataset.id || null;
+      if (selectedCategoryId) {
+        const prods = await fetchProductsBySelection("category", selectedCategoryId);
+        showResults(prods);
+      } else {
+        const prods = await fetchProductsByQuery($in.value.trim());
+        showResults(prods);
+      }
+    });
   });
-});
 
-// доработанный fetchProductsByQuery
-async function fetchProductsByQuery(q){
-  const url = new URL(`/search/products`, window.location.origin);
-  url.searchParams.set("q", q);
-  if (selectedCategoryId) url.searchParams.set("category_id", selectedCategoryId);
-  const r = await fetch(url);
-  return r.ok ? await r.json() : [];
-}
-// === ПАГИНАЦИЯ ===
-let currentPage = 1;
-const limit = 12; // сколько товаров на страницу (можно менять)
-const $pagination = document.getElementById("pagination");
+  async function fetchProductsByQuery(q){
+    const url = new URL(`/search/products`, window.location.origin);
+    url.searchParams.set("q", q);
+    if (selectedCategoryId) url.searchParams.set("category_id", selectedCategoryId);
+    const r = await fetch(url);
+    return r.ok ? await r.json() : [];
+  }
 
-// Рендер кнопок пагинации
-function renderPagination(meta) {
-  if (!$pagination) return;
-  $pagination.innerHTML = "";
+  let currentPage = 1;
+  const limit = 12;
+  const $pagination = document.getElementById("pagination");
 
-  if (!meta || meta.total_pages <= 1) return; // если страниц мало, скрыть пагинацию
+  function renderPagination(meta) {
+    if (!$pagination) return;
+    $pagination.innerHTML = "";
 
-  const { page, total_pages } = meta;
+    if (!meta || meta.total_pages <= 1) return;
 
-  // Кнопка "Назад"
-  const prevDisabled = page <= 1 ? "disabled" : "";
-  $pagination.innerHTML += `
-    <li class="page-item ${prevDisabled}">
-      <a class="page-link" href="#" data-page="${page - 1}">«</a>
-    </li>
-  `;
+    const { page, total_pages } = meta;
 
-  // Кнопки с номерами страниц
-  for (let i = 1; i <= total_pages; i++) {
-    const active = i === page ? "active" : "";
+    const prevDisabled = page <= 1 ? "disabled" : "";
     $pagination.innerHTML += `
-      <li class="page-item ${active}">
-        <a class="page-link" href="#" data-page="${i}">${i}</a>
+      <li class="page-item ${prevDisabled}">
+        <a class="page-link" href="#" data-page="${page - 1}">«</a>
+      </li>
+    `;
+
+    for (let i = 1; i <= total_pages; i++) {
+      const active = i === page ? "active" : "";
+      $pagination.innerHTML += `
+        <li class="page-item ${active}">
+          <a class="page-link" href="#" data-page="${i}">${i}</a>
+        </li>
+      `;
+    }
+
+    const nextDisabled = page >= total_pages ? "disabled" : "";
+    $pagination.innerHTML += `
+      <li class="page-item ${nextDisabled}">
+        <a class="page-link" href="#" data-page="${page + 1}">»</a>
       </li>
     `;
   }
 
-  // Кнопка "Вперёд"
-  const nextDisabled = page >= total_pages ? "disabled" : "";
-  $pagination.innerHTML += `
-    <li class="page-item ${nextDisabled}">
-      <a class="page-link" href="#" data-page="${page + 1}">»</a>
-    </li>
-  `;
-}
+  $pagination.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const link = e.target.closest("a[data-page]");
+    if (!link) return;
 
-// Обработчик кликов по кнопкам страниц
-$pagination.addEventListener("click", async (e) => {
-  e.preventDefault();
-  const link = e.target.closest("a[data-page]");
-  if (!link) return;
+    const page = parseInt(link.dataset.page);
+    if (!page || page === currentPage) return;
 
-  const page = parseInt(link.dataset.page);
-  if (!page || page === currentPage) return;
+    currentPage = page;
+    await loadProductsPage();
+  });
 
-  currentPage = page;
-  await loadProductsPage();
-});
+  async function loadProductsPage() {
+    const url = new URL(`/search/products`, window.location.origin);
+    url.searchParams.set("page", currentPage);
+    url.searchParams.set("limit", limit);
 
-// Загрузка товаров с пагинацией
-async function loadProductsPage() {
-  const url = new URL(`/search/products`, window.location.origin);
-  url.searchParams.set("page", currentPage);
-  url.searchParams.set("limit", limit);
+    const q = $in.value.trim();
+    if (q) url.searchParams.set("q", q);
+    if (selectedCategoryId) url.searchParams.set("category_id", selectedCategoryId);
 
-  const q = $in.value.trim();
-  if (q) url.searchParams.set("q", q);
-  if (selectedCategoryId) url.searchParams.set("category_id", selectedCategoryId);
+    const r = await fetch(url);
+    if (!r.ok) return;
 
-  const r = await fetch(url);
-  if (!r.ok) return;
+    const data = await r.json();
 
-  const data = await r.json();
-
-  // Если API вернул список (старый формат) — просто показываем
-  if (Array.isArray(data)) {
-    showResults(data);
-    renderPagination(null);
-  } else {
-    showResults(data.items);
-    renderPagination(data);
+    if (Array.isArray(data)) {
+      showResults(data);
+      renderPagination(null);
+    } else {
+      showResults(data.items);
+      renderPagination(data);
+    }
   }
-}
 
-// Первичная загрузка (когда страница открылась)
-window.addEventListener("DOMContentLoaded", () => {
-  loadProductsPage();
-});
+  window.addEventListener("DOMContentLoaded", () => {
+    loadProductsPage();
+  });
 </script>
 {% endblock %}
