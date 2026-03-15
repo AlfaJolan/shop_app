@@ -14,7 +14,7 @@ from app.analytics.scheduler import start_analytics_scheduler
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import json
-
+# COMMIR рабочей версий
 # COMMIT Рабочей версий
 # Рабочая версия, с RBAC и сессиями
 # https://fastapi.tiangolo.com/tutorial/middleware/
