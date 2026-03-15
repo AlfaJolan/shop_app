@@ -71,6 +71,104 @@
           {% endif %}
         </div>
 
+        <!-- Форма добавления в корзину -->
+        {% if product.variants %}
+          <div class="product-buy-box mb-4">
+            <h5 class="section-title mb-3">Добавить в корзину</h5>
+
+            <form method="post" action="/cart/set" id="product-add-to-cart-form" class="product-buy-form">
+              <input type="hidden" name="product_id" value="{{ product.id }}">
+              <input type="hidden" name="stock" id="selected-stock" value="{{ product.variants[0].stock or 0 }}">
+
+              <div class="mb-3">
+  <label class="form-label">Вариант</label>
+
+  <div class="variant-dropdown" id="variant-dropdown">
+    <input
+      type="hidden"
+      name="variant_id"
+      id="variant-select"
+      value="{{ product.variants[0].id }}"
+    >
+
+    <button
+      type="button"
+      class="variant-dropdown-trigger"
+      id="variant-dropdown-trigger"
+      aria-expanded="false"
+    >
+      <span class="variant-dropdown-trigger-text" id="variant-dropdown-trigger-text">
+        {{ product.variants[0].name }} — {{ product.variants[0].unit_price }} ₸ · Остаток: {{ product.variants[0].stock or 0 }}
+      </span>
+      <span class="variant-dropdown-caret">▼</span>
+    </button>
+
+    <div class="variant-dropdown-menu" id="variant-dropdown-menu">
+      {% for v in product.variants %}
+        <button
+          type="button"
+          class="variant-dropdown-item {% if loop.first %}active{% endif %}"
+          data-id="{{ v.id }}"
+          data-price="{{ v.unit_price }}"
+          data-stock="{{ v.stock or 0 }}"
+          data-label="{{ v.name }} — {{ v.unit_price }} ₸ · Остаток: {{ v.stock or 0 }}"
+        >
+          <span class="variant-dropdown-item-main">{{ v.name }}</span>
+          <span class="variant-dropdown-item-meta">
+            <span class="variant-dropdown-item-price">{{ v.unit_price }} ₸</span>
+            <span class="variant-dropdown-item-stock">Остаток: {{ v.stock or 0 }}</span>
+          </span>
+        </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+              <div class="product-buy-meta mb-3">
+                <div class="product-buy-meta-item">
+                  <span class="product-buy-meta-label">Цена</span>
+                  <span class="product-buy-meta-value" id="selected-price">
+                    {{ product.variants[0].unit_price }} ₸
+                  </span>
+                </div>
+                <div class="product-buy-meta-item">
+                  <span class="product-buy-meta-label">Остаток</span>
+                  <span class="product-buy-meta-value" id="selected-stock-text">
+                    {{ product.variants[0].stock or 0 }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="product-qty" class="form-label">Количество</label>
+                <div class="product-qty-control">
+                  <button type="button" class="btn btn-outline-secondary" id="qty-dec">−</button>
+                  <input
+                    type="number"
+                    name="qty"
+                    id="product-qty"
+                    class="form-control text-center"
+                    value="1"
+                    min="1"
+                  >
+                  <button type="button" class="btn btn-primary" id="qty-inc">+</button>
+                </div>
+              </div>
+
+              <div class="product-buy-actions">
+                <button type="submit" class="btn btn-primary btn-lg w-100" id="add-to-cart-btn">
+                  <i class="fa-solid fa-cart-shopping me-2"></i>
+                  Добавить в корзину
+                </button>
+              </div>
+
+              <div class="product-buy-note mt-3" id="product-buy-note">
+                Товар можно добавить в корзину сразу с этой страницы.
+              </div>
+            </form>
+          </div>
+        {% endif %}
+
         <!-- Продавец -->
         {% if product.seller %}
           <div class="product-meta-card mb-4">
@@ -132,33 +230,196 @@
 
   <!-- Видео -->
   {% if product.videos %}
-    <div class="page-section mt-5">
-      <div class="text-center mb-4">
-        <h3 class="section-title mb-2">Видеообзоры</h3>
-        <p class="section-subtitle mb-0">Дополнительные материалы по товару</p>
-      </div>
-
-      <div class="row g-4">
-        {% for v in product.videos %}
-          <div class="col-12 col-lg-6">
-            <div class="product-video-card">
-              <div class="ratio ratio-16x9">
-                <iframe
-                  src="https://www.youtube.com/embed/{{ v.video_url }}"
-                  title="{{ v.title or 'Видеообзор' }}"
-                  class="w-100 h-100"
-                  allowfullscreen>
-                </iframe>
-              </div>
-              {% if v.title %}
-                <div class="product-video-title">{{ v.title }}</div>
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
+  <div class="page-section mt-5">
+    <div class="product-video-section-head text-center">
+      <h3 class="section-title mb-2">Видеообзоры</h3>
+      <p class="section-subtitle mb-0">Дополнительные материалы по товару</p>
     </div>
-  {% endif %}
+
+    <div class="row g-4 justify-content-center">
+      {% for v in product.videos %}
+        <div class="col-12 {% if product.videos|length == 1 %}col-xl-8{% else %}col-lg-6{% endif %}">
+          <div class="product-video-card">
+            <div class="ratio ratio-16x9 product-video-frame">
+              <iframe
+                src="https://www.youtube.com/embed/{{ v.video_url }}"
+                title="{{ v.title or 'Видеообзор' }}"
+                class="w-100 h-100"
+                allowfullscreen>
+              </iframe>
+            </div>
+            {% if v.title %}
+              <div class="product-video-title">{{ v.title }}</div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
 </div>
 
+<script>
+  const variantSelect = document.getElementById("variant-select");
+  const variantDropdown = document.getElementById("variant-dropdown");
+  const variantTrigger = document.getElementById("variant-dropdown-trigger");
+  const variantTriggerText = document.getElementById("variant-dropdown-trigger-text");
+  const variantMenu = document.getElementById("variant-dropdown-menu");
+  const variantItems = document.querySelectorAll(".variant-dropdown-item");
+
+  const qtyInput = document.getElementById("product-qty");
+  const qtyDec = document.getElementById("qty-dec");
+  const qtyInc = document.getElementById("qty-inc");
+  const selectedPrice = document.getElementById("selected-price");
+  const selectedStockText = document.getElementById("selected-stock-text");
+  const selectedStockInput = document.getElementById("selected-stock");
+  const addToCartForm = document.getElementById("product-add-to-cart-form");
+  const addToCartBtn = document.getElementById("add-to-cart-btn");
+  const buyNote = document.getElementById("product-buy-note");
+
+  function getCurrentStock() {
+    const val = parseInt(selectedStockInput?.value || "0", 10);
+    return Number.isNaN(val) ? 0 : val;
+  }
+
+  function syncVariantDataFromItem(item) {
+    if (!item) return;
+
+    const id = item.dataset.id || "";
+    const price = item.dataset.price || "0";
+    const stock = item.dataset.stock || "0";
+    const label = item.dataset.label || "";
+
+    if (variantSelect) variantSelect.value = id;
+    if (variantTriggerText) variantTriggerText.textContent = label;
+    if (selectedPrice) selectedPrice.textContent = `${price} ₸`;
+    if (selectedStockText) selectedStockText.textContent = stock;
+    if (selectedStockInput) selectedStockInput.value = stock;
+
+    variantItems.forEach(el => el.classList.remove("active"));
+    item.classList.add("active");
+
+    const stockNum = parseInt(stock || "0", 10);
+
+    if (!qtyInput || !addToCartBtn || !buyNote) return;
+
+    if (stockNum <= 0) {
+      qtyInput.value = 0;
+      qtyInput.max = 0;
+      addToCartBtn.disabled = true;
+      buyNote.textContent = "Этот вариант сейчас недоступен.";
+      buyNote.classList.remove("is-success");
+      buyNote.classList.add("is-error");
+    } else {
+      if ((parseInt(qtyInput.value || "1", 10)) < 1) qtyInput.value = 1;
+      if ((parseInt(qtyInput.value || "1", 10)) > stockNum) qtyInput.value = stockNum;
+      qtyInput.max = stockNum;
+      addToCartBtn.disabled = false;
+      buyNote.textContent = "Товар можно добавить в корзину сразу с этой страницы.";
+      buyNote.classList.remove("is-error");
+      buyNote.classList.remove("is-success");
+    }
+  }
+
+  if (variantTrigger && variantDropdown) {
+    variantTrigger.addEventListener("click", () => {
+      const isOpen = variantDropdown.classList.contains("open");
+      variantDropdown.classList.toggle("open", !isOpen);
+      variantTrigger.setAttribute("aria-expanded", String(!isOpen));
+    });
+  }
+
+  variantItems.forEach(item => {
+    item.addEventListener("click", () => {
+      syncVariantDataFromItem(item);
+      if (variantDropdown && variantTrigger) {
+        variantDropdown.classList.remove("open");
+        variantTrigger.setAttribute("aria-expanded", "false");
+      }
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!variantDropdown) return;
+    if (!variantDropdown.contains(e.target)) {
+      variantDropdown.classList.remove("open");
+      if (variantTrigger) variantTrigger.setAttribute("aria-expanded", "false");
+    }
+  });
+
+  if (variantItems.length) {
+    const activeItem = document.querySelector(".variant-dropdown-item.active") || variantItems[0];
+    syncVariantDataFromItem(activeItem);
+  }
+
+  if (qtyDec && qtyInput) {
+    qtyDec.addEventListener("click", () => {
+      let current = parseInt(qtyInput.value || "1", 10);
+      current = Math.max(1, current - 1);
+      qtyInput.value = current;
+    });
+  }
+
+  if (qtyInc && qtyInput) {
+    qtyInc.addEventListener("click", () => {
+      const stock = getCurrentStock();
+      let current = parseInt(qtyInput.value || "1", 10);
+
+      if (stock <= 0) return;
+
+      current = Math.min(stock, current + 1);
+      qtyInput.value = current;
+    });
+  }
+
+  if (qtyInput) {
+    qtyInput.addEventListener("change", () => {
+      const stock = getCurrentStock();
+      let current = parseInt(qtyInput.value || "1", 10);
+
+      if (Number.isNaN(current) || current < 1) current = 1;
+      if (stock > 0 && current > stock) current = stock;
+
+      qtyInput.value = current;
+    });
+  }
+
+  if (addToCartForm) {
+    addToCartForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      try {
+        const formData = new FormData(addToCartForm);
+        const resp = await fetch(addToCartForm.action, {
+          method: addToCartForm.method,
+          body: formData,
+          headers: { Accept: "application/json" }
+        });
+
+        if (!resp.ok) throw new Error("Ошибка добавления в корзину");
+
+        const data = await resp.json();
+
+        const countEl = document.getElementById("cart-count");
+        const sumEl = document.getElementById("cart-sum");
+
+        if (countEl) countEl.textContent = data.total_items ?? 0;
+        if (sumEl) sumEl.textContent = data.total_sum ?? 0;
+
+        if (buyNote) {
+          buyNote.textContent = "Товар добавлен в корзину.";
+          buyNote.classList.remove("is-error");
+          buyNote.classList.add("is-success");
+        }
+      } catch (err) {
+        console.error(err);
+        if (buyNote) {
+          buyNote.textContent = "Не удалось добавить товар в корзину.";
+          buyNote.classList.remove("is-success");
+          buyNote.classList.add("is-error");
+        }
+      }
+    });
+  }
+</script>
 {% endblock %}
