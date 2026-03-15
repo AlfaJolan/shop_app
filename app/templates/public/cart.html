@@ -1,150 +1,230 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">🛒 Корзина</h2>
+
+<div class="page-section">
+  <div class="catalog-hero mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div>
+        <h1 class="page-title mb-2">Корзина</h1>
+        <p class="section-subtitle mb-0">
+          Проверьте товары, количество и оформите заказ.
+        </p>
+      </div>
+      <div class="cart-summary-badge">
+        <i class="fa-solid fa-cart-shopping me-2"></i>
+        {{ lines|length if lines else 0 }} поз.
+      </div>
+    </div>
+  </div>
+</div>
 
 {% if flash %}
-  <div class="alert alert-warning">{{ flash }}</div>
+  <div class="alert alert-warning mb-4">{{ flash }}</div>
 {% endif %}
 
 {% if not lines %}
-  <p id="empty-cart">Корзина пуста. <a href="/" class="link-primary">Перейти в каталог</a></p>
+  <div class="cart-empty-state">
+    <div class="cart-empty-icon">🛒</div>
+    <h3 class="cart-empty-title">Корзина пуста</h3>
+    <p class="cart-empty-text">
+      Добавьте товары из каталога, чтобы оформить заказ.
+    </p>
+    <a href="/" class="btn btn-primary px-4">
+      Перейти в каталог
+    </a>
+  </div>
 {% else %}
 
-  <!-- Таблица для больших экранов -->
-  <div class="d-none d-lg-block">
-    <table class="table align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>Наименование</th>
-          <th class="text-end">Цена</th>
-          <th class="text-center">Кол-во (остаток)</th>
-          <th class="text-end">Сумма</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="cart-body">
-      {% for l in lines %}
-        <tr data-variant-id="{{ l.variant_id }}">
-          <td>
-            <div class="fw-semibold">{{ l.product_name }}</div>
-            <div class="small text-muted">{{ l.variant_name }}</div>
-          </td>
-          <td class="text-end">{{ "%.2f"|format(l.unit_price) }} ₸</td>
-          <td class="text-center">
-            <form method="post" action="/cart/update" class="cart-update-form d-inline-flex align-items-center gap-2">
-              <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
-              <input type="number" name="qty" value="{{ l.qty }}" min="0" max="{{ l.stock }}"
-                     class="form-control form-control-sm text-center" style="width:70px;"
-                     onchange="this.form.submit()">
-              <span class="small text-muted">из {{ l.stock }}</span>
-            </form>
-          </td>
-          <td class="text-end fw-semibold line-total">{{ "%.2f"|format(l.line_total) }} ₸</td>
-          <td class="text-center">
-            <form method="post" action="/cart/remove" class="cart-remove-form">
-              <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
-              <button type="submit" class="btn btn-sm btn-outline-danger">✖</button>
-            </form>
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3" class="text-end fw-bold">Итого:</td>
-          <td class="text-end fw-bold" id="cart-total">{{ "%.2f"|format(total) }} ₸</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
+  <div class="row g-4 align-items-start">
+    <div class="col-12 col-xl-8">
+      <!-- Таблица для больших экранов -->
+      <div class="d-none d-lg-block cart-table-shell">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Наименование</th>
+                <th class="text-end">Цена</th>
+                <th class="text-center">Кол-во</th>
+                <th class="text-end">Сумма</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="cart-body">
+              {% for l in lines %}
+                <tr data-variant-id="{{ l.variant_id }}">
+                  <td>
+                    <div class="cart-product-name">{{ l.product_name }}</div>
+                    <div class="cart-product-variant">{{ l.variant_name }}</div>
+                  </td>
+                  <td class="text-end cart-unit-price">
+                    {{ "%.2f"|format(l.unit_price) }} ₸
+                  </td>
+                  <td class="text-center">
+                    <form method="post" action="/cart/update" class="cart-update-form cart-qty-inline">
+                      <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+                      <input
+                        type="number"
+                        name="qty"
+                        value="{{ l.qty }}"
+                        min="0"
+                        max="{{ l.stock }}"
+                        class="form-control form-control-sm text-center cart-qty-input"
+                        onchange="this.form.submit()"
+                      >
+                      <span class="cart-stock-note">из {{ l.stock }}</span>
+                    </form>
+                  </td>
+                  <td class="text-end fw-semibold line-total cart-line-total">
+                    {{ "%.2f"|format(l.line_total) }} ₸
+                  </td>
+                  <td class="text-center">
+                    <form method="post" action="/cart/remove" class="cart-remove-form">
+                      <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger cart-remove-btn" aria-label="Удалить">
+                        <i class="fa-solid fa-xmark"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-  <!-- Карточки для мобильных -->
-  <div class="d-lg-none">
-    <div class="list-group mb-3" id="cart-list">
-      {% for l in lines %}
-        <div class="list-group-item" data-variant-id="{{ l.variant_id }}">
-          <div class="fw-semibold">{{ l.product_name }}</div>
-          <div class="small text-muted mb-2">{{ l.variant_name }}</div>
+      <!-- Карточки для мобильных -->
+      <div class="d-lg-none">
+        <div class="cart-mobile-list" id="cart-list">
+          {% for l in lines %}
+            <div class="cart-mobile-card" data-variant-id="{{ l.variant_id }}">
+              <div class="cart-mobile-head">
+                <div>
+                  <div class="cart-product-name">{{ l.product_name }}</div>
+                  <div class="cart-product-variant">{{ l.variant_name }}</div>
+                </div>
+              </div>
 
-          <div class="d-flex justify-content-between align-items-center">
-            <span>{{ "%.2f"|format(l.unit_price) }} ₸</span>
-            <span class="fw-semibold line-total">{{ "%.2f"|format(l.line_total) }} ₸</span>
+              <div class="cart-mobile-prices">
+                <div class="cart-mobile-price-item">
+                  <span class="cart-mobile-label">Цена</span>
+                  <span>{{ "%.2f"|format(l.unit_price) }} ₸</span>
+                </div>
+                <div class="cart-mobile-price-item">
+                  <span class="cart-mobile-label">Сумма</span>
+                  <span class="fw-semibold line-total">{{ "%.2f"|format(l.line_total) }} ₸</span>
+                </div>
+              </div>
+
+              <form method="post" action="/cart/update" class="cart-update-form cart-mobile-qty-form">
+                <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+                <input
+                  type="number"
+                  name="qty"
+                  value="{{ l.qty }}"
+                  min="0"
+                  max="{{ l.stock }}"
+                  class="form-control form-control-sm cart-qty-input"
+                  onchange="this.form.submit()"
+                >
+                <span class="cart-stock-note">из {{ l.stock }}</span>
+              </form>
+
+              <form method="post" action="/cart/remove" class="mt-3">
+                <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
+                <button type="submit" class="btn btn-outline-danger w-100">
+                  Удалить
+                </button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="cart-summary-box mb-4">
+        <h3 class="section-title mb-3">Итог заказа</h3>
+
+        <div class="cart-summary-row">
+          <span>Товаров</span>
+          <span>{{ lines|length }}</span>
+        </div>
+
+        <div class="cart-summary-row cart-summary-row-total">
+          <span>Итого</span>
+          <span id="cart-total">{{ "%.2f"|format(total) }} ₸</span>
+        </div>
+
+        <div class="d-lg-none text-end fw-bold mt-2" id="cart-total-mobile" style="display:none;">
+          Итого: {{ "%.2f"|format(total) }} ₸
+        </div>
+      </div>
+
+      <!-- Форма оформления заказа -->
+      <div class="checkout-form-wrap">
+        <h3 class="section-title mb-3">Оформление заказа</h3>
+
+        <form method="post" action="/checkout" enctype="multipart/form-data" class="row g-3">
+          <div class="col-12 col-md-6 col-xl-12">
+            <label class="form-label">Имя</label>
+            <input name="customer_name" class="form-control" placeholder="Ваше имя">
           </div>
 
-          <!-- обновление количества -->
-          <form method="post" action="/cart/update" class="cart-update-form d-flex align-items-center gap-2 mt-2">
-            <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
-            <input type="number" name="qty" value="{{ l.qty }}" min="0" max="{{ l.stock }}"
-                   class="form-control form-control-sm" style="width:80px;"
-                   onchange="this.form.submit()">
-            <span class="small text-muted">из {{ l.stock }}</span>
-          </form>
+          <div class="col-12 col-md-6 col-xl-12">
+            <label class="form-label">Телефон</label>
+            <input name="phone" class="form-control" placeholder="+7...">
+          </div>
 
-          <!-- удаление -->
-          <form method="post" action="/cart/remove" class="mt-2">
-            <input type="hidden" name="variant_id" value="{{ l.variant_id }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger w-100">Удалить</button>
-          </form>
-        </div>
-      {% endfor %}
-    </div>
-    <div class="text-end fw-bold mb-3" id="cart-total-mobile">
-      Итого: {{ "%.2f"|format(total) }} ₸
+          <div class="col-12 col-md-6 col-xl-12">
+            <label class="form-label">Имя Продавца</label>
+            <input name="seller_name" class="form-control" placeholder="Имя Продавца">
+          </div>
+
+          <div class="col-12 col-md-6 col-xl-12">
+            <label class="form-label">Продавец</label>
+            <select name="salesperson_id" class="form-select" required>
+              <option value="">— Выберите продавца —</option>
+              {% for sp in salespersons %}
+                <option value="{{ sp.id }}">{{ sp.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Город</label>
+            <input name="city_name" class="form-control" placeholder="Ваш город">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Комментарий</label>
+            <textarea
+              name="comment"
+              rows="3"
+              class="form-control"
+              placeholder="Примечание к заказу (необязательно)"
+            ></textarea>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Прикрепить чек (PDF, необязательно)</label>
+            <input type="file" name="files" multiple accept="application/pdf" class="form-control">
+            <div class="form-text">Можно прикрепить один или несколько PDF-файлов чеков.</div>
+          </div>
+
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100 py-2">
+              <i class="fa-solid fa-check me-2"></i>
+              Оформить заказ
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-
-  <!-- Форма оформления заказа -->
-  <h3 class="mt-4">Оформление заказа</h3>
-  <!-- 🧾 добавлено enctype и поле для чека -->
-  <form method="post" action="/checkout" enctype="multipart/form-data" class="row g-3" style="max-width:600px;">
-    <div class="col-12 col-md-6">
-      <label class="form-label">Имя</label>
-      <input name="customer_name" class="form-control" placeholder="Ваше имя">
-    </div>
-    <div class="col-12 col-md-6">
-      <label class="form-label">Телефон</label>
-      <input name="phone" class="form-control" placeholder="+7...">
-    </div>
-    <div class="col-12 col-md-6">
-      <label class="form-label">Имя Продавца</label>
-      <input name="seller_name" class="form-control" placeholder="Имя Продавца">
-    </div>
-    <div class="col-12 col-md-6">
-  <label class="form-label">Продавец</label>
-  <select name="salesperson_id" class="form-select" required>
-    <option value="">— Выберите продавца —</option>
-    {% for sp in salespersons %}
-      <option value="{{ sp.id }}">{{ sp.name }}</option>
-    {% endfor %}
-  </select>
-    </div>
-
-    <div class="col-12 col-md-6">
-      <label class="form-label">Город</label>
-      <input name="city_name" class="form-control" placeholder="Ваш город">
-    </div>
-    <div class="col-12">
-      <label class="form-label">Комментарий</label>
-      <textarea name="comment" rows="3" class="form-control" placeholder="Примечание к заказу (необязательно)"></textarea>
-    </div>
-  
-
-    <!-- 🧾 Прикрепление чека -->
-    <div class="col-12">
-      <label class="form-label">Прикрепить чек (PDF, необязательно)</label>
-      <input type="file" name="files" multiple accept="application/pdf" class="form-control">
-      <div class="form-text text-muted">Можно прикрепить один или несколько PDF-файлов чеков.</div>
-    </div>
-
-    <div class="col-12">
-      <button type="submit" class="btn btn-primary w-100 py-2">Оформить заказ</button>
-    </div>
-  </form>
 
 {% endif %}
 
-<!-- 🔹 Подключаем скрипт AJAX-обработки корзины -->
 <script src="/static/js/cart.js"></script>
 
 {% endblock %}
