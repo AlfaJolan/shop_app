@@ -90,9 +90,10 @@
             <ul class="list-unstyled small flex-grow-1 mb-3">
               {% for v in p.variants %}
                 <li class="variant-item">
-                  <div class="variant-name fw-semibold mb-2">
-                    {{ v.name }} — {{ "%.2f"|format(v.unit_price) }} ₸
-                  </div>
+                  <div class="variant-name mb-2">
+  <span>{{ v.name }}</span>
+  <span class="variant-price">{{ "%.2f"|format(v.unit_price) }} ₸</span>
+</div>
 
                   <form method="post" action="/cart/set" class="cart-set-form d-flex align-items-center gap-2 mt-1">
                     <input type="hidden" name="product_id" value="{{ p.id }}">
@@ -117,7 +118,7 @@
                   </form>
 
                   {% if v.stock is defined %}
-                    <small class="text-muted d-block mt-2">Осталось: {{ v.stock }}</small>
+                  <small class="variant-stock">Осталось: {{ v.stock }}</small>
                   {% endif %}
                 </li>
               {% endfor %}

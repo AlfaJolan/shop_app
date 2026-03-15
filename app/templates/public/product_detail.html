@@ -1,123 +1,164 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container py-5">
-  <div class="row g-4">
-    <!-- Левая колонка: фото (карусель) -->
+
+<div class="page-section">
+  <div class="row g-4 align-items-start">
+    <!-- Левая колонка: фото -->
     <div class="col-lg-6">
-      {% if product.image or product.images %}
-      <div id="productCarousel" class="carousel slide shadow-sm border rounded" data-bs-ride="carousel">
-        <div class="carousel-inner text-center bg-white">
-          <!-- Главное фото -->
-          {% if product.image %}
-          <div class="carousel-item active">
-            <img src="/static/uploads/products/{{ product.image }}" 
-                 class="d-block mx-auto img-fluid rounded"
-                 style="max-height:400px; object-fit:contain;" 
-                 alt="{{ product.name }}">
+      <div class="product-detail-media">
+        {% if product.image or product.images %}
+          <div id="productCarousel" class="carousel slide product-carousel" data-bs-ride="carousel">
+            <div class="carousel-inner text-center">
+              {% if product.image %}
+                <div class="carousel-item active">
+                  <div class="product-main-image-wrap">
+                    <img
+                      src="/static/uploads/products/{{ product.image }}"
+                      class="d-block mx-auto img-fluid product-main-image"
+                      alt="{{ product.name }}"
+                    >
+                  </div>
+                </div>
+              {% endif %}
+
+              {% for img in product.images %}
+                <div class="carousel-item {% if not product.image and loop.first %}active{% endif %}">
+                  <div class="product-main-image-wrap">
+                    <img
+                      src="/static/uploads/products/{{ product.id }}/gallery/{{ img.image_url }}"
+                      class="d-block mx-auto img-fluid product-main-image"
+                      alt="Фото {{ loop.index }}"
+                    >
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            {% if product.image or product.images|length > 1 %}
+              <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon"></span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon"></span>
+              </button>
+            {% endif %}
           </div>
-          {% endif %}
-          <!-- Доп. фото -->
-          {% for img in product.images %}
-          <div class="carousel-item {% if not product.image and loop.first %}active{% endif %}">
-            <img src="/static/uploads/products/{{ product.id }}/gallery/{{ img.image_url }}" 
-                 class="d-block mx-auto img-fluid rounded"
-                 style="max-height:400px; object-fit:contain;" 
-                 alt="Фото {{ loop.index }}">
+        {% else %}
+          <div class="product-main-image-wrap product-image-placeholder">
+            <span class="text-muted">Нет фото</span>
           </div>
-          {% endfor %}
-        </div>
-        <!-- Стрелки -->
-        <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
-          <span class="carousel-control-prev-icon"></span>
-        </button>
-        <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
-          <span class="carousel-control-next-icon"></span>
-        </button>
+        {% endif %}
       </div>
-      {% else %}
-        <div class="bg-light d-flex align-items-center justify-content-center rounded" style="height:400px;">
-          <span class="text-muted">Нет фото</span>
-        </div>
-      {% endif %}
     </div>
 
     <!-- Правая колонка: инфо -->
     <div class="col-lg-6">
-      <h1 class="fw-bold">{{ product.name }}</h1>
-      <p class="text-muted mb-1">SKU: {{ product.sku }}</p>
-
-      <!-- Цена -->
-      {% if product.variants %}
-        {% set min_price = product.variants | map(attribute='unit_price') | min %}
-        <h3 class="text-danger fw-bold">от {{ min_price }} ₸</h3>
-      {% else %}
-        <h3 class="text-muted">Цена не указана</h3>
-      {% endif %}
-
-      <!-- Описание -->
-      {% if product.description %}
-        <p class="mt-4">{{ product.description }}</p>
-      {% endif %}
-
-      <!-- Варианты -->
-      {% if product.variants %}
-        <h5 class="mt-4 mb-3">Варианты:</h5>
-        <div class="table-responsive">
-          <table class="table table-striped table-bordered align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Наименование</th>
-                <th>Цена</th>
-                <th>Остаток</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for v in product.variants %}
-                <tr>
-                  <td>{{ v.name }}</td>
-                  <td><span class="fw-bold text-success">{{ v.unit_price }} ₸</span></td>
-                  <td>{{ v.stock or 0 }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="product-detail-info">
+        <div class="mb-3">
+          <h1 class="page-title mb-2">{{ product.name }}</h1>
+          {% if product.sku %}
+            <div class="product-sku">SKU: {{ product.sku }}</div>
+          {% endif %}
         </div>
-      {% endif %}
 
-      <!-- 🔹 Кнопка "Написать менеджеру" -->
-      <div class="mt-4">
-        {% set msg = "Здравствуйте! Хочу уточнить по товару: " ~ product.name ~ " (" ~ request.url._url ~ ")" %}
-        <a href="{{ request.app.state.contacts.whatsapp }}?text={{ msg|urlencode }}" 
-           target="_blank" 
-           class="btn btn-success btn-lg shadow-sm w-100">
-          💬 Написать менеджеру в WhatsApp
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <!-- Видео блок -->
-  {% if product.videos %}
-  <div class="row mt-5">
-    <div class="col-12">
-      <h3 class="fw-bold mb-4 text-center">🎬 Видеообзоры</h3>
-      {% for v in product.videos %}
-      <div class="video-card mb-5 shadow-sm rounded overflow-hidden">
-        <div class="ratio ratio-16x9">
-          <iframe 
-            src="https://www.youtube.com/embed/{{ v.video_url }}" 
-            title="{{ v.title or 'Видеообзор' }}" 
-            class="w-100 h-100"
-            allowfullscreen>
-          </iframe>
+        <!-- Цена -->
+        <div class="mb-4">
+          {% if product.variants %}
+            {% set min_price = product.variants | map(attribute='unit_price') | min %}
+            <div class="product-price">от {{ min_price }} ₸</div>
+          {% else %}
+            <div class="product-price product-price-muted">Цена не указана</div>
+          {% endif %}
         </div>
-        {% if v.title %}
-        <p class="p-3 m-0 text-center bg-light">{{ v.title }}</p>
+
+        <!-- Продавец -->
+        {% if product.seller %}
+          <div class="product-meta-card mb-4">
+            <div class="product-meta-label">Продавец</div>
+            <div class="product-meta-value">
+              <strong>{{ product.seller.name }}</strong>
+              {% if product.seller.city %} — {{ product.seller.city }}{% endif %}
+            </div>
+          </div>
         {% endif %}
+
+        <!-- Описание -->
+        {% if product.description %}
+          <div class="product-description-block mb-4">
+            <h5 class="section-title mb-2">Описание</h5>
+            <p class="product-description-text mb-0">{{ product.description }}</p>
+          </div>
+        {% endif %}
+
+        <!-- Варианты -->
+        {% if product.variants %}
+          <div class="product-variants-block mb-4">
+            <h5 class="section-title mb-3">Варианты</h5>
+
+            <div class="product-variants-list">
+              {% for v in product.variants %}
+                <div class="product-variant-row">
+                  <div class="product-variant-main">
+                    <div class="product-variant-name">{{ v.name }}</div>
+                    <div class="product-variant-stock">
+                      Остаток: {{ v.stock or 0 }}
+                    </div>
+                  </div>
+                  <div class="product-variant-price">
+                    {{ v.unit_price }} ₸
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        <!-- Кнопка менеджеру -->
+        <div class="mt-4">
+          {% set msg = "Здравствуйте! Хочу уточнить по товару: " ~ product.name ~ " (" ~ request.url._url ~ ")" %}
+          <a
+            href="{{ request.app.state.contacts.whatsapp }}?text={{ msg|urlencode }}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-success btn-lg w-100 product-manager-btn"
+          >
+            <i class="fa-brands fa-whatsapp me-2"></i>
+            Написать менеджеру в WhatsApp
+          </a>
+        </div>
       </div>
-      {% endfor %}
     </div>
   </div>
+
+  <!-- Видео -->
+  {% if product.videos %}
+    <div class="page-section mt-5">
+      <div class="text-center mb-4">
+        <h3 class="section-title mb-2">Видеообзоры</h3>
+        <p class="section-subtitle mb-0">Дополнительные материалы по товару</p>
+      </div>
+
+      <div class="row g-4">
+        {% for v in product.videos %}
+          <div class="col-12 col-lg-6">
+            <div class="product-video-card">
+              <div class="ratio ratio-16x9">
+                <iframe
+                  src="https://www.youtube.com/embed/{{ v.video_url }}"
+                  title="{{ v.title or 'Видеообзор' }}"
+                  class="w-100 h-100"
+                  allowfullscreen>
+                </iframe>
+              </div>
+              {% if v.title %}
+                <div class="product-video-title">{{ v.title }}</div>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
   {% endif %}
 </div>
+
 {% endblock %}
