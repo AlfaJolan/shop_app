@@ -2468,25 +2468,29 @@ textarea.form-control:focus {
 /* =========================
    ORDER STATUS BAR
    ========================= */
-
 .order-status-bar {
   position: sticky;
   z-index: 1029;
   background: #fff;
   border-bottom: 1px solid #dee2e6;
   box-shadow: 0 2px 6px rgba(0,0,0,.05);
+}
+
+.order-status-bar__inner {
+  max-width: var(--ez-container);
+  margin: 0 auto;
   padding: 12px 14px;
 
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
-/* карточка статуса */
-.order-status-bar a {
+.order-status-chip {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
 
   padding: 10px 14px;
   border-radius: 14px;
@@ -2496,34 +2500,99 @@ textarea.form-control:focus {
 
   text-decoration: none;
   transition: all .15s ease;
+
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  box-shadow: var(--ez-shadow-sm);
 }
 
-/* hover */
-.order-status-bar a:hover {
+.order-status-chip:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(0,0,0,.06);
+  text-decoration: none;
 }
 
-/* badge */
-.order-status-bar .badge {
-  font-size: 12px;
+.order-status-chip__label {
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.order-status-chip__count {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
-  padding: 4px 8px;
+  background: #6b7280;
+  color: #fff;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
 }
 
-/* мобильный */
-@media (max-width: 480px) {
+.order-status-chip__count.is-updated {
+  animation: order-status-bounce 0.45s ease;
+  background: #dc2626;
+}
 
-  .order-status-bar {
+.order-status-chip.is-new {
+  border-color: #bfdbfe;
+}
+.order-status-chip.is-new .order-status-chip__label {
+  color: #2563eb;
+}
+
+.order-status-chip.is-paid {
+  border-color: #bbf7d0;
+}
+.order-status-chip.is-paid .order-status-chip__label {
+  color: #15803d;
+}
+
+.order-status-chip.is-packed {
+  border-color: #fde68a;
+}
+.order-status-chip.is-packed .order-status-chip__label {
+  color: #ca8a04;
+}
+
+.order-status-chip.is-shipped {
+  border-color: #a5f3fc;
+}
+.order-status-chip.is-shipped .order-status-chip__label {
+  color: #0891b2;
+}
+
+@keyframes order-status-bounce {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* mobile / tablet */
+@media (max-width: 767.98px) {
+  .order-status-bar__inner {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+    padding: 10px 12px;
   }
 
-  .order-status-bar a {
+  .order-status-chip {
     font-size: 13px;
     padding: 9px 12px;
+    border-radius: 12px;
   }
 
+  .order-status-chip__count {
+    min-width: 22px;
+    height: 22px;
+    font-size: 11px;
+    padding: 0 7px;
+  }
 }
 /* =========================
    filter dropdown

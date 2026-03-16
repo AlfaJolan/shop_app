@@ -6,8 +6,8 @@
   <title>{{ title or "Econom Zhasa" }}</title>
 
   <!-- Favicon -->
-  <link rel="shortcut icon" href="/static/images/brand/favicon.png" type="image/x-icon">
-  <link rel="apple-touch-icon" href="/static/images/brand/favicon.png">
+  <link rel="shortcut icon" href="/static/images/brand/favicon.png?v={{ build_ts }}" type="image/x-icon">
+  <link rel="apple-touch-icon" href="/static/images/brand/favicon.png?v={{ build_ts }}">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,29 +22,29 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 
   <!-- Central App CSS -->
-  <link rel="stylesheet" href="/static/css/app.css"/>
+  <link rel="stylesheet" href="/static/css/app.css?v={{ build_ts }}"/>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
   <!-- Header -->
-<nav class="navbar sticky-top site-header">
-  <div class="container">
-    <div class="site-header-inner">
-      <a class="navbar-brand site-brand" href="/">
-        <img
-          src="/static/images/brand/EconomZhasaLogo.jpg"
-          alt="Эконом Жаса"
-          class="brand-logo"
-        >
-        <span class="site-brand-text">Эконом Жаса</span>
-      </a>
+  <nav class="navbar sticky-top site-header">
+    <div class="container">
+      <div class="site-header-inner">
+        <a class="navbar-brand site-brand" href="/">
+          <img
+            src="/static/images/brand/EconomZhasaLogo.jpg?v={{ build_ts }}"
+            alt="Эконом Жаса"
+            class="brand-logo"
+          >
+          <span class="site-brand-text">Эконом Жаса</span>
+        </a>
 
-      <div class="site-header-actions" id="auth-buttons">
-        <!-- Здесь JS сам подставит Войти / Выйти / Админка -->
+        <div class="site-header-actions" id="auth-buttons">
+          <!-- Здесь JS сам подставит Войти / Выйти / Админка -->
+        </div>
       </div>
     </div>
-  </div>
-</nav>
+  </nav>
 
   {% if request.session.get("flash") %}
     <div class="container mt-3">
@@ -111,8 +111,8 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- Scripts -->
-  <script src="/static/js/cart.js"></script>
-  <script src="/static/js/auth_buttons.js"></script>
+  <script src="/static/js/cart.js?v={{ build_ts }}"></script>
+  <script src="/static/js/auth_buttons.js?v={{ build_ts }}"></script>
   <script src="/static/js/order_status_bar.js?v={{ build_ts }}"></script>
 </body>
 </html>
