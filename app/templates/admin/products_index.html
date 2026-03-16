@@ -1,58 +1,224 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <div class="d-flex align-items-center justify-content-between mb-4">
-    <h2 class="mb-0">📦 Управление каталогом</h2>
-    <a href="/admin/catalog/products/new" class="btn btn-success btn-lg">➕ Добавить товар</a>
+
+<div class="page-section products-admin-page">
+  <div class="products-admin-head mb-4">
+    <div>
+      <h1 class="products-admin-title mb-1">Управление каталогом</h1>
+      <p class="products-admin-subtitle mb-0">
+        Просматривайте товары, проверяйте варианты и быстро переходите к редактированию.
+      </p>
+    </div>
+
+    <div class="products-admin-count">
+      <i class="fa-solid fa-box-open me-2"></i>
+      {{ products|length }} шт.
+    </div>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover align-middle shadow-sm">
-      <thead class="table-light">
-        <tr>
-          <th style="width:120px">Фото</th>
-          <th>Название</th>
-          <th>SKU</th>
-          <th>Категория</th>
-          <th>Варианты</th>
-          <th style="width:150px" class="text-end">Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in products %}
-        <tr>
-          <td>
-            {% if p.image %}
-              <img src="/static/uploads/products/{{ p.image }}" alt="{{ p.name }}"
-                   style="height:70px; object-fit:cover; border-radius:8px;">
-            {% else %}
-              <span class="text-muted">нет фото</span>
-            {% endif %}
-          </td>
-          <td class="fw-semibold">{{ p.name }}</td>
-          <td>{{ p.sku or "-" }}</td>
-          <td>{{ p.category.name if p.category else "-" }}</td>
-          <td>
-            {% if p.variants %}
-              <ul class="list-unstyled mb-0">
-                {% for v in p.variants %}
-                  <li>
-                    {{ v.name }} — <b>{{ "%.2f"|format(v.unit_price) }} ₸</b>
-                    <span class="text-muted">(остаток: {{ v.stock }} {{ p.unit }})</span>
-                  </li>
-                {% endfor %}
-              </ul>
-            {% else %}
-              <span class="text-muted">нет вариантов</span>
-            {% endif %}
-          </td>
-          <td class="text-end">
-            <a href="/admin/catalog/products/{{ p.id }}/edit" class="btn btn-sm btn-primary">✏️ Редактировать</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="products-admin-toolbar-card mb-4">
+    <div class="products-admin-toolbar">
+      <div class="products-admin-toolbar-text">
+        <div class="products-admin-toolbar-title">Каталог товаров</div>
+        <div class="products-admin-toolbar-subtitle">
+          Управляйте карточками товаров, SKU, категориями и вариантами.
+        </div>
+      </div>
+
+      <div class="products-admin-toolbar-actions">
+        <a href="/admin/catalog/products/new" class="btn btn-success">
+          <i class="fa-solid fa-plus me-2"></i>
+          Добавить товар
+        </a>
+      </div>
+    </div>
   </div>
+
+  {% if products %}
+    <!-- Desktop / tablet -->
+    <div class="d-none d-lg-block products-admin-table-shell">
+      <div class="table-responsive">
+        <table class="table align-middle products-admin-table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Фото</th>
+              <th>Название</th>
+              <th style="min-width: 130px;">SKU</th>
+              <th style="min-width: 170px;">Категория</th>
+              <th style="min-width: 320px;">Варианты</th>
+              <th class="text-end" style="width: 210px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr>
+              <td>
+                <div class="products-admin-image-wrap">
+                  {% if p.image %}
+                    <img
+                      src="/static/uploads/products/{{ p.image }}"
+                      alt="{{ p.name }}"
+                      class="products-admin-image"
+                    >
+                  {% else %}
+                    <div class="products-admin-image products-admin-image-placeholder">
+                      <span>Нет фото</span>
+                    </div>
+                  {% endif %}
+                </div>
+              </td>
+
+              <td>
+                <div class="products-admin-name">{{ p.name }}</div>
+              </td>
+
+              <td>
+                <span class="products-admin-sku">
+                  {{ p.sku or "—" }}
+                </span>
+              </td>
+
+              <td>
+                <span class="products-admin-category">
+                  {{ p.category.name if p.category else "—" }}
+                </span>
+              </td>
+
+              <td>
+                {% if p.variants %}
+                  <div class="products-admin-variants">
+                    {% for v in p.variants %}
+                      <div class="products-admin-variant-row">
+                        <div class="products-admin-variant-main">
+                          <div class="products-admin-variant-name">{{ v.name }}</div>
+                          <div class="products-admin-variant-stock">
+                            Остаток: {{ v.stock }} {{ p.unit or "" }}
+                          </div>
+                        </div>
+                        <div class="products-admin-variant-price">
+                          {{ "%.2f"|format(v.unit_price) }} ₸
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <span class="products-admin-muted">Нет вариантов</span>
+                {% endif %}
+              </td>
+
+              <td class="text-end">
+                <div class="products-admin-actions justify-content-end">
+                  <a
+                    href="/admin/catalog/products/{{ p.id }}/edit"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    <i class="fa-solid fa-pen-to-square me-1"></i>
+                    Редактировать
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Mobile / tablet small -->
+    <div class="d-lg-none">
+      <div class="products-admin-mobile-list">
+        {% for p in products %}
+        <div class="products-admin-mobile-card">
+          <div class="products-admin-mobile-top">
+            <div class="products-admin-mobile-media">
+              {% if p.image %}
+                <img
+                  src="/static/uploads/products/{{ p.image }}"
+                  alt="{{ p.name }}"
+                  class="products-admin-mobile-image"
+                >
+              {% else %}
+                <div class="products-admin-mobile-image products-admin-image-placeholder">
+                  <span>Нет фото</span>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="products-admin-mobile-main">
+              <div class="products-admin-name">{{ p.name }}</div>
+
+              <div class="products-admin-mobile-meta mt-2">
+                <div class="products-admin-mobile-meta-item">
+                  <span class="products-admin-mobile-label">SKU</span>
+                  <span class="products-admin-sku">{{ p.sku or "—" }}</span>
+                </div>
+
+                <div class="products-admin-mobile-meta-item">
+                  <span class="products-admin-mobile-label">Категория</span>
+                  <span class="products-admin-category">
+                    {{ p.category.name if p.category else "—" }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="products-admin-mobile-variants-block">
+            <div class="products-admin-mobile-section-title">Варианты</div>
+
+            {% if p.variants %}
+              <div class="products-admin-variants">
+                {% for v in p.variants %}
+                  <div class="products-admin-variant-row">
+                    <div class="products-admin-variant-main">
+                      <div class="products-admin-variant-name">{{ v.name }}</div>
+                      <div class="products-admin-variant-stock">
+                        Остаток: {{ v.stock }} {{ p.unit or "" }}
+                      </div>
+                    </div>
+                    <div class="products-admin-variant-price">
+                      {{ "%.2f"|format(v.unit_price) }} ₸
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="products-admin-mobile-empty-variants">
+                Нет вариантов
+              </div>
+            {% endif %}
+          </div>
+
+          <div class="products-admin-actions mt-3">
+            <a
+              href="/admin/catalog/products/{{ p.id }}/edit"
+              class="btn btn-outline-primary w-100"
+            >
+              <i class="fa-solid fa-pen-to-square me-2"></i>
+              Редактировать
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% else %}
+    <div class="products-admin-empty">
+      <div class="products-admin-empty-icon mb-2">
+        <i class="fa-regular fa-folder-open"></i>
+      </div>
+      <div class="products-admin-empty-title">Товаров пока нет</div>
+      <div class="products-admin-empty-text">
+        Добавьте первый товар, чтобы начать наполнять каталог.
+      </div>
+      <div class="mt-3">
+        <a href="/admin/catalog/products/new" class="btn btn-success">
+          <i class="fa-solid fa-plus me-2"></i>
+          Добавить товар
+        </a>
+      </div>
+    </div>
+  {% endif %}
 </div>
+
 {% endblock %}
