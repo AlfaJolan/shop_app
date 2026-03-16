@@ -3,6 +3,7 @@ import io
 from datetime import datetime
 # === Фикс emoji warning (Arial не поддерживает эмодзи) ===
 import matplotlib
+matplotlib.use("Agg")  # ✅ фикс для фоновой генерации графиков без Tkinter
 matplotlib.rcParams["font.family"] = "DejaVu Sans"        # ✅ кириллица + emoji
 matplotlib.rcParams["axes.unicode_minus"] = False          # чтобы "–" отображался корректно
 import warnings
@@ -11,6 +12,7 @@ warnings.filterwarnings("ignore", message="Glyph.*missing")  # необязат�
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 import matplotlib.dates as mdates
+from matplotlib.colors import Normalize
 import numpy as np
 
 
@@ -311,7 +313,6 @@ def plot_top_categories(data: list[dict], title: str = "Топ категори�
 # ============================================================
 # 🆕 5. ТЕПЛОВАЯ КАРТА СПРОСА (день × час)
 # ============================================================
-from matplotlib.colors import Normalize
 
 def plot_heatmap_demand(matrix: np.ndarray, title: str = "Активность заказов по дням и часам (30 дней)"):
     """
@@ -409,9 +410,6 @@ def plot_heatmap_demand2(matrix: np.ndarray, title: str = "Активность 
     buf.seek(0)
     return buf
 
-import io
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 
 def plot_salesperson_kpi_bars(data):
     """Бар-чарт: выручка и маржа по торговцам."""
@@ -433,8 +431,8 @@ def plot_salesperson_kpi_bars(data):
     plt.xticks(rotation=15)
 
     buf = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png")
+    fig.tight_layout()
+    fig.savefig(buf, format="png")
     buf.seek(0)
     plt.close(fig)
     return buf
