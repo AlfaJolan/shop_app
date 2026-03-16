@@ -1,29 +1,88 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container my-4" style="max-width:600px;">
-  <h2 class="mb-4">
-    {{ "🆕 Новая категория" if mode == "new" else "✏️ Редактировать категорию" }}
-  </h2>
 
-  <form method="post" class="card shadow-sm p-4">
-    <div class="mb-3">
-      <label class="form-label">Название *</label>
-      <input type="text" name="name" value="{{ cat.name if cat else '' }}" 
-             class="form-control" required>
+<div class="page-section category-form-page">
+
+  <div class="category-form-head mb-4">
+    <div>
+      <h1 class="category-form-title mb-1">
+        {{ "Новая категория" if mode == "new" else "Редактировать категорию" }}
+      </h1>
+
+      <p class="category-form-subtitle mb-0">
+        {{ "Создайте новую категорию каталога." if mode == "new"
+           else "Измените параметры существующей категории." }}
+      </p>
     </div>
 
-    <div class="mb-3">
-      <label class="form-label">Slug <span class="text-muted">(если пустой — сгенерируем)</span></label>
-      <input type="text" name="slug" value="{{ cat.slug if cat else '' }}" 
-             class="form-control">
+    <div class="category-form-mode">
+      <i class="fa-solid {{ 'fa-plus' if mode == 'new' else 'fa-pen-to-square' }} me-2"></i>
+      {{ "Создание" if mode == "new" else "Редактирование" }}
     </div>
+  </div>
 
-    <div class="d-flex flex-wrap gap-2">
-      <button type="submit" class="btn btn-primary">
-        {{ "Создать" if mode == "new" else "Сохранить" }}
-      </button>
-      <a href="/admin/catalog/categories" class="btn btn-secondary">Отмена</a>
-    </div>
-  </form>
+
+  <div class="category-form-card">
+    <form method="post" class="category-form-body">
+
+      <div class="category-form-grid">
+
+        <div class="category-form-field category-form-field-full">
+          <label class="form-label">
+            Название категории
+          </label>
+
+          <input
+            type="text"
+            name="name"
+            value="{{ cat.name if cat else '' }}"
+            class="form-control"
+            placeholder="Например: Бытовые товары"
+            required
+          >
+        </div>
+
+
+        <div class="category-form-field category-form-field-full">
+          <label class="form-label">
+            Slug
+            <span class="form-hint">
+              (если пустой — сгенерируется автоматически)
+            </span>
+          </label>
+
+          <input
+            type="text"
+            name="slug"
+            value="{{ cat.slug if cat else '' }}"
+            class="form-control"
+            placeholder="bytovye_tovary"
+          >
+        </div>
+
+      </div>
+
+
+      <div class="category-form-divider"></div>
+
+
+      <div class="category-form-actions">
+
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk me-2"></i>
+          {{ "Создать категорию" if mode == "new" else "Сохранить изменения" }}
+        </button>
+
+        <a href="/admin/catalog/categories" class="btn btn-outline-secondary">
+          <i class="fa-solid fa-arrow-left me-2"></i>
+          Назад
+        </a>
+
+      </div>
+
+    </form>
+  </div>
+
 </div>
+
 {% endblock %}

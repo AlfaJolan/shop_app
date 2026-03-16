@@ -1,28 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">
-    {% if seller %}✏️ Редактировать{% else %}➕ Новый{% endif %} продавец
-  </h2>
 
-  <form method="post"
-        action="{% if seller %}/admin/sellers/{{ seller.id }}/update{% else %}/admin/sellers/create{% endif %}">
-
-    <div class="mb-3">
-      <label class="form-label">Название продавца</label>
-      <input type="text" name="name" class="form-control"
-             value="{{ seller.name if seller else '' }}" required>
+<div class="page-section seller-form-page">
+  <div class="seller-form-head mb-4">
+    <div>
+      <h1 class="seller-form-title mb-1">
+        {% if seller %}Редактировать продавца{% else %}Новый продавец{% endif %}
+      </h1>
+      <p class="seller-form-subtitle mb-0">
+        {% if seller %}
+          Обновите данные продавца и сохраните изменения.
+        {% else %}
+          Заполните форму, чтобы добавить нового продавца в каталог.
+        {% endif %}
+      </p>
     </div>
 
-    <div class="mb-3">
-      <label class="form-label">Город</label>
-      <input type="text" name="city" class="form-control"
-             value="{{ seller.city if seller else '' }}">
+    <div class="seller-form-mode">
+      <i class="fa-solid {% if seller %}fa-pen-to-square{% else %}fa-plus{% endif %} me-2"></i>
+      {% if seller %}Редактирование{% else %}Создание{% endif %}
     </div>
+  </div>
 
-    <hr class="my-4">
-    <button type="submit" class="btn btn-primary btn-lg">💾 Сохранить</button>
-    <a href="/admin/sellers" class="btn btn-secondary btn-lg">⬅ Назад</a>
-  </form>
+  <div class="seller-form-card">
+    <form
+      method="post"
+      action="{% if seller %}/admin/sellers/{{ seller.id }}/update{% else %}/admin/sellers/create{% endif %}"
+      class="seller-form-body"
+    >
+      <div class="seller-form-grid">
+        <div class="seller-form-field seller-form-field-full">
+          <label class="form-label">Название продавца</label>
+          <input
+            type="text"
+            name="name"
+            class="form-control"
+            value="{{ seller.name if seller else '' }}"
+            placeholder="Например: Эконом Жаса"
+            required
+          >
+        </div>
+
+        <div class="seller-form-field seller-form-field-full">
+          <label class="form-label">Город</label>
+          <input
+            type="text"
+            name="city"
+            class="form-control"
+            value="{{ seller.city if seller else '' }}"
+            placeholder="Например: Алматы"
+          >
+        </div>
+      </div>
+
+      <div class="seller-form-divider"></div>
+
+      <div class="seller-form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-floppy-disk me-2"></i>
+          Сохранить
+        </button>
+
+        <a href="/admin/sellers" class="btn btn-outline-secondary">
+          <i class="fa-solid fa-arrow-left me-2"></i>
+          Назад
+        </a>
+      </div>
+    </form>
+  </div>
 </div>
+
 {% endblock %}

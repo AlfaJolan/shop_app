@@ -1,88 +1,268 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container my-4">
-  <h2 class="mb-4">📄 Все накладные</h2>
 
-  <!-- Фильтр -->
-  <form method="get" class="row g-2 mb-4">
-    <div class="col-12 col-md-3">
-      <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Имя / телефон / комментарий">
+<div class="page-section invoices-admin-page">
+  <div class="invoices-admin-head mb-4">
+    <div>
+      <h1 class="invoices-admin-title mb-1">Все накладные</h1>
+      <p class="invoices-admin-subtitle mb-0">
+        Просмотр, фильтрация и быстрые действия по накладным.
+      </p>
     </div>
-    <div class="col-6 col-md-2">
-      <input type="date" name="date_from" value="{{ date_from }}" class="form-control" placeholder="От">
-    </div>
-    <div class="col-6 col-md-2">
-      <input type="date" name="date_to" value="{{ date_to }}" class="form-control" placeholder="До">
-    </div>
-    <div class="col-12 col-md-auto">
-      <button type="submit" class="btn btn-primary w-100">Фильтр</button>
-    </div>
-  </form>
 
-  <!-- Таблица (ПК / планшеты) -->
-  <div class="table-responsive d-none d-sm-block">
-    <table class="table table-striped table-hover align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>ID</th>
-          <th>Дата</th>
-          <th>Имя</th>
-          <th>Телефон</th>
-          <th class="text-end">Итого</th>
-          <th class="text-center">Ссылка</th>
-          <th class="text-center">Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for inv in invoices %}
-        <tr>
-          <td>{{ inv.id }}</td>
-          <td>{{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-          <td>{{ inv.customer_name or "—" }}</td>
-          <td>{{ inv.phone or "—" }}</td>
-          <td class="text-end">{{ "%.2f"|format(inv.total_amount_final) }} ₸</td>
-          <td class="text-center">
-            {% if inv.pkey and not inv.is_revoked %}
-              <a href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}" target="_blank" class="btn btn-sm btn-outline-info">Публичная</a>
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            <a href="/admin/invoices/{{ inv.id }}/edit" class="btn btn-sm btn-outline-primary">✏️</a>
-            {% if inv.pkey and not inv.is_revoked %}
-              <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-sm btn-outline-danger">PDF</a>
-              <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-sm btn-outline-success">XLSX</a>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="invoices-admin-count">
+      <i class="fa-regular fa-file-lines me-2"></i>
+      {{ invoices|length }} шт.
+    </div>
   </div>
 
-  <!-- Список (мобильные) -->
-  <div class="d-sm-none">
-    <div class="list-group">
-      {% for inv in invoices %}
-        <div class="list-group-item">
-          <div class="d-flex justify-content-between">
-            <strong>#{{ inv.id }}</strong>
-            <span class="text-muted small">{{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</span>
+  <div class="invoices-admin-filter-card mb-4">
+    <form method="get" class="invoices-admin-filter-form">
+      <div class="invoices-admin-filter-grid">
+        <div class="invoices-admin-filter-field invoices-admin-filter-field-search">
+          <label class="form-label">Поиск</label>
+          <input
+            type="text"
+            name="q"
+            value="{{ q }}"
+            class="form-control"
+            placeholder="Имя / телефон / комментарий"
+          >
+        </div>
+
+        <div class="invoices-admin-filter-field">
+          <label class="form-label">Дата от</label>
+          <input
+            type="date"
+            name="date_from"
+            value="{{ date_from }}"
+            class="form-control"
+          >
+        </div>
+
+        <div class="invoices-admin-filter-field">
+          <label class="form-label">Дата до</label>
+          <input
+            type="date"
+            name="date_to"
+            value="{{ date_to }}"
+            class="form-control"
+          >
+        </div>
+      </div>
+
+      <div class="invoices-admin-filter-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fa-solid fa-filter me-2"></i>
+          Фильтр
+        </button>
+
+        {% if q or date_from or date_to %}
+          <a href="/admin/invoices" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-rotate-left me-2"></i>
+            Сбросить
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  {% if invoices %}
+    <!-- Desktop / tablet -->
+    <div class="d-none d-md-block invoices-admin-table-shell">
+      <div class="table-responsive">
+        <table class="table align-middle invoices-admin-table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 92px;">ID</th>
+              <th style="min-width: 165px;">Дата</th>
+              <th>Клиент</th>
+              <th style="min-width: 150px;">Телефон</th>
+              <th class="text-end" style="min-width: 140px;">Итого</th>
+              <th class="text-center" style="width: 130px;">Ссылка</th>
+              <th class="text-end" style="width: 300px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td>
+                <span class="invoices-admin-id">#{{ inv.id }}</span>
+              </td>
+
+              <td>
+                <div class="invoices-admin-date">
+                  {{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}
+                </div>
+              </td>
+
+              <td>
+                <div class="invoices-admin-customer">
+                  {{ inv.customer_name or "—" }}
+                </div>
+              </td>
+
+              <td>
+                <span class="invoices-admin-phone">
+                  {{ inv.phone or "—" }}
+                </span>
+              </td>
+
+              <td class="text-end">
+                <div class="invoices-admin-total">
+                  {{ "%.2f"|format(inv.total_amount_final) }} ₸
+                </div>
+              </td>
+
+              <td class="text-center">
+                {% if inv.pkey and not inv.is_revoked %}
+                  <a
+                    href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}"
+                    target="_blank"
+                    class="btn btn-sm btn-outline-info"
+                  >
+                    Публичная
+                  </a>
+                {% else %}
+                  <span class="invoices-admin-muted">—</span>
+                {% endif %}
+              </td>
+
+              <td class="text-end">
+                <div class="invoices-admin-actions justify-content-end">
+
+  <a
+    href="/admin/invoices/{{ inv.id }}/edit"
+    class="invoice-action-btn invoice-action-edit"
+  >
+    <i class="fa-solid fa-pen-to-square"></i>
+    <span>Редактировать</span>
+  </a>
+
+  {% if inv.pkey and not inv.is_revoked %}
+
+  <a
+    href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}"
+    class="invoice-action-btn invoice-action-pdf"
+  >
+    <i class="fa-regular fa-file-pdf"></i>
+    <span>PDF</span>
+  </a>
+
+  <a
+    href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}"
+    class="invoice-action-btn invoice-action-xlsx"
+  >
+    <i class="fa-regular fa-file-excel"></i>
+    <span>XLSX</span>
+  </a>
+
+  {% endif %}
+
+</div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="d-md-none">
+      <div class="invoices-admin-mobile-list">
+        {% for inv in invoices %}
+        <div class="invoices-admin-mobile-card">
+          <div class="invoices-admin-mobile-top">
+            <div class="invoices-admin-mobile-main">
+              <div class="invoices-admin-name-row">
+                <span class="invoices-admin-id">#{{ inv.id }}</span>
+                <span class="invoices-admin-mobile-date">
+                  {{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}
+                </span>
+              </div>
+
+              <div class="invoices-admin-customer mt-2">
+                {{ inv.customer_name or "—" }}
+              </div>
+
+              <div class="invoices-admin-mobile-phone mt-1">
+                {{ inv.phone or "—" }}
+              </div>
+            </div>
           </div>
-          <div>{{ inv.customer_name or "—" }} | {{ inv.phone or "—" }}</div>
-          <div class="fw-bold mt-1">{{ "%.2f"|format(inv.total_amount_final) }} ₸</div>
-          <div class="mt-2 d-flex flex-wrap gap-2">
-            <a href="/admin/invoices/{{ inv.id }}/edit" class="btn btn-sm btn-outline-primary">Редактировать</a>
+
+          <div class="invoices-admin-mobile-meta">
+            <div class="invoices-admin-mobile-meta-item">
+              <span class="invoices-admin-mobile-label">Сумма</span>
+              <span class="invoices-admin-total">
+                {{ "%.2f"|format(inv.total_amount_final) }} ₸
+              </span>
+            </div>
+
+            <div class="invoices-admin-mobile-meta-item">
+              <span class="invoices-admin-mobile-label">Публичная ссылка</span>
+              {% if inv.pkey and not inv.is_revoked %}
+                <span class="invoices-admin-status is-active">Доступна</span>
+              {% else %}
+                <span class="invoices-admin-status is-muted">Недоступна</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="invoices-admin-actions mt-3">
+            <a
+              href="/admin/invoices/{{ inv.id }}/edit"
+              class="btn btn-outline-primary w-100"
+            >
+              <i class="fa-solid fa-pen-to-square me-2"></i>
+              Редактировать
+            </a>
+
             {% if inv.pkey and not inv.is_revoked %}
-              <a href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}" target="_blank" class="btn btn-sm btn-outline-info">Публичная</a>
-              <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-sm btn-outline-danger">PDF</a>
-              <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-sm btn-outline-success">XLSX</a>
+              <a
+                href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}"
+                target="_blank"
+                class="btn btn-outline-info w-100"
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
+                Публичная ссылка
+              </a>
+
+              <div class="invoices-admin-mobile-files">
+                <a
+                  href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}"
+                  class="btn btn-outline-danger w-100"
+                >
+                  <i class="fa-regular fa-file-pdf me-2"></i>
+                  PDF
+                </a>
+
+                <a
+                  href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}"
+                  class="btn btn-outline-success w-100"
+                >
+                  <i class="fa-regular fa-file-excel me-2"></i>
+                  XLSX
+                </a>
+              </div>
             {% endif %}
           </div>
         </div>
-      {% endfor %}
+        {% endfor %}
+      </div>
     </div>
-  </div>
+  {% else %}
+    <div class="invoices-admin-empty">
+      <div class="invoices-admin-empty-icon mb-2">
+        <i class="fa-regular fa-file-lines"></i>
+      </div>
+      <div class="invoices-admin-empty-title">Накладных пока нет</div>
+      <div class="invoices-admin-empty-text">
+        После создания заказов здесь появится список накладных.
+      </div>
+    </div>
+  {% endif %}
 </div>
+
 {% endblock %}
