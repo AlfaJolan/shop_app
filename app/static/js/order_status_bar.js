@@ -1,82 +1,71 @@
-// static/js/order_status_bar.js
+// static/js/order_status_bar.js v2
 
 async function renderOrderStatusBar() {
   try {
     const resp = await fetch("/whoami", { credentials: "include" });
     const user = await resp.json();
 
-    // Проверка роли
     if (!(user && ["admin", "seller", "picker"].includes(user.role))) {
-      return; // гость → бар не нужен
+      return;
     }
 
-    // HTML для статус-бара
+    if (document.getElementById("order-status-bar")) {
+      return;
+    }
+
     const bar = document.createElement("div");
     bar.id = "order-status-bar";
-    bar.className = "order-status-bar d-flex gap-3 justify-content-center py-2";
+    bar.className = "order-status-bar";
 
     bar.innerHTML = `
-      <a href="/admin/orders/live?status=new" class="btn btn-outline-primary btn-sm">
-        Новые <span id="status-new" class="badge bg-secondary">0</span>
-      </a>
-      <a href="/admin/orders/live?status=paid" class="btn btn-outline-success btn-sm">
-        Оплачено <span id="status-paid" class="badge bg-secondary">0</span>
-      </a>
-      <a href="/admin/orders/live?status=packed" class="btn btn-outline-warning btn-sm">
-        Собрано <span id="status-packed" class="badge bg-secondary">0</span>
-      </a>
-      <a href="/admin/orders/live?status=shipped" class="btn btn-outline-info btn-sm">
-        Отправлено <span id="status-shipped" class="badge bg-secondary">0</span>
-      </a>
+      <div class="order-status-bar__inner">
+        <a href="/admin/orders/live?status=new" class="order-status-chip is-new">
+          <span class="order-status-chip__label">Новые</span>
+          <span id="status-new" class="order-status-chip__count">0</span>
+        </a>
+
+        <a href="/admin/orders/live?status=paid" class="order-status-chip is-paid">
+          <span class="order-status-chip__label">Оплачено</span>
+          <span id="status-paid" class="order-status-chip__count">0</span>
+        </a>
+
+        <a href="/admin/orders/live?status=packed" class="order-status-chip is-packed">
+          <span class="order-status-chip__label">Собрано</span>
+          <span id="status-packed" class="order-status-chip__count">0</span>
+        </a>
+
+        <a href="/admin/orders/live?status=shipped" class="order-status-chip is-shipped">
+          <span class="order-status-chip__label">Отправлено</span>
+          <span id="status-shipped" class="order-status-chip__count">0</span>
+        </a>
+      </div>
     `;
 
     const navbar = document.querySelector("nav.navbar");
-    if (navbar && !document.getElementById("order-status-bar")) {
+    if (navbar) {
       navbar.insertAdjacentElement("afterend", bar);
 
-      // вычисляем высоту navbar → ставим отступ sticky панели
-      const navHeight = navbar.offsetHeight;
-      bar.style.top = navHeight + "px";
+      const updateStickyOffset = () => {
+        const navHeight = navbar.offsetHeight || 0;
+        bar.style.top = `${navHeight}px`;
+      };
+
+      updateStickyOffset();
+      window.addEventListener("resize", updateStickyOffset);
     }
 
-    // CSS для панели и анимации
-    if (!document.getElementById("order-status-style")) {
-      const style = document.createElement("style");
-      style.id = "order-status-style";
-      style.textContent = `
-        .order-status-bar {
-          position: sticky;
-          z-index: 1029;
-          background: #fff;
-          border-bottom: 1px solid #dee2e6;
-          box-shadow: 0 2px 4px rgba(0,0,0,.05);
-        }
-        .order-status-bar .btn {
-          font-weight: 500;
-        }
-        .status-updated {
-          transition: background-color 0.6s ease, transform 0.3s ease;
-          background-color: #dc3545 !important;
-          transform: scale(1.2);
-        }
-      `;
-      document.head.appendChild(style);
-    }
-
-    // Обновление числа с анимацией
     function updateStatus(el, newValue) {
       if (!el) return;
-      const oldValue = parseInt(el.textContent, 10);
+
+      const oldValue = parseInt(el.textContent || "0", 10);
       if (oldValue !== newValue) {
-        el.textContent = newValue;
-        el.classList.add("status-updated");
-        setTimeout(() => {
-          el.classList.remove("status-updated");
-        }, 600);
+        el.textContent = String(newValue);
+        el.classList.remove("is-updated");
+        void el.offsetWidth;
+        el.classList.add("is-updated");
       }
     }
 
-    // Подключение WS
     function connectWS() {
       const wsUrl =
         (location.protocol === "https:" ? "wss://" : "ws://") +
@@ -85,9 +74,10 @@ async function renderOrderStatusBar() {
 
       const ws = new WebSocket(wsUrl);
 
-      ws.onopen = () => console.log("✅ WS подключен:", wsUrl);
+      ws.onopen = () => console.log("WS connected:", wsUrl);
+
       ws.onclose = () => {
-        console.log("❌ WS отключен, переподключение...");
+        console.log("WS disconnected, reconnecting...");
         setTimeout(connectWS, 5000);
       };
 
@@ -98,6 +88,11 @@ async function renderOrderStatusBar() {
             updateStatus(document.getElementById("status-" + status), count);
           }
         }
+      };
+
+      ws.onerror = (err) => {
+        console.error("WS error:", err);
+        ws.close();
       };
     }
 

@@ -6,9 +6,6 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-# ❌ старое:
-# from app.models.order import Order
-# ✅ новое:
 from app.models.invoice import Invoice
 from app.telegram.telegram_notify import notifier
 
@@ -24,27 +21,52 @@ STATUS_LABELS_RU = {
     "shipped": "Отправлен",
 }
 
+# --------- РАЗРЕШЕННЫЕ ПЕРЕХОДЫ ----------
+VALID_NEXT = {
+    "new": {"packed"},
+    "packed": {"shipped"},
+    "shipped": set(),
+}
+
+
+def get_available_statuses(current_status: Optional[str]) -> List[str]:
+    """
+    Возвращает список статусов, которые можно показать в UI для текущей накладной:
+    - текущий статус
+    - допустимые следующие статусы
+    """
+    cur = current_status or "new"
+    next_set = VALID_NEXT.get(cur, set())
+    return [cur] + [st for st in ALLOWED_STATUSES if st in next_set]
+
+
 # --------- LIVE СТРАНИЦА ----------
 @router.get("/live", response_class=HTMLResponse)
 def live_orders_page(request: Request):
-    return templates.TemplateResponse("admin/orders_live.html", {
-        "request": request,
-        "allowed_statuses": ALLOWED_STATUSES,
-        "status_labels": STATUS_LABELS_RU,
-        "default_status": "new",
-    })
+    return templates.TemplateResponse(
+        "admin/orders_live.html",
+        {
+            "request": request,
+            "allowed_statuses": ALLOWED_STATUSES,
+            "status_labels": STATUS_LABELS_RU,
+            "default_status": "new",
+        },
+    )
 
 
 @router.get("/live-data", response_class=JSONResponse)
 def live_orders(
     status: str = Query("new"),
     limit: int = Query(50, ge=1, le=500),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     q = db.query(Invoice).order_by(Invoice.created_at.desc())
+
     if status != "all":
         q = q.filter(Invoice.status == status)
+
     rows = q.limit(limit).all()
+
     return [
         {
             "id": r.id,
@@ -64,18 +86,23 @@ def live_orders(
 def order_detail(
     request: Request,
     invoice_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     invoice: Optional[Invoice] = db.query(Invoice).get(invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
 
-    return templates.TemplateResponse("admin/order_detail.html", {
-        "request": request,
-        "invoice": invoice,
-        "allowed_statuses": ALLOWED_STATUSES,
-        "status_labels": STATUS_LABELS_RU,
-    })
+    available_statuses = get_available_statuses(invoice.status)
+
+    return templates.TemplateResponse(
+        "admin/order_detail.html",
+        {
+            "request": request,
+            "invoice": invoice,
+            "allowed_statuses": available_statuses,
+            "status_labels": STATUS_LABELS_RU,
+        },
+    )
 
 
 # ---------- СМЕНА СТАТУСА ----------
@@ -93,34 +120,34 @@ def change_status(
     if not invoice:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
 
-    # 🔹 Разрешённые переходы
-    valid_next = {
-        "new": {"packed"},
-        "packed": {"shipped"},
-        "shipped": set(),
-    }
-
     cur = invoice.status or "new"
-    if new_status not in valid_next.get(cur, set()) and new_status != cur:
+
+    if new_status not in VALID_NEXT.get(cur, set()) and new_status != cur:
         raise HTTPException(status_code=400, detail="Недопустимый переход статуса")
 
     invoice.status = new_status
     invoice.status_changed_at = datetime.utcnow()
+
     if note:
         invoice.status_note = note
 
     db.commit()
 
     items = [
-        {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_final, "price": item.unit_price_final}
+        {
+            "name": f"{item.product_name}, {item.variant_name}",
+            "qty": item.qty_final,
+            "price": item.unit_price_final,
+        }
         for item in invoice.items
     ]
+
     status_label = STATUS_LABELS_RU.get(new_status, new_status)
 
     notifier.notify_invoice_status_changed(
         invoice_id=invoice.id,
         new_status=status_label,
-        items=items
+        items=items,
     )
 
-    return RedirectResponse(url="/admin/orders/live", status_code=303)
+    return RedirectResponse(url=f"/admin/orders/{invoice.id}", status_code=303)

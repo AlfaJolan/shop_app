@@ -1,140 +1,263 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-4">Накладная № {{ inv.id }}</h2>
-<p class="text-muted">Дата: {{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</p>
 
-<!-- Информация о покупателе и заказе -->
-<ul class="list-group mb-4">
-  <li class="list-group-item"><strong>Покупатель:</strong> {{ inv.customer_name or "—" }}</li>
-  <li class="list-group-item"><strong>Телефон:</strong> {{ inv.phone or "—" }}</li>
-  <li class="list-group-item"><strong>Продавец:</strong> {{ inv.seller_name or "—" }}</li>
-  <li class="list-group-item"><strong>Город:</strong> {{ inv.city_name or "—" }}</li>
-  <li class="list-group-item"><strong>Комментарий:</strong> {{ inv.comment or "—" }}</li>
-</ul>
+<div class="page-section">
+  <div class="catalog-hero mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div>
+        <h1 class="page-title mb-2">Накладная № {{ inv.id }}</h1>
+        <p class="section-subtitle mb-0">
+          Дата: {{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}
+        </p>
+      </div>
 
-<!-- Таблица товаров -->
-<div class="table-responsive">
-  <table class="table align-middle">
-    <thead class="table-light">
-      <tr>
-        <th>Наименование</th>
-        <th>Магазин</th>
-        <th>Фото</th>
-        <th>Вариант</th>
-        <th class="text-end">Кол-во</th>
-        <th class="text-end">Цена</th>
-        <th class="text-end">Сумма</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for it in inv.items %}
-      <tr>
-        <td>
-          <div class="fw-semibold">{{ it.product_name }}</div>
-          <div class="small text-muted">{{ it.variant_name }}</div>
-        </td>
-        <td>{{ it.seller_name }}</td>
-        <td style="width:70px;">
-          {% if it.product_image %}
-            <img src="/static/uploads/products/{{ it.product_image }}" alt=""
-                 class="img-thumbnail" style="width:64px; height:64px; object-fit:contain;">
-          {% else %} — {% endif %}
-        </td>
-        <td>{{ it.variant_name }}</td>
-        <td class="text-end">
-          {% if it.qty_original != it.qty_final %}
-            <s class="text-muted">{{ it.qty_original }}</s> → <b>{{ it.qty_final }}</b>
-          {% else %}
-            {{ it.qty_final }}
-          {% endif %}
-        </td>
-        <td class="text-end">
-          {% if it.unit_price_original != it.unit_price_final %}
-            <s class="text-muted">{{ "%.2f"|format(it.unit_price_original) }}</s> →
-            <b>{{ "%.2f"|format(it.unit_price_final) }}</b> ₸
-          {% else %}
-            {{ "%.2f"|format(it.unit_price_final) }} ₸
-          {% endif %}
-        </td>
-        <td class="text-end">
-          {% if it.line_total_original != it.line_total_final %}
-            <s class="text-muted">{{ "%.2f"|format(it.line_total_original) }}</s> →
-            <b>{{ "%.2f"|format(it.line_total_final) }}</b> ₸
-          {% else %}
-            {{ "%.2f"|format(it.line_total_final) }} ₸
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-    <tfoot>
-      <tr>
-        <td colspan="6" class="text-end fw-bold">Итого:</td>
-        <td class="text-end fw-bold">{{ "%.2f"|format(inv.total_amount_final) }} ₸</td>
-      </tr>
-    </tfoot>
-  </table>
+      <div class="invoice-public-actions">
+        <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-outline-primary">
+          <i class="fa-regular fa-file-pdf me-2"></i>
+          PDF
+        </a>
+        <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-outline-success">
+          <i class="fa-regular fa-file-excel me-2"></i>
+          XLSX
+        </a>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- 🆕 Загрузка чеков -->
-<div class="mt-5">
-  <h4>Прикрепить чек(и)</h4>
-  <form action="/invoice/{{ inv.id }}/receipts/upload?pkey={{ inv.pkey }}"
-        method="post" enctype="multipart/form-data" class="mb-3">
-    <div class="input-group">
-      <input type="file" name="files" accept="application/pdf" multiple class="form-control" required>
-      <button type="submit" class="btn btn-primary">Загрузить</button>
-    </div>
-  </form>
+<div class="row g-4 align-items-start">
+  <!-- Левая колонка -->
+  <div class="col-12 col-xl-8">
+    <!-- Информация о заказе -->
+    <div class="invoice-section-card mb-4">
+      <h3 class="section-title mb-3">Информация о заказе</h3>
 
- <!-- 🆕 Список чеков -->
-{% if inv.receipts %}
-  <h5 class="mt-3">Загруженные чеки</h5>
-  <ul class="list-group">
-    {% for r in inv.receipts %}
-      <li class="list-group-item d-flex justify-content-between align-items-center">
-        <a href="/invoice/{{ inv.id }}/receipts/{{ r.id }}?pkey={{ inv.pkey }}" target="_blank">
-          Чек №{{ r.id }}
+      <div class="invoice-meta-grid">
+        <div class="invoice-meta-item">
+          <span class="invoice-meta-label">Покупатель</span>
+          <span class="invoice-meta-value">{{ inv.customer_name or "—" }}</span>
+        </div>
+
+        <div class="invoice-meta-item">
+          <span class="invoice-meta-label">Телефон</span>
+          <span class="invoice-meta-value">{{ inv.phone or "—" }}</span>
+        </div>
+
+        <div class="invoice-meta-item">
+          <span class="invoice-meta-label">Продавец</span>
+          <span class="invoice-meta-value">{{ inv.seller_name or "—" }}</span>
+        </div>
+
+        <div class="invoice-meta-item">
+          <span class="invoice-meta-label">Город</span>
+          <span class="invoice-meta-value">{{ inv.city_name or "—" }}</span>
+        </div>
+
+        <div class="invoice-meta-item invoice-meta-item-full">
+          <span class="invoice-meta-label">Комментарий</span>
+          <span class="invoice-meta-value">{{ inv.comment or "—" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблица товаров -->
+    <div class="invoice-section-card mb-4">
+      <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+        <h3 class="section-title mb-0">Товары</h3>
+        <div class="invoice-total-pill">
+          Итого: {{ "%.2f"|format(inv.total_amount_final) }} ₸
+        </div>
+      </div>
+
+      <div class="table-responsive invoice-table-wrap">
+        <table class="table align-middle invoice-table">
+          <thead>
+            <tr>
+              <th>Товар</th>
+              <th>Магазин</th>
+              <th>Фото</th>
+              <th>Вариант</th>
+              <th class="text-end">Кол-во</th>
+              <th class="text-end">Цена</th>
+              <th class="text-end">Сумма</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for it in inv.items %}
+              <tr>
+                <td>
+                  <div class="invoice-product-name">{{ it.product_name }}</div>
+                  <div class="invoice-product-sub">{{ it.variant_name }}</div>
+                </td>
+
+                <td>{{ it.seller_name }}</td>
+
+                <td class="invoice-image-cell">
+                  {% if it.product_image %}
+                    <img
+                      src="/static/uploads/products/{{ it.product_image }}"
+                      alt=""
+                      class="invoice-item-image"
+                    >
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <td>{{ it.variant_name }}</td>
+
+                <td class="text-end">
+                  {% if it.qty_original != it.qty_final %}
+                    <div class="invoice-change-wrap text-end">
+                      <span class="invoice-old-value">{{ it.qty_original }}</span>
+                      <span class="invoice-arrow">→</span>
+                      <span class="invoice-new-value">{{ it.qty_final }}</span>
+                    </div>
+                  {% else %}
+                    <span class="invoice-stable-value">{{ it.qty_final }}</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  {% if it.unit_price_original != it.unit_price_final %}
+                    <div class="invoice-change-wrap text-end">
+                      <span class="invoice-old-value">{{ "%.2f"|format(it.unit_price_original) }}</span>
+                      <span class="invoice-arrow">→</span>
+                      <span class="invoice-new-value">{{ "%.2f"|format(it.unit_price_final) }}</span>
+                      <span>₸</span>
+                    </div>
+                  {% else %}
+                    <span class="invoice-stable-value">{{ "%.2f"|format(it.unit_price_final) }} ₸</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  {% if it.line_total_original != it.line_total_final %}
+                    <div class="invoice-change-wrap text-end">
+                      <span class="invoice-old-value">{{ "%.2f"|format(it.line_total_original) }}</span>
+                      <span class="invoice-arrow">→</span>
+                      <span class="invoice-new-value">{{ "%.2f"|format(it.line_total_final) }}</span>
+                      <span>₸</span>
+                    </div>
+                  {% else %}
+                    <span class="invoice-stable-value">{{ "%.2f"|format(it.line_total_final) }} ₸</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="6" class="text-end fw-bold">Итого:</td>
+              <td class="text-end fw-bold">{{ "%.2f"|format(inv.total_amount_final) }} ₸</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Чеки -->
+    <div class="invoice-section-card mb-4">
+      <h3 class="section-title mb-3">Прикрепить чек(и)</h3>
+
+      <form
+        action="/invoice/{{ inv.id }}/receipts/upload?pkey={{ inv.pkey }}"
+        method="post"
+        enctype="multipart/form-data"
+        class="invoice-upload-form mb-4"
+      >
+        <div class="input-group">
+          <input
+            type="file"
+            name="files"
+            accept="application/pdf"
+            multiple
+            class="form-control"
+            required
+          >
+          <button type="submit" class="btn btn-primary">
+            Загрузить
+          </button>
+        </div>
+        <div class="form-text mt-2">
+          Можно загрузить один или несколько PDF-файлов.
+        </div>
+      </form>
+
+      {% if inv.receipts %}
+        <h4 class="invoice-subheading mb-3">Загруженные чеки</h4>
+
+        <div class="invoice-receipts-list">
+          {% for r in inv.receipts %}
+            <div class="invoice-receipt-card">
+              <a
+                href="/invoice/{{ inv.id }}/receipts/{{ r.id }}?pkey={{ inv.pkey }}"
+                target="_blank"
+                class="invoice-receipt-link"
+              >
+                Чек №{{ r.id }}
+              </a>
+
+              <div class="invoice-receipt-right">
+                {% if r.status == 'approved' and r.amount %}
+                  <span class="invoice-receipt-amount">{{ "%.2f"|format(r.amount) }} ₸</span>
+                {% endif %}
+
+                <span class="badge
+                  {% if r.status == 'pending' %} bg-warning text-dark
+                  {% elif r.status == 'approved' %} bg-success
+                  {% elif r.status == 'rejected' %} bg-danger
+                  {% else %} bg-secondary {% endif %}">
+                  {{ r.status }}
+                </span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Правая колонка -->
+  <div class="col-12 col-xl-4">
+    <div class="invoice-side-card">
+      <h3 class="section-title mb-3">Действия</h3>
+
+      <div class="invoice-action-list">
+        <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-outline-primary w-100">
+          <i class="fa-regular fa-file-pdf me-2"></i>
+          Скачать PDF
         </a>
 
-        <div class="d-flex align-items-center gap-2">
-          {% if r.status == 'approved' and r.amount %}
-            <span class="text-success fw-bold">{{ "%.2f"|format(r.amount) }} ₸</span>
-          {% endif %}
-          <span class="badge
-              {% if r.status == 'pending' %} bg-warning text-dark
-              {% elif r.status == 'approved' %} bg-success
-              {% elif r.status == 'rejected' %} bg-danger
-              {% else %} bg-secondary {% endif %}">
-            {{ r.status }}
-          </span>
-        </div>
-      </li>
-    {% endfor %}
-  </ul>
-{% endif %}
+        <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-outline-success w-100">
+          <i class="fa-regular fa-file-excel me-2"></i>
+          Скачать XLSX
+        </a>
 
+        <a
+          href="https://wa.me/{{ inv.phone|replace(' ', '') }}?text=Здравствуйте!%20Ваша%20накладная%20№{{ inv.id }}%20от%20{{ inv.created_at.strftime('%Y-%m-%d') }}%20—%20{{ invoice_url }}"
+          target="_blank"
+          class="btn btn-success w-100"
+        >
+          <i class="fa-brands fa-whatsapp me-2"></i>
+          Отправить в WhatsApp
+        </a>
 
-<!-- Кнопки экспорта и отправки -->
-<div class="mt-4 d-flex flex-wrap gap-2">
-  <a href="/invoice/{{ inv.id }}/export.pdf?pkey={{ inv.pkey }}" class="btn btn-outline-primary">
-    📄 Скачать PDF
-  </a>
-  <a href="/invoice/{{ inv.id }}/export.xlsx?pkey={{ inv.pkey }}" class="btn btn-outline-success">
-    📊 Скачать XLSX
-  </a>
-  <a href="https://wa.me/{{ inv.phone|replace(' ', '') }}?text=Здравствуйте!%20Ваша%20накладная%20№{{ inv.id }}%20от%20{{ inv.created_at.strftime('%Y-%m-%d') }}%20—%20{{ invoice_url }}"
-   target="_blank"
-   class="btn btn-success">
-  💬 Отправить в WhatsApp
-  </a>
-  <!-- Кнопка -->
-<button class="btn btn-outline-primary" onclick="copyInvoiceLink()">
-  📋 Скопировать ссылку
-</button>
+        <button class="btn btn-outline-secondary w-100" onclick="copyInvoiceLink()">
+          <i class="fa-regular fa-copy me-2"></i>
+          Скопировать ссылку
+        </button>
+      </div>
+
+      <div class="invoice-link-preview mt-4">
+        <div class="invoice-meta-label mb-2">Ссылка на накладную</div>
+        <div class="invoice-link-box">{{ invoice_url }}</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Toast -->
-<!-- Toast (уведомление) -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3">
   <div id="copyToast" class="toast align-items-center text-bg-success border-0" role="alert">
     <div class="d-flex">
@@ -146,19 +269,15 @@
   </div>
 </div>
 
-
-</div>
 <script>
 function copyInvoiceLink() {
   const link = "{{ invoice_url }}";
 
-  // Современный API (большинство браузеров + Android Chrome)
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(link).then(showCopiedToast).catch(() => {
       fallbackCopyText(link);
     });
   } else {
-    // Фоллбэк для iOS Safari и старых браузеров
     fallbackCopyText(link);
   }
 }
@@ -166,8 +285,6 @@ function copyInvoiceLink() {
 function fallbackCopyText(text) {
   const textarea = document.createElement("textarea");
   textarea.value = text;
-
-  // Хак для iOS Safari: делаем textarea видимой
   textarea.style.position = "absolute";
   textarea.style.top = "0";
   textarea.style.left = "0";
@@ -176,7 +293,6 @@ function fallbackCopyText(text) {
   textarea.style.opacity = "0";
 
   document.body.appendChild(textarea);
-
   textarea.focus();
   textarea.select();
 
@@ -196,7 +312,7 @@ function fallbackCopyText(text) {
 }
 
 function showCopiedToast() {
-  const toastEl = document.getElementById('copyToast');
+  const toastEl = document.getElementById("copyToast");
   const toast = new bootstrap.Toast(toastEl);
   toast.show();
 }

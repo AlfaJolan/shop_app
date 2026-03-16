@@ -1,104 +1,131 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  /* ---- Layout ---- */
-  .toolbar {
-    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-    margin: 12px 0;
-  }
-  .select, .btn {
-    padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff;
-    font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  }
-  .btn {
-    cursor: pointer; transition: transform .05s ease, box-shadow .2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,.06);
-  }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
 
-  /* ---- Grid ---- */
-  .grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
-  @media (min-width: 700px){ .grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (min-width: 1024px){ .grid { grid-template-columns: repeat(3, 1fr); } }
+<div class="page-section">
+  <div class="catalog-hero mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div>
+        <h1 class="page-title mb-2">Живые заказы</h1>
+        <p class="section-subtitle mb-0">
+          Отслеживание накладных и текущих статусов в реальном времени.
+        </p>
+      </div>
 
-  /* ---- Card ---- */
-  .card {
-    border: 1px solid #eef0f3; border-radius: 14px; background: #fff;
-    box-shadow: 0 4px 16px rgba(0,0,0,.06);
-    padding: 14px; transition: box-shadow .2s ease, transform .05s ease;
-  }
-  .card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
-
-  .title { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .order-id { font-weight: 700; font-size: 15px; }
-  .amount { font-weight:700; font-size:14px; }
-  .meta { color:#667085; font-size: 12px; margin-bottom:2px; }
-  .time { color:#475569; font-variant-numeric: tabular-nums; }
-
-  .row, .row2 { display: grid; gap: 6px; margin-top: 4px; }
-  .row2 { grid-template-columns: 1fr 1fr; }
-
-  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-  .link {
-    text-decoration:none; padding:8px 12px; border:1px solid #e5e7eb; border-radius:10px; background:#fff;
-    display:inline-flex; align-items:center; gap:6px; font-size:13px; transition: background .2s ease;
-  }
-  .link:hover { background:#f8fafc; }
-
-  .empty { text-align:center; padding:24px 12px; color:#667085; }
-
-  /* ---- Badges ---- */
-  .badge {
-    display:inline-flex; align-items:center; padding:6px 10px;
-    border-radius:999px; font-weight:600; font-size:12px; border:1px solid transparent;
-  }
-  .badge.new        { background:#f1f5f9; color:#334155; border-color:#e2e8f0; }
-  .badge.packed     { background:#e0f2fe; color:#075985; border-color:#bae6fd; }
-  .badge.shipped    { background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
-  .badge.delivered  { background:#ecfdf5; color:#065f46; border-color:#bbf7d0; }
-  .badge.canceled   { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
-
-  .pill {
-    display:inline-block; padding:6px 10px; border-radius:999px; background:#f8fafc; border:1px solid #e2e8f0;
-    font-size:12px; color:#475569;
-  }
-
-  /* ---- Skeleton ---- */
-  .skeleton {
-    border-radius:14px; background:linear-gradient(90deg,#f6f7f9,#eef1f5,#f6f7f9);
-    background-size: 200% 100%; animation: shimmer 1.2s infinite;
-    height: 110px;
-  }
-  @keyframes shimmer { 0%{background-position: -200% 0;} 100%{background-position: 200% 0;} }
-
-  /* ---- Small screens ---- */
-  @media (max-width: 420px){
-    .order-id { font-size: 14px; }
-    .badge { font-size: 11px; padding:5px 9px; }
-    .link, .btn, .select { font-size: 13px; }
-  }
-</style>
-
-<h2 class="mt-2">📡 Живые заказы</h2> <!-- 🔹 заменили -->
-
-<div class="toolbar">
-  <label for="statusFilter" class="meta">Статус:</label>
-  <select id="statusFilter" class="select">
-    <option value="all">Все</option>
-    {% for st in allowed_statuses %}
-      <option value="{{ st }}">{{ status_labels.get(st, st) }}</option>
-    {% endfor %}
-  </select>
-  <button id="refreshBtn" class="btn">🔄 Обновить</button>
-  <span id="lastUpd" class="pill">—</span>
+      <div class="admin-role-badge">
+        <i class="fa-solid fa-bolt me-2"></i>
+        Live monitor
+      </div>
+    </div>
+  </div>
 </div>
 
-<div id="ordersContainer" class="grid">
-  <!-- скелетоны при первой загрузке -->
-  <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+<div class="live-orders-toolbar-card mb-4">
+  <div class="live-orders-toolbar">
+    <div class="live-orders-filter">
+      <label class="form-label mb-0">Статус</label>
+
+      <div class="filter-dropdown" id="statusDropdown">
+        <select id="statusFilter" class="form-select live-orders-select d-none">
+          <option value="all">Все</option>
+          {% for st in allowed_statuses %}
+            <option value="{{ st }}">{{ status_labels.get(st, st) }}</option>
+          {% endfor %}
+        </select>
+
+        <button
+          type="button"
+          class="filter-dropdown-trigger"
+          id="statusDropdownTrigger"
+          aria-expanded="false"
+        >
+          <span id="statusDropdownText">Все</span>
+          <span class="filter-dropdown-caret">▼</span>
+        </button>
+
+        <div class="filter-dropdown-menu" id="statusDropdownMenu">
+          <button type="button" class="filter-dropdown-item active" data-value="all">Все</button>
+          {% for st in allowed_statuses %}
+            <button
+              type="button"
+              class="filter-dropdown-item"
+              data-value="{{ st }}"
+            >
+              {{ status_labels.get(st, st) }}
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="live-orders-toolbar-actions">
+      <button id="refreshBtn" class="btn btn-primary">
+        <i class="fa-solid fa-rotate-right me-2"></i>
+        Обновить
+      </button>
+      <span id="lastUpd" class="live-orders-updated-pill">—</span>
+    </div>
+  </div>
+</div>
+
+<div id="ordersContainer" class="live-orders-grid">
+  <div class="live-orders-skeleton"></div>
+  <div class="live-orders-skeleton"></div>
+  <div class="live-orders-skeleton"></div>
 </div>
 
 <script>
+const statusDropdown = document.getElementById("statusDropdown");
+const statusDropdownTrigger = document.getElementById("statusDropdownTrigger");
+const statusDropdownText = document.getElementById("statusDropdownText");
+const statusDropdownItems = document.querySelectorAll(".filter-dropdown-item");
+const statusFilterSelect = document.getElementById("statusFilter");
+
+function syncStatusDropdown(value) {
+  if (!statusFilterSelect) return;
+
+  const option = [...statusFilterSelect.options].find(opt => opt.value === value);
+  if (!option) return;
+
+  statusFilterSelect.value = value;
+  if (statusDropdownText) statusDropdownText.textContent = option.textContent;
+
+  statusDropdownItems.forEach(item => {
+    item.classList.toggle("active", item.dataset.value === value);
+  });
+}
+
+if (statusDropdownTrigger && statusDropdown) {
+  statusDropdownTrigger.addEventListener("click", () => {
+    const isOpen = statusDropdown.classList.contains("open");
+    statusDropdown.classList.toggle("open", !isOpen);
+    statusDropdownTrigger.setAttribute("aria-expanded", String(!isOpen));
+  });
+}
+
+statusDropdownItems.forEach(item => {
+  item.addEventListener("click", async () => {
+    const value = item.dataset.value;
+    syncStatusDropdown(value);
+
+    if (statusDropdown && statusDropdownTrigger) {
+      statusDropdown.classList.remove("open");
+      statusDropdownTrigger.setAttribute("aria-expanded", "false");
+    }
+
+    await fetchOrders();
+  });
+});
+
+document.addEventListener("click", (e) => {
+  if (!statusDropdown) return;
+  if (!statusDropdown.contains(e.target)) {
+    statusDropdown.classList.remove("open");
+    if (statusDropdownTrigger) {
+      statusDropdownTrigger.setAttribute("aria-expanded", "false");
+    }
+  }
+});
+
 const STATUS_LABELS = {
   "new": "Новый",
   "packed": "Собран",
@@ -111,17 +138,30 @@ function fmtAmount(val){
   const n = Number(val);
   return isNaN(n) ? val + " ₸" : n.toFixed(2) + " ₸";
 }
+
 function fmtDate(str){
   if(!str) return "—";
   const d = new Date(str);
   return isNaN(d) ? str : d.toLocaleString();
 }
 
-function el(tag, attrs={}, html=""){
+function el(tag, attrs = {}, html = ""){
   const d = document.createElement(tag);
-  for (const [k,v] of Object.entries(attrs)) if (v!=null) d.setAttribute(k,v);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v != null) d.setAttribute(k, v);
+  }
   if (html) d.innerHTML = html;
   return d;
+}
+
+function getStatusClass(status) {
+  return ({
+    "new": "live-badge new",
+    "packed": "live-badge packed",
+    "shipped": "live-badge shipped",
+    "delivered": "live-badge delivered",
+    "canceled": "live-badge canceled"
+  })[status] || "live-badge";
 }
 
 async function fetchOrders(){
@@ -135,38 +175,73 @@ async function fetchOrders(){
     cont.innerHTML = "";
 
     if (!data.length){
-      cont.appendChild(el("div", {class:"empty"}, "Пока нет накладных под выбранный фильтр.")); // 🔹 заменили
+      cont.appendChild(
+        el(
+          "div",
+          { class: "live-orders-empty" },
+          `
+            <div class="live-orders-empty-icon">📭</div>
+            <div class="live-orders-empty-title">Нет заказов</div>
+            <div class="live-orders-empty-text">Под выбранный фильтр пока ничего не найдено.</div>
+          `
+        )
+      );
+      document.getElementById("lastUpd").textContent =
+        "Обновлено: " + new Date().toLocaleTimeString();
+      return;
     }
 
     data.forEach(o => {
-      const card = el("div", {class:"card"});
+      const card = el("div", { class: "live-order-card" });
 
-      const header = el("div", {class:"title"});
-      header.appendChild(el("div", {class:"order-id"}, `Накладная #${o.id}`)); // 🔹 заменили
-      const badge = el("span", {class:`badge ${o.status}`}, STATUS_LABELS[o.status] || o.status);
-      header.appendChild(badge);
+      const header = el("div", { class: "live-order-head" });
+      header.appendChild(el("div", { class: "live-order-id" }, `Накладная #${o.id}`));
+      header.appendChild(el("span", { class: getStatusClass(o.status) }, STATUS_LABELS[o.status] || o.status));
       card.appendChild(header);
 
-      const rowA = el("div", {class:"row2"});
-      rowA.innerHTML = `
-        <div><div class="meta">Имя</div><div>${o.customer_name || "—"}</div></div>
-        <div><div class="meta">Телефон</div><div>${o.phone || "—"}</div></div>`;
-      card.appendChild(rowA);
+      const grid = el("div", { class: "live-order-meta-grid" });
+      grid.innerHTML = `
+        <div class="live-order-meta-item">
+          <div class="live-order-meta-label">Имя</div>
+          <div class="live-order-meta-value">${o.customer_name || "—"}</div>
+        </div>
+        <div class="live-order-meta-item">
+          <div class="live-order-meta-label">Телефон</div>
+          <div class="live-order-meta-value">${o.phone || "—"}</div>
+        </div>
+      `;
+      card.appendChild(grid);
 
       if (o.comment){
-        const rowB = el("div", {class:"row"});
-        rowB.innerHTML = `<div><div class="meta">Комментарий</div><div>${o.comment}</div></div>`;
-        card.appendChild(rowB);
+        const comment = el("div", { class: "live-order-comment" });
+        comment.innerHTML = `
+          <div class="live-order-meta-label">Комментарий</div>
+          <div class="live-order-meta-value">${o.comment}</div>
+        `;
+        card.appendChild(comment);
       }
 
-      const rowC = el("div", {class:"row2", style:"align-items:end;"});
-      rowC.innerHTML = `
-        <div><div class="meta">Создан</div><div class="time">${fmtDate(o.created_at)}</div></div>
-        <div style="justify-self:end;"><div class="meta">Сумма</div><div class="amount">${fmtAmount(o.total_amount)}</div></div>`;
-      card.appendChild(rowC);
+      const footer = el("div", { class: "live-order-footer" });
+      footer.innerHTML = `
+        <div class="live-order-time-block">
+          <div class="live-order-meta-label">Создан</div>
+          <div class="live-order-time">${fmtDate(o.created_at)}</div>
+        </div>
+        <div class="live-order-sum-block">
+          <div class="live-order-meta-label">Сумма</div>
+          <div class="live-order-amount">${fmtAmount(o.total_amount)}</div>
+        </div>
+      `;
+      card.appendChild(footer);
 
-      const actions = el("div", {class:"actions"});
-      actions.appendChild(el("a", {class:"link", href:`/admin/orders/${o.id}`}, "Открыть")); <!-- 🔹 ссылка оставлена -->
+      const actions = el("div", { class: "live-order-actions" });
+      actions.appendChild(
+        el(
+          "a",
+          { class: "btn btn-outline-primary w-100", href: `/admin/orders/${o.id}` },
+          `<i class="fa-solid fa-arrow-up-right-from-square me-2"></i>Открыть`
+        )
+      );
       card.appendChild(actions);
 
       cont.appendChild(card);
@@ -175,24 +250,23 @@ async function fetchOrders(){
     document.getElementById("lastUpd").textContent =
       "Обновлено: " + new Date().toLocaleTimeString();
   } catch (e) {
-    console.error("Ошибка при загрузке накладных:", e); // 🔹 заменили
+    console.error("Ошибка при загрузке накладных:", e);
   }
 }
 
-document.getElementById("statusFilter").addEventListener("change", fetchOrders);
 document.getElementById("refreshBtn").addEventListener("click", fetchOrders);
-setInterval(fetchOrders, 5000);
 
 const params = new URLSearchParams(window.location.search);
 const urlStatus = params.get("status");
 
-// если в URL есть ?status=..., выставляем в селекте
 if (urlStatus) {
-  document.getElementById("statusFilter").value = urlStatus;
+  syncStatusDropdown(urlStatus);
 } else {
-  document.getElementById("statusFilter").value = "new"; // дефолт
+  syncStatusDropdown("new");
 }
 
+setInterval(fetchOrders, 5000);
 fetchOrders();
 </script>
+
 {% endblock %}
