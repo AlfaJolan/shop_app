@@ -1,25 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="page-section">
-  <div class="catalog-hero mb-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-      <div>
-        <h1 class="page-title mb-2">Категории</h1>
-        <p class="section-subtitle mb-0">
-          Управление категориями каталога: поиск, редактирование и создание новых записей.
-        </p>
-      </div>
+<div class="page-section categories-admin-page">
+  <div class="categories-admin-head mb-3">
+    <div>
+      <h1 class="categories-admin-title mb-1">Категории</h1>
+      <p class="categories-admin-subtitle mb-0">
+        Поиск, редактирование и создание категорий.
+      </p>
+    </div>
 
-      <div class="admin-role-badge">
-        <i class="fa-solid fa-layer-group me-2"></i>
-        {{ categories|length }} шт.
-      </div>
+    <div class="categories-admin-count">
+      <i class="fa-solid fa-layer-group me-2"></i>
+      {{ categories|length }} шт.
     </div>
   </div>
-</div>
 
-<div class="page-section">
   <div class="categories-admin-toolbar-card mb-4">
     <form method="get" action="/admin/catalog/categories" class="categories-admin-toolbar">
       <div class="categories-admin-search">
@@ -53,39 +49,28 @@
       </div>
     </form>
   </div>
-</div>
 
-<div class="page-section">
   <!-- Desktop / tablet -->
   <div class="d-none d-md-block categories-admin-table-shell">
     <div class="table-responsive">
       <table class="table align-middle categories-admin-table mb-0">
         <thead>
           <tr>
-            <th style="width: 90px;">ID</th>
+            <th style="width: 100px;">ID</th>
             <th>Название</th>
-            <th>Slug</th>
-            <th class="text-end" style="width: 220px;">Действия</th>
+            <th style="min-width: 240px;">Slug</th>
+            <th class="text-end" style="width: 260px;">Действия</th>
           </tr>
         </thead>
         <tbody>
           {% for c in categories %}
           <tr>
-            <td>
-              <span class="categories-admin-id">#{{ c.id }}</span>
-            </td>
-            <td>
-              <div class="categories-admin-name">{{ c.name }}</div>
-            </td>
-            <td>
-              <span class="categories-admin-slug">{{ c.slug }}</span>
-            </td>
+            <td><span class="categories-admin-id">#{{ c.id }}</span></td>
+            <td><div class="categories-admin-name">{{ c.name }}</div></td>
+            <td><span class="categories-admin-slug">{{ c.slug }}</span></td>
             <td class="text-end">
               <div class="categories-admin-actions justify-content-end">
-                <a
-                  href="/admin/catalog/categories/{{ c.id }}/edit"
-                  class="btn btn-sm btn-outline-primary"
-                >
+                <a href="/admin/catalog/categories/{{ c.id }}/edit" class="btn btn-sm btn-outline-primary">
                   <i class="fa-solid fa-pen-to-square me-1"></i>
                   Редактировать
                 </a>
@@ -108,9 +93,12 @@
           <tr>
             <td colspan="4">
               <div class="categories-admin-empty-row">
+                <div class="categories-admin-empty-icon mb-2">
+                  <i class="fa-regular fa-folder-open"></i>
+                </div>
                 <div class="categories-admin-empty-title">Ничего не найдено</div>
                 <div class="categories-admin-empty-text">
-                  Попробуйте изменить поисковый запрос или создайте новую категорию.
+                  Попробуйте изменить запрос или создайте новую категорию.
                 </div>
               </div>
             </td>
@@ -126,18 +114,16 @@
     <div class="categories-admin-mobile-list">
       {% for c in categories %}
       <div class="categories-admin-mobile-card">
-        <div class="categories-admin-mobile-head">
+        <div class="categories-admin-mobile-top">
           <div>
             <div class="categories-admin-name">{{ c.name }}</div>
             <div class="categories-admin-mobile-id">ID: {{ c.id }}</div>
           </div>
         </div>
 
-        <div class="categories-admin-mobile-meta">
-          <div class="categories-admin-mobile-meta-item">
-            <span class="categories-admin-mobile-label">Slug</span>
-            <span class="categories-admin-slug">{{ c.slug }}</span>
-          </div>
+        <div class="categories-admin-mobile-meta-item">
+          <span class="categories-admin-mobile-label">Slug</span>
+          <span class="categories-admin-slug">{{ c.slug }}</span>
         </div>
 
         <div class="categories-admin-actions mt-3">
@@ -164,6 +150,9 @@
       </div>
       {% else %}
       <div class="categories-admin-mobile-empty">
+        <div class="categories-admin-empty-icon mb-2">
+          <i class="fa-regular fa-folder-open"></i>
+        </div>
         <div class="categories-admin-empty-title">Ничего не найдено</div>
         <div class="categories-admin-empty-text">
           Попробуйте другой запрос или создайте новую категорию.

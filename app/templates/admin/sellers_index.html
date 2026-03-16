@@ -1,40 +1,157 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">📦 Продавцы</h2>
 
-  <a href="/admin/sellers/new" class="btn btn-success mb-3">➕ Добавить продавца</a>
+<div class="page-section sellers-admin-page">
+  <div class="sellers-admin-head mb-4">
+    <div>
+      <h1 class="sellers-admin-title mb-1">Продавцы</h1>
+      <p class="sellers-admin-subtitle mb-0">
+        Управление продавцами каталога: просмотр, редактирование и удаление записей.
+      </p>
+    </div>
+
+    <div class="sellers-admin-count">
+      <i class="fa-solid fa-box-open me-2"></i>
+      {{ sellers|length }} шт.
+    </div>
+  </div>
+
+  <div class="sellers-admin-toolbar-card mb-4">
+    <div class="sellers-admin-toolbar">
+      <div class="sellers-admin-toolbar-text">
+        <div class="sellers-admin-toolbar-title">Список продавцов</div>
+        <div class="sellers-admin-toolbar-subtitle">
+          Добавляйте новых продавцов и управляйте существующими.
+        </div>
+      </div>
+
+      <div class="sellers-admin-toolbar-actions">
+        <a href="/admin/sellers/new" class="btn btn-success">
+          <i class="fa-solid fa-plus me-2"></i>
+          Добавить продавца
+        </a>
+      </div>
+    </div>
+  </div>
 
   {% if sellers %}
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Название</th>
-          <th>Город</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody>
+    <!-- Desktop / tablet -->
+    <div class="d-none d-md-block sellers-admin-table-shell">
+      <div class="table-responsive">
+        <table class="table align-middle sellers-admin-table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 100px;">ID</th>
+              <th>Название</th>
+              <th style="min-width: 180px;">Город</th>
+              <th class="text-end" style="width: 260px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in sellers %}
+            <tr>
+              <td>
+                <span class="sellers-admin-id">#{{ s.id }}</span>
+              </td>
+              <td>
+                <div class="sellers-admin-name">{{ s.name }}</div>
+              </td>
+              <td>
+                <span class="sellers-admin-city">
+                  {{ s.city or "—" }}
+                </span>
+              </td>
+              <td class="text-end">
+                <div class="sellers-admin-actions justify-content-end">
+                  <a
+                    href="/admin/sellers/{{ s.id }}/edit"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    <i class="fa-solid fa-pen-to-square me-1"></i>
+                    Редактировать
+                  </a>
+
+                  <form
+                    method="post"
+                    action="/admin/sellers/{{ s.id }}/delete"
+                    class="d-inline"
+                    onsubmit="return confirm('Удалить продавца?');"
+                  >
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="fa-solid fa-trash me-1"></i>
+                      Удалить
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="d-md-none">
+      <div class="sellers-admin-mobile-list">
         {% for s in sellers %}
-          <tr>
-            <td>{{ s.id }}</td>
-            <td>{{ s.name }}</td>
-            <td>{{ s.city or '-' }}</td>
-            <td>
-              <a href="/admin/sellers/{{ s.id }}/edit" class="btn btn-sm btn-primary">✏️ Редактировать</a>
-              <form method="post" action="/admin/sellers/{{ s.id }}/delete"
-                    style="display:inline-block;"
-                    onsubmit="return confirm('Удалить продавца?');">
-                <button type="submit" class="btn btn-sm btn-danger">🗑 Удалить</button>
-              </form>
-            </td>
-          </tr>
+        <div class="sellers-admin-mobile-card">
+          <div class="sellers-admin-mobile-top">
+            <div>
+              <div class="sellers-admin-name">{{ s.name }}</div>
+              <div class="sellers-admin-mobile-id">ID: {{ s.id }}</div>
+            </div>
+          </div>
+
+          <div class="sellers-admin-mobile-meta">
+            <div class="sellers-admin-mobile-meta-item">
+              <span class="sellers-admin-mobile-label">Город</span>
+              <span class="sellers-admin-city">{{ s.city or "—" }}</span>
+            </div>
+          </div>
+
+          <div class="sellers-admin-actions mt-3">
+            <a
+              href="/admin/sellers/{{ s.id }}/edit"
+              class="btn btn-outline-primary w-100"
+            >
+              <i class="fa-solid fa-pen-to-square me-2"></i>
+              Редактировать
+            </a>
+
+            <form
+              method="post"
+              action="/admin/sellers/{{ s.id }}/delete"
+              class="w-100"
+              onsubmit="return confirm('Удалить продавца?');"
+            >
+              <button type="submit" class="btn btn-outline-danger w-100">
+                <i class="fa-solid fa-trash me-2"></i>
+                Удалить
+              </button>
+            </form>
+          </div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
+    </div>
   {% else %}
-    <p>Нет продавцов</p>
+    <div class="sellers-admin-empty">
+      <div class="sellers-admin-empty-icon mb-2">
+        <i class="fa-regular fa-box"></i>
+      </div>
+      <div class="sellers-admin-empty-title">Нет продавцов</div>
+      <div class="sellers-admin-empty-text">
+        Добавьте первого продавца, чтобы начать работу.
+      </div>
+      <div class="mt-3">
+        <a href="/admin/sellers/new" class="btn btn-success">
+          <i class="fa-solid fa-plus me-2"></i>
+          Добавить продавца
+        </a>
+      </div>
+    </div>
   {% endif %}
 </div>
+
 {% endblock %}
