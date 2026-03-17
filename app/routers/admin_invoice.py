@@ -275,7 +275,7 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
 
 
 @router.post("/{invoice_id}/reset-item/{item_id}")
-def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
+def reset_item(request: Request, invoice_id: int, item_id: int, db: Session = Depends(get_db)):
     """
     Сброс одной строки к оригинальным qty/price (и аудит изменений).
     🔹 Дополнительно: корректируем склад (возвращаем разницу на Variant.stock).
@@ -287,6 +287,20 @@ def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
     it: Optional[InvoiceItem] = db.query(InvoiceItem).get(item_id)
     if not it or it.invoice_id != inv.id:
         raise HTTPException(status_code=404, detail="Позиция не найдена")
+
+    # 🆕 пользователь (кто сделал reset)
+    actor = get_actor(request, db)
+
+    # 🆕 старое состояние строки ДО сброса
+    old_data = {
+        "item_id": it.id,
+        "variant_id": getattr(it, "variant_id", None),
+        "product_name": it.product_name,
+        "variant_name": it.variant_name,
+        "qty_final": int(it.qty_final),
+        "unit_price_final": float(it.unit_price_final) if it.unit_price_final is not None else None,
+        "line_total_final": float(it.line_total_final) if getattr(it, "line_total_final", None) is not None else None,
+    }
 
     # аудит qty
     if int(it.qty_final) != int(it.qty_original):
@@ -311,10 +325,20 @@ def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
 
     # 🔹 корректировка склада при сбросе
     delta = it.qty_original - it.qty_final
+
+    old_stock = None
+    new_stock = None
+
     if getattr(it, "variant_id", None):
         variant = db.query(Variant).get(it.variant_id)
         if variant:
+            # 🆕 фиксируем склад ДО изменения
+            old_stock = int(variant.stock)
+
             variant.stock += delta
+
+            # 🆕 фиксируем склад ПОСЛЕ изменения
+            new_stock = int(variant.stock)
 
     # сброс значений
     it.qty_final = it.qty_original
@@ -323,6 +347,32 @@ def reset_item(invoice_id: int, item_id: int, db: Session = Depends(get_db)):
 
     # пересчёт итога
     inv.recompute_totals()
+
+    # 🆕 новое состояние после сброса
+    new_data = {
+        "item_id": it.id,
+        "variant_id": getattr(it, "variant_id", None),
+        "product_name": it.product_name,
+        "variant_name": it.variant_name,
+        "qty_final": int(it.qty_final),
+        "unit_price_final": float(it.unit_price_final) if it.unit_price_final is not None else None,
+        "line_total_final": float(it.line_total_final) if getattr(it, "line_total_final", None) is not None else None,
+        "variant_stock_before": old_stock,
+        "variant_stock_after": new_stock,
+    }
+
+    # 🆕 общий аудит (в отличие от InvoiceAudit — это бизнес-событие)
+    write_audit(
+        db=db,
+        entity_type="invoice",
+        entity_id=inv.id,
+        action="invoice_item_reset",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note="Сброс позиции накладной к оригиналу",
+    )
+
     db.commit()
 
     return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
