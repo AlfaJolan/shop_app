@@ -81,6 +81,30 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
     audits: List[InvoiceAudit] = []
     changed = False
 
+    # 🆕 Получаем текущего пользователя для общего аудита
+    actor = get_actor(request, db)
+
+    # 🆕 Снимок накладной ДО изменений.
+    # Храним только полезные поля: итог и изменяемые позиции.
+    old_items_map = {
+        it.id: {
+            "item_id": it.id,
+            "variant_id": getattr(it, "variant_id", None),
+            "product_name": it.product_name,
+            "variant_name": it.variant_name,
+            "qty_final": int(it.qty_final),
+            "unit_price_final": float(it.unit_price_final) if it.unit_price_final is not None else None,
+            "line_total_final": float(it.line_total_final) if getattr(it, "line_total_final", None) is not None else None,
+        }
+        for it in inv.items
+    }
+    old_total = float(getattr(inv, "total_amount_final", 0) or 0)
+
+    # 🆕 Здесь будем собирать только реально измененные строки,
+    # чтобы общий audit_log не засорялся всеми позициями накладной.
+    changed_items_old = []
+    changed_items_new = []
+
     for it in inv.items:
         qty_key = f"qty_final_{it.id}"
         price_key = f"unit_price_final_{it.id}"
@@ -107,6 +131,11 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
             if v < 0:
                 v = Decimal("0")
             new_price = v
+
+        # 🆕 Запоминаем старый склад до возможного изменения,
+        # чтобы потом можно было положить в общий аудит.
+        old_variant_stock = None
+        new_variant_stock = None
 
         # аудит qty + проверка склада
         if int(new_qty) != int(it.qty_final):
@@ -148,8 +177,14 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
                     }
                 )
 
+            # 🆕 Сохраняем остаток до изменения
+            old_variant_stock = int(variant.stock)
+
             # только после проверки обновляем остатки
             variant.stock -= delta
+
+            # 🆕 Сохраняем остаток после изменения
+            new_variant_stock = int(variant.stock)
 
             # аудит qty
             audits.append(InvoiceAudit(
@@ -179,12 +214,61 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
         # пересчёт суммы строки
         it.recompute_line()
 
+        # 🆕 Если строка реально изменилась по qty и/или price,
+        # добавляем ее в общий аудит с данными "до" и "после".
+        if (
+            int(old_items_map[it.id]["qty_final"]) != int(it.qty_final)
+            or Decimal(str(old_items_map[it.id]["unit_price_final"] or 0)) != Decimal(str(it.unit_price_final or 0))
+        ):
+            changed_items_old.append({
+                "item_id": old_items_map[it.id]["item_id"],
+                "variant_id": old_items_map[it.id]["variant_id"],
+                "product_name": old_items_map[it.id]["product_name"],
+                "variant_name": old_items_map[it.id]["variant_name"],
+                "qty_final": old_items_map[it.id]["qty_final"],
+                "unit_price_final": old_items_map[it.id]["unit_price_final"],
+                "line_total_final": old_items_map[it.id]["line_total_final"],
+                "variant_stock": old_variant_stock,
+            })
+            changed_items_new.append({
+                "item_id": it.id,
+                "variant_id": getattr(it, "variant_id", None),
+                "product_name": it.product_name,
+                "variant_name": it.variant_name,
+                "qty_final": int(it.qty_final),
+                "unit_price_final": float(it.unit_price_final) if it.unit_price_final is not None else None,
+                "line_total_final": float(it.line_total_final) if getattr(it, "line_total_final", None) is not None else None,
+                "variant_stock": new_variant_stock,
+            })
+
     # пересчёт итога накладной
     inv.recompute_totals()
 
     if changed and audits:
         for a in audits:
             db.add(a)
+
+        # 🆕 Пишем одну общую запись в audit_log на все ручное редактирование накладной.
+        # Старый InvoiceAudit оставляем как есть — он дает детальный аудит по qty/price,
+        # а здесь будет общий журнал: кто, когда и какие строки поменял.
+        write_audit(
+            db=db,
+            entity_type="invoice",
+            entity_id=inv.id,
+            action="invoice_updated",
+            actor=actor,
+            old_data={
+                "invoice_id": inv.id,
+                "total_amount_final": old_total,
+                "items": changed_items_old,
+            },
+            new_data={
+                "invoice_id": inv.id,
+                "total_amount_final": float(getattr(inv, "total_amount_final", 0) or 0),
+                "items": changed_items_new,
+            },
+            note="Ручное редактирование накладной",
+        )
 
     db.commit()
     return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
