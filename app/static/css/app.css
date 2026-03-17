@@ -5733,7 +5733,453 @@ border-radius:24px;
 .salespersons-form-grid{
 grid-template-columns:1fr;
 }
+/* =========================
+   ADMIN AUDIT PAGE
+   ========================= */
+.audit-admin-page {
+  max-width: 1320px;
+}
 
+.audit-admin-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  border-radius: 24px;
+  box-shadow: var(--ez-shadow-sm);
+}
+
+.audit-admin-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ez-text);
+}
+
+.audit-admin-subtitle {
+  color: var(--ez-text-muted);
+  max-width: 780px;
+  line-height: 1.55;
+}
+
+.audit-admin-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.72rem 1rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid var(--ez-border);
+  box-shadow: var(--ez-shadow-sm);
+  font-weight: 700;
+  color: var(--ez-text);
+  white-space: nowrap;
+}
+
+.audit-admin-filter-card {
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  border-radius: 24px;
+  box-shadow: var(--ez-shadow-sm);
+  padding: 1.25rem;
+}
+
+.audit-admin-filter-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.audit-admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.audit-admin-filter-field .form-label {
+  margin-bottom: 0.55rem;
+}
+
+.audit-admin-filter-field .form-control,
+.audit-admin-filter-field .form-select {
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+.audit-admin-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.audit-admin-filter-actions .btn {
+  min-height: 48px;
+  padding: 0.78rem 1.15rem;
+  border-radius: 14px;
+  font-weight: 700;
+}
+
+.audit-admin-table-shell {
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  border-radius: 24px;
+  box-shadow: var(--ez-shadow-sm);
+  overflow: hidden;
+}
+
+.audit-admin-table {
+  margin-bottom: 0;
+}
+
+.audit-admin-table thead th {
+  background: #f8fafc;
+  color: var(--ez-text-soft);
+  font-size: 0.84rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--ez-border);
+  padding: 1rem;
+  white-space: nowrap;
+}
+
+.audit-admin-table tbody td {
+  padding: 1rem;
+  border-color: #eef2f7;
+  vertical-align: middle;
+}
+
+.audit-admin-table tbody tr:hover {
+  background: #fbfdff;
+}
+
+.audit-admin-datetime {
+  color: var(--ez-text-soft);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+}
+
+.audit-admin-user {
+  font-weight: 700;
+  color: var(--ez-text);
+}
+
+.audit-admin-role,
+.audit-admin-entity,
+.audit-admin-id {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem 0.76rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid var(--ez-border);
+  color: var(--ez-text-soft);
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+.audit-admin-note {
+  color: var(--ez-text);
+  line-height: 1.45;
+}
+
+.audit-admin-muted {
+  color: var(--ez-text-faint);
+}
+
+.audit-admin-empty-row,
+.audit-admin-empty {
+  text-align: center;
+  padding: 2rem 1.25rem;
+}
+
+.audit-admin-empty {
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  border-radius: 24px;
+  box-shadow: var(--ez-shadow-sm);
+}
+
+.audit-admin-empty-icon {
+  font-size: 1.8rem;
+  color: var(--ez-text-faint);
+}
+
+.audit-admin-empty-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--ez-text);
+  margin-bottom: 0.3rem;
+}
+
+.audit-admin-empty-text {
+  color: var(--ez-text-muted);
+  line-height: 1.6;
+}
+
+.audit-admin-mobile-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.audit-admin-mobile-card {
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  border-radius: 20px;
+  box-shadow: var(--ez-shadow-sm);
+  padding: 1rem;
+}
+
+.audit-admin-mobile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.audit-admin-mobile-user {
+  font-weight: 700;
+  color: var(--ez-text);
+}
+
+.audit-admin-mobile-date {
+  color: var(--ez-text-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.audit-admin-mobile-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.audit-admin-mobile-meta-item {
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--ez-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.audit-admin-mobile-meta-item-full {
+  grid-column: 1 / -1;
+}
+
+.audit-admin-mobile-label {
+  font-size: 0.76rem;
+  color: var(--ez-text-muted);
+}
+
+.audit-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.76rem;
+  border: 1px solid var(--ez-border);
+  background: #f8fafc;
+  color: var(--ez-text-soft);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.audit-badge--product_created,
+.audit-badge--user_created,
+.audit-badge--seller_created,
+.audit-badge--salesperson_created,
+.audit-badge--purchase_created {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.audit-badge--product_updated,
+.audit-badge--user_updated,
+.audit-badge--seller_updated,
+.audit-badge--invoice_updated {
+  color: #2563eb;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.audit-badge--status_change,
+.audit-badge--invoice_marked_paid,
+.audit-badge--receipt_approved {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.audit-badge--receipt_rejected,
+.audit-badge--seller_deleted,
+.audit-badge--salesperson_deleted {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.audit-badge--invoice_item_reset {
+  color: #7c3aed;
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+
+.audit-modal-content {
+  border-radius: 24px;
+  border: 1px solid var(--ez-border);
+  overflow: hidden;
+}
+
+.audit-modal-subtitle {
+  color: var(--ez-text-muted);
+  font-size: 0.92rem;
+}
+
+.audit-modal-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.audit-modal-meta-item {
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--ez-border);
+}
+
+.audit-modal-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--ez-text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.audit-modal-value {
+  display: block;
+  color: var(--ez-text);
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.audit-json-card {
+  background: #fff;
+  border: 1px solid var(--ez-border);
+  border-radius: 18px;
+  overflow: hidden;
+  height: 100%;
+}
+
+.audit-json-title {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid var(--ez-border);
+  background: #fbfdff;
+  font-weight: 700;
+  color: var(--ez-text);
+}
+
+.audit-json-pre {
+  margin: 0;
+  padding: 1rem;
+  max-height: 420px;
+  overflow: auto;
+  background: #f8fafc;
+  color: var(--ez-text);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 991.98px) {
+  .audit-admin-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .audit-admin-page {
+    max-width: 100%;
+  }
+
+  .audit-admin-head {
+    padding: 1rem;
+    border-radius: 18px;
+    gap: 0.75rem;
+  }
+
+  .audit-admin-title {
+    font-size: 1.35rem;
+  }
+
+  .audit-admin-subtitle {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .audit-admin-count {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0.62rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  .audit-admin-filter-card {
+    border-radius: 18px;
+    padding: 1rem;
+  }
+
+  .audit-admin-filter-grid {
+    grid-template-columns: 1fr;
+    gap: 0.95rem;
+  }
+
+  .audit-admin-filter-field .form-control,
+  .audit-admin-filter-field .form-select {
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .audit-admin-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .audit-admin-filter-actions .btn {
+    width: 100%;
+    min-height: 46px;
+    font-size: 0.92rem;
+    padding: 0.72rem 0.95rem;
+  }
+
+  .audit-admin-mobile-card,
+  .audit-admin-empty,
+  .audit-modal-content {
+    border-radius: 18px;
+  }
+
+  .audit-admin-mobile-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-modal-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-json-pre {
+    max-height: 280px;
+    font-size: 0.82rem;
+  }
+}
 }
 /* =========================
    15. FOOTER

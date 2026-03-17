@@ -13,6 +13,8 @@ from app.analytics.scheduler import start_analytics_scheduler
 
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from app.routers import admin_audit
+
 import json
 # COMMIR рабочей версий
 # COMMIT Рабочей версий
@@ -58,6 +60,7 @@ app.include_router(admin_sellers_router.router)
 app.include_router(auth_router.router)
 app.include_router(search_router.router)
 app.include_router(admin_users.router)
+app.include_router(admin_audit.router) # ✅ добавляем роуты аудита
 app.include_router(products_router.router)
 app.include_router(ws_orders_router.router)
 app.include_router(salespersons_router.router)

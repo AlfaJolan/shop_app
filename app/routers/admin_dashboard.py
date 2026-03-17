@@ -116,7 +116,7 @@ def list_invoices(
         "date_to": date_to or "",
     })
 
-
+"""
 # ---------- АУДИТ ----------
 @router.get("/audit", response_class=HTMLResponse)
 def list_audit(
@@ -143,3 +143,4 @@ def list_audit(
         "q": q or "",
         "limit": limit,
     })
+"""
