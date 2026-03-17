@@ -21,6 +21,8 @@ from app.telegram.telegram_notify import notifier
 # ⬇️ сервис создания накладной (оставляем твой вариант)
 from app.services.invoices import create_invoice
 
+from app.services.audit import write_audit, get_actor
+
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
 
@@ -216,7 +218,6 @@ async def cart_view(request: Request, db: Session = Depends(get_db)):
         "flash": flash,
         "salespersons": salespersons,  # 👈 передаём в шаблон
     })
-
 # ----------------------- CHECKOUT -----------------------
 @router.post("/checkout")
 async def checkout(
@@ -276,6 +277,46 @@ async def checkout(
     for l in lines:
         v = db.query(Variant).get(int(l["variant_id"]))
         v.stock = int(v.stock) - int(l["qty"])
+
+    # Получаем того, кто оформил заказ
+    actor = get_actor(request, db)
+
+    # Формируем данные для общего аудита покупки
+    new_data = {
+        "invoice_id": inv.id,
+        "customer_name": inv.customer_name,
+        "phone": inv.phone,
+        "seller_name": inv.seller_name,
+        "salesperson_id": inv.salesperson_id,
+        "city_name": inv.city_name,
+        "comment": inv.comment,
+        "has_receipts": bool(files),
+        "items_count": len(inv.items),
+        "items": [
+            {
+                "product_name": item.product_name,
+                "variant_name": item.variant_name,
+                "qty": item.qty_original,
+                "unit_price": float(item.unit_price_original) if item.unit_price_original is not None else None,
+                "line_total": float(item.line_total_original) if item.line_total_original is not None else None,
+            }
+            for item in inv.items
+        ],
+    }
+
+    # Пишем аудит создания заказа ДО commit,
+    # чтобы накладная и аудит сохранились одной транзакцией
+    write_audit(
+        db=db,
+        entity_type="invoice",
+        entity_id=inv.id,
+        action="purchase_created",
+        actor=actor,
+        old_data=None,
+        new_data=new_data,
+        note="Оформлен новый заказ",
+    )
+
     db.commit()
 
     # 🧾 если прикреплены файлы чеков

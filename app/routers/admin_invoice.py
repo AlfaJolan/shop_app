@@ -12,6 +12,8 @@ from app.models.invoice import Invoice, InvoiceItem, InvoiceReceipt
 from app.models.invoice_audit import InvoiceAudit  # Убедись, что этот модуль импортируется в app/models/__init__.py
 from app.models.catalog import Variant  # 🔹 импорт для работы со складом
 from datetime import datetime                  # 🆕 для отметки времени
+from app.services.audit import write_audit, get_actor  # ✅ импорт для аудита
+
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -251,6 +253,15 @@ async def approve_receipt(invoice_id: int, receipt_id: int, request: Request, db
     if not rec or rec.invoice_id != inv.id:
         raise HTTPException(status_code=404, detail="Чек не найден")
 
+    # 👇 получаем пользователя
+    actor = get_actor(request, db)
+
+    # 👇 сохраняем старое состояние
+    old_data = {
+        "status": rec.status,
+        "amount": rec.amount,
+    }
+
     form = await request.form()
     amount_str = form.get("amount")
     try:
@@ -259,18 +270,36 @@ async def approve_receipt(invoice_id: int, receipt_id: int, request: Request, db
         rec.amount = None
 
     rec.status = "approved"
-
-    # если хотя бы один чек approved → ставим is_paid=True
+    
+ # если хотя бы один чек approved → ставим is_paid=True
     #inv.is_paid = True
     #inv.status = "paid"
     #inv.status_changed_at = datetime.utcnow()
+    # 👇 новое состояние
+    new_data = {
+        "status": rec.status,
+        "amount": rec.amount,
+        "invoice_id": inv.id,
+    }
+
+    # 👇 пишем аудит
+    write_audit(
+        db=db,
+        entity_type="receipt",
+        entity_id=rec.id,
+        action="receipt_approved",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note="Чек подтвержден",
+    )
 
     db.commit()
     return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
 
 
 @router.post("/{invoice_id}/receipts/{receipt_id}/reject")
-async def reject_receipt(invoice_id: int, receipt_id: int, db: Session = Depends(get_db)):
+async def reject_receipt(invoice_id: int, receipt_id: int, request: Request, db: Session = Depends(get_db)):
     inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
     if not inv:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
@@ -279,20 +308,76 @@ async def reject_receipt(invoice_id: int, receipt_id: int, db: Session = Depends
     if not rec or rec.invoice_id != inv.id:
         raise HTTPException(status_code=404, detail="Чек не найден")
 
+    # 👇 пользователь
+    actor = get_actor(request, db)
+
+    # 👇 старое состояние
+    old_data = {
+        "status": rec.status,
+        "amount": rec.amount,
+    }
+
     rec.status = "rejected"
+
+    # 👇 новое состояние
+    new_data = {
+        "status": rec.status,
+        "amount": rec.amount,
+        "invoice_id": inv.id,
+    }
+
+    # 👇 аудит
+    write_audit(
+        db=db,
+        entity_type="receipt",
+        entity_id=rec.id,
+        action="receipt_rejected",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note="Чек отклонен",
+    )
 
     db.commit()
     return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
 
 @router.post("/{invoice_id}/mark-paid")
-def mark_invoice_paid(invoice_id: int, db: Session = Depends(get_db)):
+def mark_invoice_paid(request: Request, invoice_id: int, db: Session = Depends(get_db)):
     inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
     if not inv:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
 
+    # 👇 пользователь
+    actor = get_actor(request, db)
+
+    # 👇 старое состояние
+    old_data = {
+        "is_paid": inv.is_paid,
+        "status": inv.status,
+    }
+
     inv.is_paid = True
     inv.status = "paid"
     inv.status_changed_at = datetime.utcnow()
+
+    # 👇 новое состояние
+    new_data = {
+        "is_paid": inv.is_paid,
+        "status": inv.status,
+        "status_changed_at": str(inv.status_changed_at),
+    }
+
+    # 👇 аудит
+    write_audit(
+        db=db,
+        entity_type="invoice",
+        entity_id=inv.id,
+        action="invoice_marked_paid",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note="Накладная отмечена как оплаченная",
+    )
 
     db.commit()
     return RedirectResponse(url=f"/admin/invoices/{inv.id}/edit", status_code=303)
