@@ -1,35 +1,182 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <h2>✏️ Редактировать пользователя</h2>
+
+<div class="page-section user-form-page">
+  <div class="user-form-head mb-4">
+    <div>
+      <h1 class="user-form-title mb-1">Редактировать пользователя</h1>
+      <p class="user-form-subtitle mb-0">
+        Измените данные пользователя и его роль в системе.
+      </p>
+    </div>
+
+    <div class="user-form-mode">
+      <i class="fa-solid fa-pen-to-square me-2"></i>
+      Редактирование
+    </div>
+  </div>
 
   {% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
+    <div class="alert alert-danger user-form-alert mb-4">
+      {{ error }}
+    </div>
   {% endif %}
 
-  <form method="post">
-    <div class="mb-3">
-      <label class="form-label">Имя пользователя</label>
-      <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
-    </div>
+  <div class="user-form-card">
+    <form method="post" class="user-form-body">
 
-    <div class="mb-3">
-      <label class="form-label">Новый пароль (если нужно)</label>
-      <input type="password" name="password" class="form-control">
-      <small class="text-muted">Оставьте пустым, если не хотите менять</small>
-    </div>
+      <div class="user-form-grid">
 
-    <div class="mb-3">
-      <label class="form-label">Роль</label>
-      <select name="role" class="form-control" required>
-        {% for r in roles %}
-          <option value="{{ r }}" {% if user.role == r %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
-      </select>
-    </div>
+        <div class="user-form-field user-form-field-full">
+          <label class="form-label">Имя пользователя</label>
+          <input
+            type="text"
+            name="username"
+            class="form-control"
+            value="{{ user.username }}"
+            required
+          >
+        </div>
 
-    <button type="submit" class="btn btn-success">💾 Сохранить</button>
-    <a href="/admin/users" class="btn btn-secondary">Назад</a>
-  </form>
+        <div class="user-form-field user-form-field-full">
+          <label class="form-label">Новый пароль</label>
+          <input
+            type="password"
+            name="password"
+            class="form-control"
+            placeholder="Введите новый пароль"
+          >
+          <small class="text-muted">
+            Оставьте поле пустым, если не хотите менять пароль
+          </small>
+        </div>
+
+        <div class="user-form-field user-form-field-full">
+          <label class="form-label">Роль</label>
+
+          <div class="admin-select" data-select>
+            <input
+              type="hidden"
+              name="role"
+              value="{{ user.role }}"
+              data-select-input
+              required
+            >
+
+            <button
+              type="button"
+              class="admin-select-trigger"
+              data-select-trigger
+              aria-expanded="false"
+            >
+              <span data-select-label>
+                {{ user.role }}
+              </span>
+              <span class="admin-select-caret">▼</span>
+            </button>
+
+            <div class="admin-select-menu" data-select-menu>
+              {% for r in roles %}
+                <button
+                  type="button"
+                  class="admin-select-option {% if user.role == r %}active{% endif %}"
+                  data-value="{{ r }}"
+                  data-label="{{ r }}"
+                >
+                  {{ r }}
+                </button>
+              {% endfor %}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="user-form-divider"></div>
+
+      <div class="user-form-actions">
+
+        <button type="submit" class="btn btn-success">
+          <i class="fa-solid fa-floppy-disk me-2"></i>
+          Сохранить
+        </button>
+
+        <a href="/admin/users" class="btn btn-outline-secondary">
+          <i class="fa-solid fa-arrow-left me-2"></i>
+          Назад
+        </a>
+
+      </div>
+
+    </form>
+  </div>
 </div>
+
+<script>
+  document.querySelectorAll("[data-select]").forEach((select) => {
+
+    const trigger = select.querySelector("[data-select-trigger]");
+    const input = select.querySelector("[data-select-input]");
+    const label = select.querySelector("[data-select-label]");
+    const options = select.querySelectorAll(".admin-select-option");
+
+    if (!trigger || !input || !label) return;
+
+    trigger.addEventListener("click", () => {
+
+      const isOpen = select.classList.contains("open");
+
+      document.querySelectorAll("[data-select].open").forEach((other) => {
+        if (other !== select) {
+          other.classList.remove("open");
+          const otherTrigger = other.querySelector("[data-select-trigger]");
+          if (otherTrigger) otherTrigger.setAttribute("aria-expanded", "false");
+        }
+      });
+
+      select.classList.toggle("open", !isOpen);
+      trigger.setAttribute("aria-expanded", String(!isOpen));
+    });
+
+    options.forEach((option) => {
+
+      option.addEventListener("click", () => {
+
+        const value = option.dataset.value ?? "";
+        const text = option.dataset.label ?? option.textContent.trim();
+
+        input.value = value;
+        label.textContent = text;
+
+        options.forEach((opt) => opt.classList.remove("active"));
+        option.classList.add("active");
+
+        select.classList.remove("open");
+        trigger.setAttribute("aria-expanded", "false");
+
+      });
+
+    });
+
+  });
+
+  document.addEventListener("click", (e) => {
+
+    document.querySelectorAll("[data-select].open").forEach((select) => {
+
+      if (!select.contains(e.target)) {
+
+        select.classList.remove("open");
+
+        const trigger = select.querySelector("[data-select-trigger]");
+        if (trigger) trigger.setAttribute("aria-expanded", "false");
+
+      }
+
+    });
+
+  });
+</script>
+
 {% endblock %}
