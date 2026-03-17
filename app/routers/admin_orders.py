@@ -9,6 +9,8 @@ from app.db import get_db
 from app.models.invoice import Invoice
 from app.telegram.telegram_notify import notifier
 
+from app.services.audit import write_audit, get_actor # ✅ добавляем импорт для аудита
+
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/admin/orders", tags=["admin-orders"])
 
@@ -108,6 +110,7 @@ def order_detail(
 # ---------- СМЕНА СТАТУСА ----------
 @router.post("/{invoice_id}/status")
 def change_status(
+    request: Request,  # нужен для получения текущего пользователя из session
     invoice_id: int,
     new_status: str = Form(...),
     note: Optional[str] = Form(None),
@@ -125,11 +128,39 @@ def change_status(
     if new_status not in VALID_NEXT.get(cur, set()) and new_status != cur:
         raise HTTPException(status_code=400, detail="Недопустимый переход статуса")
 
+    # Получаем информацию о том, кто сделал действие
+    actor = get_actor(request)
+
+    # Сохраняем старое состояние до изменения
+    old_data = {
+        "status": invoice.status,
+        "status_note": invoice.status_note,
+    }
+
     invoice.status = new_status
     invoice.status_changed_at = datetime.utcnow()
 
     if note:
         invoice.status_note = note
+
+    # Сохраняем новое состояние после изменения
+    new_data = {
+        "status": invoice.status,
+        "status_note": invoice.status_note,
+    }
+
+    # Пишем запись в общий аудит ДО commit,
+    # чтобы изменение статуса и аудит сохранились одной транзакцией
+    write_audit(
+        db=db,
+        entity_type="invoice",
+        entity_id=invoice.id,
+        action="status_change",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note=note or "Смена статуса заказа",
+    )
 
     db.commit()
 
