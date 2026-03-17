@@ -8,6 +8,8 @@ from pathlib import Path
 import shutil, uuid, os
 from typing import Optional
 
+from app.services.audit import write_audit, get_actor # ✅ добавляем импорт для аудита
+
 router = APIRouter(prefix="/admin/catalog/products", tags=["admin-products"])
 templates = Jinja2Templates(directory="app/templates")
 
@@ -86,6 +88,9 @@ def product_create(
 
     db: Session = Depends(get_db),
 ):
+    # 🆕 Получаем текущего пользователя для общего аудита
+    actor = get_actor(request, db)
+
     # ---- картинка с UUID ----
     filename = None
     if image and image.filename:
@@ -108,6 +113,11 @@ def product_create(
     gallery_dir = UPLOAD_DIR / str(product.id) / "gallery"
     gallery_dir.mkdir(parents=True, exist_ok=True)
 
+    # 🆕 Для общего аудита собираем, какие файлы/видео/варианты были созданы
+    created_gallery_files = []
+    created_videos = []
+    created_variants = []
+
     # 🆕 сохраняем доп. фото
     for file in gallery:
         if file and file.filename:
@@ -117,12 +127,23 @@ def product_create(
                 shutil.copyfileobj(file.file, buffer)
             db.add(ProductImage(product_id=product.id, image_url=fname))
 
+            # 🆕 запоминаем фото для audit_log
+            created_gallery_files.append(fname)
+
     # 🆕 сохраняем видео ссылки
     for i, url in enumerate(new_video_url):
         if not url:
             continue
         title = new_video_title[i] if i < len(new_video_title) else None
-        db.add(ProductVideo(product_id=product.id, video_url= extract_youtube_id(url), title=title, sort_order=i))
+        video_id = extract_youtube_id(url)
+        db.add(ProductVideo(product_id=product.id, video_url=video_id, title=title, sort_order=i))
+
+        # 🆕 запоминаем видео для audit_log
+        created_videos.append({
+            "video_url": video_id,
+            "title": title,
+            "sort_order": i,
+        })
 
     # новые варианты
     for i in range(len(new_name)):
@@ -141,6 +162,44 @@ def product_create(
             stock=stock,
         )
         db.add(v)
+
+        # 🆕 запоминаем вариант для audit_log
+        created_variants.append({
+            "name": new_name[i],
+            "unit_price_net_cost": float(new_price_net_cost[i]) if i < len(new_price_net_cost) else 0.0,
+            "unit_price": float(new_price[i]) if i < len(new_price) else 0.0,
+            "stock": int(stock),
+        })
+
+    # 🆕 Пишем общий аудит создания товара.
+    # old_data = None, потому что товара раньше не существовало.
+    write_audit(
+        db=db,
+        entity_type="product",
+        entity_id=product.id,
+        action="product_created",
+        actor=actor,
+        old_data=None,
+        new_data={
+            "product": {
+                "id": product.id,
+                "name": product.name,
+                "sku": product.sku,
+                "category_id": product.category_id,
+                "unit": product.unit,
+                "seller_id": product.seller_id,
+                "description": product.description,
+                "image": product.image,
+            },
+            "gallery_count": len(created_gallery_files),
+            "gallery_files": created_gallery_files,
+            "videos_count": len(created_videos),
+            "videos": created_videos,
+            "variants_count": len(created_variants),
+            "variants": created_variants,
+        },
+        note="Создан новый товар",
+    )
 
     db.commit()
     return RedirectResponse("/admin/catalog/products", status_code=303)
@@ -168,6 +227,7 @@ def product_edit(product_id: int, request: Request, db: Session = Depends(get_db
 # 🔄 обновление товара
 @router.post("/{product_id}/update")
 def product_update(
+    request: Request,  # 🆕 добавили request для получения пользователя
     product_id: int,
     name: str = Form(...),
     sku: str = Form(None),
@@ -211,6 +271,31 @@ def product_update(
     product = db.query(Product).get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Товар не найден")
+
+    # 🆕 текущий пользователь
+    actor = get_actor(request, db)
+
+    # 🆕 OLD SNAPSHOT (до изменений)
+    old_product = {
+        "id": product.id,
+        "name": product.name,
+        "sku": product.sku,
+        "category_id": product.category_id,
+        "seller_id": product.seller_id,
+        "unit": product.unit,
+        "description": product.description,
+        "image": product.image,
+    }
+
+    old_variants = []
+    for v in product.variants:
+        old_variants.append({
+            "id": v.id,
+            "name": v.name,
+            "unit_price_net_cost": float(v.unit_price_net_cost or 0),
+            "unit_price": float(v.unit_price or 0),
+            "stock": int(v.stock or 0),
+        })
 
     # ---- новая картинка ----
     if image and image.filename:
@@ -328,6 +413,46 @@ def product_update(
             stock=stock,
         )
         db.add(v)
+
+    # 🆕 NEW SNAPSHOT (после изменений)
+    new_product = {
+        "id": product.id,
+        "name": product.name,
+        "sku": product.sku,
+        "category_id": product.category_id,
+        "seller_id": product.seller_id,
+        "unit": product.unit,
+        "description": product.description,
+        "image": product.image,
+    }
+
+    new_variants = []
+    for v in product.variants:
+        new_variants.append({
+            "id": v.id,
+            "name": v.name,
+            "unit_price_net_cost": float(v.unit_price_net_cost or 0),
+            "unit_price": float(v.unit_price or 0),
+            "stock": int(v.stock or 0),
+        })
+
+    # 🆕 общий аудит обновления товара
+    write_audit(
+        db=db,
+        entity_type="product",
+        entity_id=product.id,
+        action="product_updated",
+        actor=actor,
+        old_data={
+            "product": old_product,
+            "variants": old_variants,
+        },
+        new_data={
+            "product": new_product,
+            "variants": new_variants,
+        },
+        note="Обновление товара",
+    )
 
     db.commit()
     return RedirectResponse(f"/admin/catalog/products/{product.id}/edit", status_code=303)
