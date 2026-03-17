@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="audit-admin-page d-flex flex-column gap-4">
+<div class="audit-admin-page">
 
   <!-- HEAD -->
   <section class="audit-admin-head">
     <div>
-      <h1 class="audit-admin-title mb-2">Журнал аудита</h1>
+      <h1 class="audit-admin-title">Журнал аудита</h1>
       <div class="audit-admin-subtitle">
         Просмотр всех действий администраторов и пользователей: создание, обновление,
         удаление, смена статусов, оплата, редактирование накладных и другие события.
@@ -22,7 +22,7 @@
   <section class="audit-admin-filter-card">
     <form method="get" action="/admin/audit/" class="audit-admin-filter-form">
       <div class="audit-admin-filter-grid">
-        <div class="audit-admin-filter-field audit-admin-filter-field-search">
+        <div class="audit-admin-filter-field">
           <label class="form-label">Пользователь</label>
           <select name="username" class="form-select">
             <option value="">Все пользователи</option>
@@ -104,176 +104,140 @@
     </form>
   </section>
 
-  <!-- TABLE DESKTOP -->
-  <section class="audit-admin-table-shell d-none d-md-block">
-    <div class="table-responsive">
-      <table class="table audit-admin-table align-middle">
-        <thead>
-          <tr>
-            <th>Дата и время</th>
-            <th>Пользователь</th>
-            <th>Роль</th>
-            <th>Действие</th>
-            <th>Сущность</th>
-            <th>ID</th>
-            <th>Описание</th>
-            <th>Изменения</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if logs %}
-            {% for log in logs %}
-              <tr>
-                <td>
-                  <div class="audit-admin-datetime">
-                    {{ log.created_at.strftime("%d.%m.%Y %H:%M:%S") if log.created_at else "-" }}
-                  </div>
-                </td>
+  <!-- GROUPED LOGS -->
+  {% if grouped_logs %}
+    {% for group in grouped_logs %}
+      <section class="audit-day-block">
+        <div class="audit-day-title">
+          <span class="audit-day-dot"></span>
+          <span>{{ group.day }}</span>
+        </div>
 
-                <td>
-                  <div class="audit-admin-user">
-                    {{ log.username or "-" }}
-                  </div>
-                </td>
+        <!-- TABLE DESKTOP -->
+        <div class="audit-table-wrapper d-none d-md-block">
+          <div class="table-responsive">
+            <table class="table audit-table align-middle">
+              <thead>
+                <tr>
+                  <th>Время</th>
+                  <th>Пользователь</th>
+                  <th>Действие</th>
+                  <th>Сущность</th>
+                  <th>ID</th>
+                  <th>Описание</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in group.logs %}
+                  <tr>
+                    <td>
+                      <div class="audit-time">
+                        {{ log.created_at.strftime("%H:%M:%S") if log.created_at else "-" }}
+                      </div>
+                    </td>
 
-                <td>
-                  {% if log.user_role %}
-                    <span class="audit-admin-role">
-                      {{ log.user_role }}
-                    </span>
-                  {% else %}
-                    <span class="audit-admin-muted">—</span>
-                  {% endif %}
-                </td>
+                    <td>
+                      <div class="audit-user">
+                        {{ log.username or "-" }}
+                      </div>
+                    </td>
 
-                <td>
-                  <span class="audit-badge audit-badge--{{ log.action }}">
-                    {{ log.action }}
-                  </span>
-                </td>
+                    <td>
+                      <span class="audit-action-badge audit-action-badge--{{ log.action_meta.group }}">
+                        <i class="{{ log.action_meta.icon }}"></i>
+                        <span>{{ log.action }}</span>
+                      </span>
+                    </td>
 
-                <td>
-                  <span class="audit-admin-entity">
-                    {{ log.entity_type }}
-                  </span>
-                </td>
+                    <td>
+                      <span class="audit-entity-pill">
+                        {{ log.entity_type }}
+                      </span>
+                    </td>
 
-                <td>
-                  {% if log.entity_id is not none %}
-                    <span class="audit-admin-id">
-                      #{{ log.entity_id }}
-                    </span>
-                  {% else %}
-                    <span class="audit-admin-muted">—</span>
-                  {% endif %}
-                </td>
+                    <td>
+                      {% if log.entity_id is not none %}
+                        <span class="audit-entity-pill">#{{ log.entity_id }}</span>
+                      {% else %}
+                        <span class="audit-entity-pill">—</span>
+                      {% endif %}
+                    </td>
 
-                <td>
-                  <div class="audit-admin-note">
-                    {{ log.note or "Без комментария" }}
-                  </div>
-                </td>
+                    <td>
+                      <div class="audit-note">
+                        {{ log.note or "Без комментария" }}
+                      </div>
+                    </td>
 
-                <td>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary"
-                    data-bs-toggle="modal"
-                    data-bs-target="#auditModal{{ log.id }}"
-                  >
-                    Подробнее
-                  </button>
-                </td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="8" class="audit-admin-empty-row">
-                <div class="audit-admin-empty-icon mb-2">
-                  <i class="fa-regular fa-folder-open"></i>
+                    <td class="text-end">
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#auditModal{{ log.id }}"
+                      >
+                        Подробнее
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- MOBILE -->
+        <div class="audit-mobile d-grid d-md-none">
+          {% for log in group.logs %}
+            <div class="audit-card">
+              <div class="audit-card-top">
+                <div class="audit-user">{{ log.username or "-" }}</div>
+                <div class="audit-time">
+                  {{ log.created_at.strftime("%H:%M") if log.created_at else "-" }}
                 </div>
-                <div class="audit-admin-empty-title">Записи не найдены</div>
-                <div class="audit-admin-empty-text">
-                  Попробуй изменить фильтры или выбрать другой период.
+              </div>
+
+              <div class="audit-card-body">
+                <div>
+                  <span class="audit-action-badge audit-action-badge--{{ log.action_meta.group }}">
+                    <i class="{{ log.action_meta.icon }}"></i>
+                    <span>{{ log.action }}</span>
+                  </span>
                 </div>
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+
+                <div class="audit-card-entity">
+                  {{ log.entity_type }}{% if log.entity_id is not none %} #{{ log.entity_id }}{% endif %}
+                </div>
+
+                <div class="audit-card-entity">
+                  {{ log.note or "Без комментария" }}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                class="btn btn-outline-primary w-100 mt-3"
+                data-bs-toggle="modal"
+                data-bs-target="#auditModal{{ log.id }}"
+              >
+                Подробнее
+              </button>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  {% else %}
+    <div class="audit-empty">
+      Записи не найдены. Попробуй изменить фильтры или выбрать другой период.
     </div>
-  </section>
-
-  <!-- MOBILE -->
-  <section class="audit-admin-mobile-list d-grid d-md-none">
-    {% if logs %}
-      {% for log in logs %}
-        <div class="audit-admin-mobile-card">
-          <div class="audit-admin-mobile-top">
-            <div class="audit-admin-mobile-user">
-              {{ log.username or "-" }}
-            </div>
-            <div class="audit-admin-mobile-date">
-              {{ log.created_at.strftime("%d.%m.%Y %H:%M") if log.created_at else "-" }}
-            </div>
-          </div>
-
-          <div class="audit-admin-mobile-meta">
-            <div class="audit-admin-mobile-meta-item">
-              <span class="audit-admin-mobile-label">Действие</span>
-              <span class="audit-badge audit-badge--{{ log.action }}">
-                {{ log.action }}
-              </span>
-            </div>
-
-            <div class="audit-admin-mobile-meta-item">
-              <span class="audit-admin-mobile-label">Сущность</span>
-              <span>{{ log.entity_type }}</span>
-            </div>
-
-            <div class="audit-admin-mobile-meta-item">
-              <span class="audit-admin-mobile-label">ID</span>
-              <span>{{ log.entity_id if log.entity_id is not none else "—" }}</span>
-            </div>
-
-            <div class="audit-admin-mobile-meta-item">
-              <span class="audit-admin-mobile-label">Роль</span>
-              <span>{{ log.user_role or "—" }}</span>
-            </div>
-
-            <div class="audit-admin-mobile-meta-item audit-admin-mobile-meta-item-full">
-              <span class="audit-admin-mobile-label">Описание</span>
-              <span>{{ log.note or "Без комментария" }}</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            class="btn btn-outline-primary w-100 mt-3"
-            data-bs-toggle="modal"
-            data-bs-target="#auditModal{{ log.id }}"
-          >
-            Подробнее
-          </button>
-        </div>
-      {% endfor %}
-    {% else %}
-      <div class="audit-admin-empty">
-        <div class="audit-admin-empty-icon mb-2">
-          <i class="fa-regular fa-folder-open"></i>
-        </div>
-        <div class="audit-admin-empty-title">Записи не найдены</div>
-        <div class="audit-admin-empty-text">
-          Попробуй изменить фильтры или выбрать другой период.
-        </div>
-      </div>
-    {% endif %}
-  </section>
+  {% endif %}
 
   <!-- PAGINATION -->
   {% if pages > 1 %}
     <nav aria-label="Пагинация аудита">
-      <ul class="pagination justify-content-center">
+      <ul class="pagination justify-content-center mt-2">
         <li class="page-item {% if page <= 1 %}disabled{% endif %}">
           <a
             class="page-link"
@@ -305,18 +269,17 @@
       </ul>
     </nav>
   {% endif %}
-
 </div>
 
 <!-- MODALS -->
 {% for log in logs %}
   <div class="modal fade" id="auditModal{{ log.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-      <div class="modal-content audit-modal-content">
+      <div class="modal-content audit-modal">
         <div class="modal-header">
           <div>
             <h5 class="modal-title mb-1">Детали аудита</h5>
-            <div class="audit-modal-subtitle">
+            <div class="text-muted small">
               {{ log.action }} · {{ log.entity_type }}{% if log.entity_id is not none %} #{{ log.entity_id }}{% endif %}
             </div>
           </div>
@@ -324,39 +287,70 @@
         </div>
 
         <div class="modal-body">
-          <div class="audit-modal-meta">
-            <div class="audit-modal-meta-item">
-              <span class="audit-modal-label">Пользователь</span>
-              <span class="audit-modal-value">{{ log.username or "-" }}</span>
+          <!-- META -->
+          <div class="audit-meta">
+            <div class="audit-meta-item">
+              <div class="audit-meta-label">Пользователь</div>
+              <div class="audit-meta-value">{{ log.username or "-" }}</div>
             </div>
-            <div class="audit-modal-meta-item">
-              <span class="audit-modal-label">Роль</span>
-              <span class="audit-modal-value">{{ log.user_role or "-" }}</span>
-            </div>
-            <div class="audit-modal-meta-item">
-              <span class="audit-modal-label">Дата</span>
-              <span class="audit-modal-value">
-                {{ log.created_at.strftime("%d.%m.%Y %H:%M:%S") if log.created_at else "-" }}
-              </span>
-            </div>
-            <div class="audit-modal-meta-item">
-              <span class="audit-modal-label">Комментарий</span>
-              <span class="audit-modal-value">{{ log.note or "Без комментария" }}</span>
-            </div>
-          </div>
 
-          <div class="row g-3 mt-1">
-            <div class="col-12 col-lg-6">
-              <div class="audit-json-card">
-                <div class="audit-json-title">Было</div>
-                <pre class="audit-json-pre">{{ log.old_data or "{}" }}</pre>
+            <div class="audit-meta-item">
+              <div class="audit-meta-label">Роль</div>
+              <div class="audit-meta-value">{{ log.user_role or "-" }}</div>
+            </div>
+
+            <div class="audit-meta-item">
+              <div class="audit-meta-label">Дата</div>
+              <div class="audit-meta-value">
+                {{ log.created_at.strftime("%d.%m.%Y %H:%M:%S") if log.created_at else "-" }}
               </div>
             </div>
 
-            <div class="col-12 col-lg-6">
-              <div class="audit-json-card">
-                <div class="audit-json-title">Стало</div>
-                <pre class="audit-json-pre">{{ log.new_data or "{}" }}</pre>
+            <div class="audit-meta-item audit-meta-item-full">
+              <div class="audit-meta-label">Комментарий</div>
+              <div class="audit-meta-value">{{ log.note or "Без комментария" }}</div>
+            </div>
+          </div>
+
+          <!-- SEARCH -->
+          <input
+            type="text"
+            class="audit-search"
+            placeholder="Поиск по изменениям..."
+            data-diff-target="auditDiff{{ log.id }}"
+          >
+
+          <!-- DIFF -->
+          <div
+            class="audit-diff"
+            id="auditDiff{{ log.id }}"
+            data-old='{{ log.old_data_parsed|tojson if log.old_data_parsed is not none else "{}" }}'
+            data-new='{{ log.new_data_parsed|tojson if log.new_data_parsed is not none else "{}" }}'
+          ></div>
+
+          <!-- RAW JSON -->
+          <div class="audit-json-wrap">
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm"
+              data-bs-toggle="collapse"
+              data-bs-target="#auditJson{{ log.id }}"
+              aria-expanded="false"
+            >
+              Показать JSON
+            </button>
+
+            <div class="collapse mt-3" id="auditJson{{ log.id }}">
+              <div class="audit-json-grid">
+                <div class="audit-json-card">
+                  <div class="audit-json-title">Было</div>
+                  <pre class="audit-json-pre">{{ log.old_data_pretty }}</pre>
+                </div>
+
+                <div class="audit-json-card">
+                  <div class="audit-json-title">Стало</div>
+                  <pre class="audit-json-pre">{{ log.new_data_pretty }}</pre>
+                </div>
               </div>
             </div>
           </div>
@@ -371,4 +365,156 @@
     </div>
   </div>
 {% endfor %}
+
+<script>
+  function isPlainObject(value) {
+    return Object.prototype.toString.call(value) === "[object Object]";
+  }
+
+  function flattenObject(input, prefix = "", result = {}) {
+    if (input === null || input === undefined) {
+      if (prefix) result[prefix] = input;
+      return result;
+    }
+
+    if (Array.isArray(input)) {
+      if (input.length === 0 && prefix) {
+        result[prefix] = [];
+        return result;
+      }
+
+      input.forEach((item, index) => {
+        const nextPrefix = prefix ? `${prefix}[${index}]` : `[${index}]`;
+
+        if (isPlainObject(item) || Array.isArray(item)) {
+          flattenObject(item, nextPrefix, result);
+        } else {
+          result[nextPrefix] = item;
+        }
+      });
+      return result;
+    }
+
+    if (isPlainObject(input)) {
+      const keys = Object.keys(input);
+
+      if (keys.length === 0 && prefix) {
+        result[prefix] = {};
+        return result;
+      }
+
+      keys.forEach((key) => {
+        const value = input[key];
+        const nextPrefix = prefix ? `${prefix}.${key}` : key;
+
+        if (isPlainObject(value) || Array.isArray(value)) {
+          flattenObject(value, nextPrefix, result);
+        } else {
+          result[nextPrefix] = value;
+        }
+      });
+
+      return result;
+    }
+
+    if (prefix) {
+      result[prefix] = input;
+    }
+
+    return result;
+  }
+
+  function normalizeValue(value) {
+    if (value === undefined) return "—";
+    if (value === null) return "null";
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function renderAuditDiff(container) {
+    let oldData = {};
+    let newData = {};
+
+    try {
+      oldData = JSON.parse(container.dataset.old || "{}");
+    } catch (e) {
+      oldData = {};
+    }
+
+    try {
+      newData = JSON.parse(container.dataset.new || "{}");
+    } catch (e) {
+      newData = {};
+    }
+
+    const oldFlat = flattenObject(oldData);
+    const newFlat = flattenObject(newData);
+
+    const allKeys = Array.from(new Set([
+      ...Object.keys(oldFlat),
+      ...Object.keys(newFlat)
+    ])).sort();
+
+    const changedKeys = allKeys.filter((key) => {
+      return normalizeValue(oldFlat[key]) !== normalizeValue(newFlat[key]);
+    });
+
+    if (changedKeys.length === 0) {
+      container.innerHTML = `
+        <div class="audit-empty">
+          Изменённых полей не найдено
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = changedKeys.map((key) => {
+      const oldVal = normalizeValue(oldFlat[key]);
+      const newVal = normalizeValue(newFlat[key]);
+
+      return `
+        <div class="diff-row" data-search="${escapeHtml((key + " " + oldVal + " " + newVal).toLowerCase())}">
+          <div class="diff-key">${escapeHtml(key)}</div>
+          <div class="diff-values">
+            <div class="diff-old">${escapeHtml(oldVal)}</div>
+            <div class="diff-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+            <div class="diff-new">${escapeHtml(newVal)}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function initAuditDiffs() {
+    document.querySelectorAll(".audit-diff").forEach((container) => {
+      renderAuditDiff(container);
+    });
+
+    document.querySelectorAll(".audit-search").forEach((input) => {
+      input.addEventListener("input", function () {
+        const targetId = this.dataset.diffTarget;
+        const container = document.getElementById(targetId);
+        if (!container) return;
+
+        const query = this.value.trim().toLowerCase();
+        container.querySelectorAll(".diff-row").forEach((row) => {
+          const haystack = (row.dataset.search || "").toLowerCase();
+          row.style.display = haystack.includes(query) ? "" : "none";
+        });
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initAuditDiffs);
+</script>
 {% endblock %}
