@@ -129,7 +129,7 @@ def change_status(
         raise HTTPException(status_code=400, detail="Недопустимый переход статуса")
 
     # Получаем информацию о том, кто сделал действие
-    actor = get_actor(request)
+    actor = get_actor(request, db)
 
     # Сохраняем старое состояние до изменения
     old_data = {
