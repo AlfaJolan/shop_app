@@ -129,6 +129,7 @@ document.addEventListener("click", (e) => {
 const STATUS_LABELS = {
   "new": "Новый",
   "packed": "Собран",
+  "paid": "Оплачен",
   "shipped": "Отправлен",
   "delivered": "Получен",
   "canceled": "Отменён"
@@ -158,6 +159,7 @@ function getStatusClass(status) {
   return ({
     "new": "live-badge new",
     "packed": "live-badge packed",
+    "paid": "live-badge paid",
     "shipped": "live-badge shipped",
     "delivered": "live-badge delivered",
     "canceled": "live-badge canceled"

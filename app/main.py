@@ -14,6 +14,7 @@ from app.analytics.scheduler import start_analytics_scheduler
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from app.routers import admin_audit
+from app.routers.admin_product_import import router as admin_product_import_router
 
 import json
 # COMMIR рабочей версий
@@ -64,6 +65,7 @@ app.include_router(admin_audit.router) # ✅ добавляем роуты ау�
 app.include_router(products_router.router)
 app.include_router(ws_orders_router.router)
 app.include_router(salespersons_router.router)
+app.include_router(admin_product_import_router) # ✅ добавляем роуты импорта продуктов первая версия, без аудита и без телеграма
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

@@ -15,19 +15,25 @@ templates = Jinja2Templates(directory="app/templates")
 router = APIRouter(prefix="/admin/orders", tags=["admin-orders"])
 
 # --------- ДОПУСТИМЫЕ СТАТУСЫ ----------
-ALLOWED_STATUSES: List[str] = ["new", "packed", "shipped"]
+ALLOWED_STATUSES: List[str] = ["new","paid", "packed", "shipped", "delivered", "cancelled"]
 
 STATUS_LABELS_RU = {
     "new": "Новый",
+    "paid": "Оплачен",
     "packed": "Собран",
     "shipped": "Отправлен",
+    "delivered": "Доставлен",
+    "cancelled": "Отменён",
 }
 
 # --------- РАЗРЕШЕННЫЕ ПЕРЕХОДЫ ----------
 VALID_NEXT = {
-    "new": {"packed"},
-    "packed": {"shipped"},
-    "shipped": set(),
+    "new": ["paid", "cancelled"],
+    "paid": ["packed", "cancelled"],
+    "packed": ["shipped", "cancelled"],
+    "shipped": ["delivered", "cancelled"],
+    "delivered": [],
+    "cancelled": [],
 }
 
 
@@ -135,6 +141,7 @@ def change_status(
     old_data = {
         "status": invoice.status,
         "status_note": invoice.status_note,
+        "is_paid": invoice.is_paid,
     }
 
     invoice.status = new_status
@@ -143,10 +150,17 @@ def change_status(
     if note:
         invoice.status_note = note
 
+    # paid и все последующие бизнес-статусы считаем оплаченными
+    if new_status in {"paid", "packed", "shipped", "delivered"}:
+        invoice.is_paid = True
+    elif new_status in {"new", "cancelled"}:
+        invoice.is_paid = False
+
     # Сохраняем новое состояние после изменения
     new_data = {
         "status": invoice.status,
         "status_note": invoice.status_note,
+        "is_paid": invoice.is_paid,
     }
 
     # Пишем запись в общий аудит ДО commit,
