@@ -14,6 +14,10 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 def get_db():
+    """
+    Dependency для получения DB-сессии.
+    Каждому запросу — своя сессия.
+    """
     db = SessionLocal()
     try:
         yield db
@@ -23,6 +27,10 @@ def get_db():
 
 @router.get("/")
 def product_import_page(request: Request):
+    """
+    Страница загрузки Excel.
+    По умолчанию result = None (еще ничего не импортировали).
+    """
     return templates.TemplateResponse(
         "admin/product_import.html",
         {
@@ -39,6 +47,19 @@ def product_import_submit(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
+    """
+    Обработка загрузки Excel:
+
+    1. Проверяем файл
+    2. Передаем в ProductImportService
+    3. Возвращаем result в шаблон
+
+    Важно:
+    - result.errors → критичные ошибки (строки не импортированы)
+    - result.warnings → некритичные (например, не скачалось фото)
+    """
+
+    # ---- Проверка наличия файла ----
     if not file or not file.filename:
         return templates.TemplateResponse(
             "admin/product_import.html",
@@ -49,6 +70,7 @@ def product_import_submit(
             },
         )
 
+    # ---- Проверка формата ----
     if not file.filename.lower().endswith(".xlsx"):
         return templates.TemplateResponse(
             "admin/product_import.html",
@@ -61,9 +83,15 @@ def product_import_submit(
         )
 
     try:
+        # ---- Запуск импорта ----
         service = ProductImportService(db)
         result = service.import_from_upload(file)
 
+        # ---- Возвращаем результат ----
+        # В result уже есть:
+        # - errors
+        # - warnings
+        # - статистика
         return templates.TemplateResponse(
             "admin/product_import.html",
             {
@@ -73,7 +101,8 @@ def product_import_submit(
             },
         )
 
-    except Exception as exc:
+    except ValueError as exc:
+        # ---- Ошибки валидации (например, нет нужного листа или колонок) ----
         return templates.TemplateResponse(
             "admin/product_import.html",
             {
@@ -82,4 +111,16 @@ def product_import_submit(
                 "error": f"Ошибка импорта: {str(exc)}",
             },
             status_code=400,
+        )
+
+    except Exception as exc:
+        # ---- Любая другая ошибка ----
+        return templates.TemplateResponse(
+            "admin/product_import.html",
+            {
+                "request": request,
+                "result": None,
+                "error": "Неожиданная ошибка при импорте. Проверьте файл или логи.",
+            },
+            status_code=500,
         )

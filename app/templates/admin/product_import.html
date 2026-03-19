@@ -38,7 +38,7 @@
         </div>
 
         <div class="small text-muted mb-3">
-          Обязательные колонки: 
+          В шаблоне должны быть колонки:
           <code>product_sku</code>,
           <code>product_name</code>,
           <code>product_description</code>,
@@ -96,8 +96,10 @@
 
           <div class="col-md-3">
             <div class="border rounded p-3 h-100">
-              <div class="text-muted small">Медиа пропущено</div>
-              <div class="fs-4 fw-semibold">{{ result.media_skipped }}</div>
+              <div class="text-muted small">Предупреждений</div>
+              <div class="fs-4 fw-semibold text-warning">
+                {{ result.warnings|length if result.warnings is defined else 0 }}
+              </div>
             </div>
           </div>
 
@@ -143,13 +145,31 @@
             </div>
           </div>
 
+          <div class="col-md-3">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Медиа обработано</div>
+              <div class="fs-4 fw-semibold text-primary">
+                {{ result.media_processed if result.media_processed is defined else 0 }}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="border rounded p-3 h-100">
+              <div class="text-muted small">Медиа пропущено</div>
+              <div class="fs-4 fw-semibold">
+                {{ result.media_skipped }}
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <hr class="my-4">
 
         {% if result.errors %}
           <h6 class="mb-3">Ошибки импорта</h6>
-          <div class="table-responsive">
+          <div class="table-responsive mb-4">
             <table class="table table-sm table-bordered align-middle">
               <thead class="table-light">
                 <tr>
@@ -167,9 +187,33 @@
               </tbody>
             </table>
           </div>
-        {% else %}
+        {% endif %}
+
+        {% if result.warnings is defined and result.warnings %}
+          <h6 class="mb-3">Предупреждения по медиа</h6>
+          <div class="table-responsive mb-4">
+            <table class="table table-sm table-bordered align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 120px;">Строка</th>
+                  <th>Сообщение</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for warn in result.warnings %}
+                  <tr>
+                    <td>{{ warn.row }}</td>
+                    <td>{{ warn.message }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if not result.errors %}
           <div class="alert alert-success mb-0">
-            Импорт завершён без ошибок.
+            Импорт завершён без критичных ошибок.
           </div>
         {% endif %}
 
@@ -187,7 +231,11 @@
         <li>Категория ищется по имени, если не найдена — создаётся.</li>
         <li>Продавец ищется по имени, если не найден — создаётся.</li>
         <li>Вариант ищется по <code>product_sku + variant_name + pack_size</code>.</li>
-        <li>Медиа и YouTube пока не сохраняются, а только учитываются в <code>media_skipped</code>.</li>
+        <li>Главное фото сохраняется в <code>Product.image</code>.</li>
+        <li>Галерея сохраняется в <code>ProductImage</code>.</li>
+        <li>YouTube-ссылка сохраняется в <code>ProductVideo</code> как video id.</li>
+        <li>Медиа обрабатывается только один раз на один SKU в рамках одного файла.</li>
+        <li>Если у медиа есть проблема, товар и варианты всё равно импортируются, а проблема попадает в предупреждения.</li>
       </ul>
     </div>
   </div>
