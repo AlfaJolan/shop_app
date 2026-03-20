@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 import requests
 
@@ -51,6 +52,63 @@ def extract_youtube_id(url: str) -> str:
     return url
 
 
+def is_google_drive_url(url: str) -> bool:
+    """Проверяет, является ли ссылка ссылкой Google Drive."""
+    if not url:
+        return False
+
+    parsed = urlparse(str(url).strip())
+    host = (parsed.netloc or "").lower()
+    return "drive.google.com" in host
+
+
+def extract_google_drive_file_id(url: str) -> str:
+    """
+    Пытается достать file_id из популярных форматов Google Drive ссылки.
+
+    Поддерживаемые варианты:
+    - https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    - https://drive.google.com/open?id=FILE_ID
+    - https://drive.google.com/uc?id=FILE_ID
+    """
+    if not url:
+        return ""
+
+    url = str(url).strip()
+    parsed = urlparse(url)
+
+    # 🆕 Формат: /file/d/FILE_ID/...
+    match = re.search(r"/file/d/([^/]+)", parsed.path)
+    if match:
+        return match.group(1)
+
+    # 🆕 Формат: ?id=FILE_ID
+    query = parse_qs(parsed.query)
+    if "id" in query and query["id"]:
+        return query["id"][0]
+
+    return ""
+
+
+def normalize_download_url(url: str) -> str:
+    """
+    Нормализует URL перед скачиванием.
+
+    Сейчас:
+    - если это Google Drive ссылка, превращаем ее в direct download URL
+    - если это обычная ссылка, возвращаем как есть
+    """
+    if not is_google_drive_url(url):
+        return url
+
+    file_id = extract_google_drive_file_id(url)
+    if not file_id:
+        raise ValueError("Не удалось извлечь file_id из Google Drive ссылки")
+
+    # 🆕 Прямая ссылка на скачивание файла с Google Drive
+    return f"https://drive.google.com/uc?export=download&id={file_id}"
+
+
 def download_image_bytes(
     url: str,
     timeout: int = 20,
@@ -75,6 +133,9 @@ def download_image_bytes(
     url = str(url).strip()
     if not (url.startswith("http://") or url.startswith("https://")):
         raise ValueError("URL изображения должен начинаться с http:// или https://")
+
+    # 🆕 Если передали Google Drive ссылку, приводим ее к прямой ссылке на скачивание
+    url = normalize_download_url(url)
 
     max_bytes = max_size_mb * 1024 * 1024
     last_error: Exception | None = None
