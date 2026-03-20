@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 import uuid
 from pathlib import Path
 from urllib.parse import urlparse
@@ -17,6 +18,17 @@ CONTENT_TYPE_TO_EXT = {
     "image/png": ".png",
     "image/webp": ".webp",
     "image/gif": ".gif",
+}
+
+# 🆕 Базовые headers, чтобы запрос был больше похож на браузерный
+DEFAULT_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    "Connection": "close",
 }
 
 
@@ -39,7 +51,13 @@ def extract_youtube_id(url: str) -> str:
     return url
 
 
-def download_image_bytes(url: str, timeout: int = 20, max_size_mb: int = 10) -> tuple[bytes, str]:
+def download_image_bytes(
+    url: str,
+    timeout: int = 20,
+    max_size_mb: int = 10,
+    retries: int = 3,
+    retry_delay: float = 1.0,
+) -> tuple[bytes, str]:
     """
     Скачивает изображение по URL.
     Возвращает:
@@ -58,32 +76,75 @@ def download_image_bytes(url: str, timeout: int = 20, max_size_mb: int = 10) -> 
     if not (url.startswith("http://") or url.startswith("https://")):
         raise ValueError("URL изображения должен начинаться с http:// или https://")
 
-    response = requests.get(url, timeout=timeout, stream=True)
-    response.raise_for_status()
-
-    content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-    ext = _detect_extension(url, content_type)
-
-    if ext not in ALLOWED_IMAGE_EXTENSIONS:
-        raise ValueError(f"Неподдерживаемый формат изображения: {ext or 'unknown'}")
-
     max_bytes = max_size_mb * 1024 * 1024
-    chunks: list[bytes] = []
-    total_size = 0
+    last_error: Exception | None = None
 
-    for chunk in response.iter_content(chunk_size=8192):
-        if not chunk:
-            continue
-        total_size += len(chunk)
-        if total_size > max_bytes:
-            raise ValueError(f"Файл слишком большой: более {max_size_mb} MB")
-        chunks.append(chunk)
+    # 🆕 Повторяем попытку скачивания несколько раз,
+    # если сервер временно оборвал соединение или ответил нестабильно.
+    for attempt in range(1, retries + 1):
+        response = None
+        try:
+            response = requests.get(
+                url,
+                timeout=(10, timeout),   # 🆕 connect timeout + read timeout
+                stream=True,
+                headers=DEFAULT_HEADERS,
+                allow_redirects=True,
+            )
+            response.raise_for_status()
 
-    content = b"".join(chunks)
-    if not content:
-        raise ValueError("Пустой файл изображения")
+            content_type = (response.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            ext = _detect_extension(url, content_type)
 
-    return content, ext
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                raise ValueError(f"Неподдерживаемый формат изображения: {ext or 'unknown'}")
+
+            # 🆕 Если сервер отдает Content-Length, проверяем размер заранее
+            content_length = response.headers.get("Content-Length")
+            if content_length:
+                try:
+                    if int(content_length) > max_bytes:
+                        raise ValueError(f"Файл слишком большой: более {max_size_mb} MB")
+                except ValueError:
+                    # если Content-Length битый, просто игнорируем и идем дальше по stream
+                    pass
+
+            chunks: list[bytes] = []
+            total_size = 0
+
+            for chunk in response.iter_content(chunk_size=8192):
+                if not chunk:
+                    continue
+
+                total_size += len(chunk)
+                if total_size > max_bytes:
+                    raise ValueError(f"Файл слишком большой: более {max_size_mb} MB")
+
+                chunks.append(chunk)
+
+            content = b"".join(chunks)
+            if not content:
+                raise ValueError("Пустой файл изображения")
+
+            return content, ext
+
+        except requests.RequestException as exc:
+            last_error = exc
+
+            # 🆕 Если попытки еще остались — небольшая пауза и пробуем снова
+            if attempt < retries:
+                time.sleep(retry_delay)
+                continue
+
+        except Exception as exc:
+            last_error = exc
+            break
+
+        finally:
+            if response is not None:
+                response.close()
+
+    raise ValueError(f"Не удалось скачать изображение: {last_error}")
 
 
 def save_main_image_bytes(content: bytes, ext: str) -> str:
