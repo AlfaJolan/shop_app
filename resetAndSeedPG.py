@@ -60,14 +60,30 @@ def run_seed():
                 print(f"✅ User created (username='{username}', password='{raw_password}', role='{role}')")
             else:
                 print(f"ℹ️ User '{username}' already exists")
-        channel_chat_id = "-1002878414324"
-        subscriber = Subscriber(chat_id=channel_chat_id, username="shop_channel")
-        db.add(subscriber)
+
+        # -1002878414324 sales"
+        # -1002932041028 analystics для аналитики
+        subscribers = [
+            Subscriber(
+                chat_id="-1002878414324",
+                username="shop_channel",
+                chat_type="sales",
+            ),
+            Subscriber(
+                chat_id="-1002932041028",
+                username="shop_channel",
+                chat_type="analytics",
+            ),
+        ]
+
+        db.add_all(subscribers)
         db.commit()
-        print(f"✅ Канал добавлен как подписчик: {channel_chat_id}")
+
+        for subscriber in subscribers:
+            print(f"✅ Канал добавлен как подписчик: {subscriber.chat_id} ({subscriber.chat_type})")
     finally:
         db.close()
-
+#wsdsd
 
 if __name__ == "__main__":
     run_seed()
