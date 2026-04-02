@@ -55,12 +55,22 @@ def products_index(request: Request, db: Session = Depends(get_db)):
 @router.get("/new")
 def product_new(request: Request, db: Session = Depends(get_db)):
     categories = db.query(Category).all()
-    sellers = db.query(Seller).all()  # 🆕 добавили выбор продавца
+    sellers = db.query(Seller).all()
+
+    # Категория по умолчанию = "Посуда"
+    default_category = (
+        db.query(Category)
+        .filter(Category.name.ilike("Посуда"))
+        .first()
+    )
+
     return templates.TemplateResponse("admin/product_form.html", {
         "request": request,
         "categories": categories,
-        "sellers": sellers,           # 🆕 передаём в шаблон
+        "sellers": sellers,
         "product": None,
+        "default_category_id": default_category.id if default_category else None,
+        "default_category_name": default_category.name if default_category else "---",
     })
 
 
@@ -101,11 +111,30 @@ def product_create(
 
     # 🆕 теперь сохраняем seller_id и description
     product = Product(
-        name=name, sku=sku, category_id=category_id,
-        unit=unit, image=filename, seller_id=seller_id,
+        name=name,
+        sku=None,  # 🆕 сначала создаём без SKU (будет сгенерирован после commit)
+        category_id=category_id,
+        unit=unit,
+        image=filename,
+        seller_id=seller_id,
         description=description
     )
     db.add(product)
+    db.commit()
+    db.refresh(product)
+
+    # 🆕 === АВТОГЕНЕРАЦИЯ SKU ===
+    # если SKU не передан вручную → генерируем из ID
+    if not sku or not sku.strip():
+        # простой вариант
+        product.sku = str(product.id)
+
+        # 🔥 если хочешь красивый формат — раскомментируй:
+        product.sku = f"SKU-{product.id:06d}"
+    else:
+        # если пользователь ввёл SKU вручную — используем его
+        product.sku = sku.strip()
+
     db.commit()
     db.refresh(product)
 
@@ -184,7 +213,7 @@ def product_create(
             "product": {
                 "id": product.id,
                 "name": product.name,
-                "sku": product.sku,
+                "sku": product.sku,  # 🆕 уже сгенерированный SKU попадёт в аудит
                 "category_id": product.category_id,
                 "unit": product.unit,
                 "seller_id": product.seller_id,

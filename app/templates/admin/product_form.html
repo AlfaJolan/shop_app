@@ -68,7 +68,7 @@
     <input
       type="hidden"
       name="category_id"
-      value="{{ product.category_id if product else '' }}"
+      value="{{ product.category_id if product else (default_category_id or '') }}"
       data-select-input
     >
 
@@ -82,7 +82,7 @@
         {% if product and product.category %}
           {{ product.category.name }}
         {% else %}
-          ---
+          {{ default_category_name if default_category_name else "---" }}
         {% endif %}
       </span>
       <span class="admin-select-caret">▼</span>
@@ -91,7 +91,7 @@
     <div class="admin-select-menu" data-select-menu>
       <button
         type="button"
-        class="admin-select-option {% if not product or not product.category_id %}active{% endif %}"
+        class="admin-select-option {% if product and not product.category_id and not default_category_id %}active{% endif %}"
         data-value=""
         data-label="---"
       >
@@ -101,7 +101,7 @@
       {% for c in categories %}
         <button
           type="button"
-          class="admin-select-option {% if product and product.category_id == c.id %}active{% endif %}"
+          class="admin-select-option {% if (product and product.category_id == c.id) or (not product and default_category_id == c.id) %}active{% endif %}"
           data-value="{{ c.id }}"
           data-label="{{ c.name }}"
         >
