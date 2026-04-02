@@ -112,14 +112,14 @@
   </div>
 </div>
 
-          <div class="product-form-field product-form-field-full">
+<div class="product-form-field product-form-field-full">
   <label class="form-label">Продавец</label>
 
   <div class="admin-select" data-select>
     <input
       type="hidden"
       name="seller_id"
-      value="{{ product.seller_id if product else '' }}"
+      value="{{ product.seller_id if product else (default_seller_id or '') }}"
       data-select-input
       required
     >
@@ -134,7 +134,7 @@
         {% if product and product.seller %}
           {{ product.seller.name }}{% if product.seller.city %} ({{ product.seller.city }}){% endif %}
         {% else %}
-          ---
+          {{ default_seller_name if default_seller_name else "---" }}
         {% endif %}
       </span>
       <span class="admin-select-caret">▼</span>
@@ -143,7 +143,7 @@
     <div class="admin-select-menu" data-select-menu>
       <button
         type="button"
-        class="admin-select-option {% if not product or not product.seller_id %}active{% endif %}"
+        class="admin-select-option {% if product and not product.seller_id and not default_seller_id %}active{% endif %}"
         data-value=""
         data-label="---"
       >
@@ -153,7 +153,7 @@
       {% for s in sellers %}
         <button
           type="button"
-          class="admin-select-option {% if product and product.seller_id == s.id %}active{% endif %}"
+          class="admin-select-option {% if (product and product.seller_id == s.id) or (not product and default_seller_id == s.id) %}active{% endif %}"
           data-value="{{ s.id }}"
           data-label="{{ s.name }}{% if s.city %} ({{ s.city }}){% endif %}"
         >

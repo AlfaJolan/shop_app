@@ -51,16 +51,23 @@ def products_index(request: Request, db: Session = Depends(get_db)):
         "products": products,
     })
 
-# 🆕 форма создания
+# ➕ форма создания нового товара
 @router.get("/new")
 def product_new(request: Request, db: Session = Depends(get_db)):
     categories = db.query(Category).all()
-    sellers = db.query(Seller).all()
+    sellers = db.query(Seller).order_by(Seller.id.asc()).all()
 
     # Категория по умолчанию = "Посуда"
     default_category = (
         db.query(Category)
         .filter(Category.name.ilike("Посуда"))
+        .first()
+    )
+
+    # 🆕 Продавец по умолчанию = первый по ID
+    default_seller = (
+        db.query(Seller)
+        .order_by(Seller.id.asc())
         .first()
     )
 
@@ -71,6 +78,12 @@ def product_new(request: Request, db: Session = Depends(get_db)):
         "product": None,
         "default_category_id": default_category.id if default_category else None,
         "default_category_name": default_category.name if default_category else "---",
+        "default_seller_id": default_seller.id if default_seller else None,  # 🆕
+        "default_seller_name": (
+            f"{default_seller.name} ({default_seller.city})"
+            if default_seller and default_seller.city
+            else (default_seller.name if default_seller else "---")
+        ),  # 🆕
     })
 
 
