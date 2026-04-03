@@ -17,14 +17,19 @@ from app.routers import admin_audit
 from app.routers.admin_product_import import router as admin_product_import_router
 
 import json
+import time
+import logging
+
 # COMMIR рабочей версий
 # COMMIT Рабочей версий
 # Рабочая версия, с RBAC и сессиями
 # https://fastapi.tiangolo.com/tutorial/middleware/
 configure_mappers()
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ShopApp")
+
+# 🔹 Логгер приложения
+logger = logging.getLogger("shop_app")
 
 # RBAC проверяет роли
 app.add_middleware(RBACMiddleware)
@@ -78,9 +83,14 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 templates.env.globals["contacts"] = CONTACTS  # теперь contacts доступны во всех шаблонах
 app.state.contacts = CONTACTS                 # ← добавил
 
-import time
-
 templates.env.globals["build_ts"] = str(int(time.time()))
+
+# 🔹 Один экземпляр scheduler, но запускаем его только на startup
+scheduler = BackgroundScheduler()
+
+# 🔹 Флаги, чтобы не было повторного запуска тяжёлых задач
+app.state.scheduler_started = False
+app.state.analytics_started = False
 
 # ==== Обработчик ошибок (404) ====
 @app.exception_handler(StarletteHTTPException)
@@ -97,25 +107,50 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 def __routes():
     return [getattr(r, "path", str(r)) for r in app.routes]
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(cleanup_old_receipts, "interval", hours=24)  # раз в сутки
-scheduler.start()
+# 🔹 Логирование времени запросов — помогает искать медленные endpoint'ы
+@app.middleware("http")
+async def log_request_time(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = time.perf_counter() - start
+    logger.info("%s %s -> %s in %.3fs", request.method, request.url.path, response.status_code, duration)
+    return response
 
-# ... внутри create_app() или после инициализации приложения
-start_analytics_scheduler()
+
 from app.analytics.scheduler import generate_analytics_report
+
 @app.on_event("startup")
 def on_startup():
     """Запуск планировщика при старте приложения"""
-    start_analytics_scheduler()
-    print("[App] Планировщик запущен.")
 
-    # 🔹 Отправим тестовое сообщение в Telegram при первом запуске
+    # 🔹 Создание таблиц переносим на startup, чтобы не делать это при импорте модуля
     try:
-        generate_analytics_report()
-        print("[App] Тестовое сообщение аналитики отправлено.")
+        Base.metadata.create_all(bind=engine)
+        print("[App] Таблицы проверены.")
     except Exception as e:
-        print("[App] Ошибка при тестовой отправке:", e)
+        print("[App] Ошибка при create_all:", e)
+
+    # 🔹 Запускаем cleanup scheduler только один раз
+    if not app.state.scheduler_started:
+        scheduler.add_job(cleanup_old_receipts, "interval", hours=24)  # раз в сутки
+        scheduler.start()
+        app.state.scheduler_started = True
+        print("[App] Cleanup scheduler запущен.")
+
+    # 🔹 Аналитический scheduler запускаем только один раз
+    if not app.state.analytics_started:
+        start_analytics_scheduler()
+        app.state.analytics_started = True
+        print("[App] Планировщик запущен.")
+
+    # 🔹 Тестовую отправку отключаем в проде, чтобы не тормозить startup
+    if config.DEBUG:
+        try:
+            #generate_analytics_report()
+            print("[App] Тестовое сообщение аналитики отправлено.")
+        except Exception as e:
+            print("[App] Ошибка при тестовой отправке:", e)
+
 import requests
 from app.telegram.config_notify import notify_settings
 
@@ -131,7 +166,9 @@ from app.telegram.config_notify import notify_settings
 
 @app.on_event("shutdown")
 def shutdown_event():
-    scheduler.shutdown()
+    # 🔹 Аккуратно выключаем scheduler только если он был запущен
+    if app.state.scheduler_started:
+        scheduler.shutdown()
 
 @app.on_event("startup")
 async def startup_event():
