@@ -9,6 +9,9 @@ import numpy as np  # 🆕 для heatmap матрицы
 import traceback
 
 
+ALMATY_TZ = timezone("Asia/Almaty")  # 🆕 чтобы не создавать timezone каждый раз
+
+
 def _fmt_kzt(value):
     """Форматирование чисел в стиле: 1 234 567 ₸"""
     return f"{int(value):,}".replace(",", " ") + " ₸"
@@ -31,25 +34,35 @@ def _growth(today, yesterday):
 # 🧾 ГЛАВНАЯ ФУНКЦИЯ: СБОР ЕЖЕДНЕВНОГО ОТЧЁТА
 # ============================================================
 
-def build_daily_report():
+def build_daily_report(db=None):
     """Собирает текст ежедневной аналитики за сегодня."""
 
-    db = SessionLocal()
+    own_db = db is None
+    if own_db:
+        db = SessionLocal()
+
     try:
-        now = datetime.now(timezone("Asia/Almaty"))
+        now = datetime.now(ALMATY_TZ)
         today = now.date()
         yesterday = today - timedelta(days=1)
+
+        today_start = datetime.combine(today, datetime.min.time())  # 🆕
+        tomorrow_start = datetime.combine(today + timedelta(days=1), datetime.min.time())  # 🆕
+        yesterday_start = datetime.combine(yesterday, datetime.min.time())  # 🆕
+
+        period_7 = queries._period_days(7)   # 🆕
+        period_30 = queries._period_days(30)  # 🆕
 
         # --- Основные метрики ---
         summary_today = queries.get_summary(
             db,
-            datetime.combine(today, datetime.min.time()),
-            datetime.combine(today + timedelta(days=1), datetime.min.time())
+            today_start,
+            tomorrow_start
         )
         summary_yesterday = queries.get_summary(
             db,
-            datetime.combine(yesterday, datetime.min.time()),
-            datetime.combine(today, datetime.min.time())
+            yesterday_start,
+            today_start
         )
 
         revenue_growth = _growth(summary_today["revenue"], summary_yesterday["revenue"])
@@ -57,37 +70,29 @@ def build_daily_report():
         margin_growth = _growth(summary_today["margin"], summary_yesterday["margin"])
 
         # --- Топы ---
-        top_sellers = queries.get_top_sellers(db, datetime.combine(today, datetime.min.time()),
-                                              datetime.combine(today + timedelta(days=1), datetime.min.time()))
-        bad_sellers = queries.get_top_sellers(db, datetime.combine(today, datetime.min.time()),
-                                              datetime.combine(today + timedelta(days=1), datetime.min.time()), asc=True)
+        top_sellers = queries.get_top_sellers(db, today_start, tomorrow_start)
+        bad_sellers = queries.get_top_sellers(db, today_start, tomorrow_start, asc=True)
 
-        top_products = queries.get_top_products(db, datetime.combine(today, datetime.min.time()),
-                                                datetime.combine(today + timedelta(days=1), datetime.min.time()))
-        bad_products = queries.get_top_products(db, datetime.combine(today, datetime.min.time()),
-                                                datetime.combine(today + timedelta(days=1), datetime.min.time()), asc=True)
+        top_products = queries.get_top_products(db, today_start, tomorrow_start)
+        bad_products = queries.get_top_products(db, today_start, tomorrow_start, asc=True)
 
         # 🆕 Топы по торговцам
-        top_salespersons = queries.get_top_salespersons(db, datetime.combine(today, datetime.min.time()),
-                                                        datetime.combine(today + timedelta(days=1), datetime.min.time()))
-        bad_salespersons = queries.get_top_salespersons(db, datetime.combine(today, datetime.min.time()),
-                                                        datetime.combine(today + timedelta(days=1), datetime.min.time()), asc=True)
+        top_salespersons = queries.get_top_salespersons(db, today_start, tomorrow_start)
+        bad_salespersons = queries.get_top_salespersons(db, today_start, tomorrow_start, asc=True)
 
         # --- Города ---
-        city_sellers = queries.get_cities(db, datetime.combine(today, datetime.min.time()),
-                                          datetime.combine(today + timedelta(days=1), datetime.min.time()), by="sellers")
-        city_orders = queries.get_cities(db, datetime.combine(today, datetime.min.time()),
-                                         datetime.combine(today + timedelta(days=1), datetime.min.time()), by="orders")
+        city_sellers = queries.get_cities(db, today_start, tomorrow_start, by="sellers")
+        city_orders = queries.get_cities(db, today_start, tomorrow_start, by="orders")
 
         # --- 7 и 30 дней ---
-        summary_7 = queries.get_summary(db, *(queries._period_days(7)))
-        summary_30 = queries.get_summary(db, *(queries._period_days(30)))
+        summary_7 = queries.get_summary(db, *period_7)
+        summary_30 = queries.get_summary(db, *period_30)
 
         # 🆕 Доп. метрики (AOV, корзина, % маржи)
-        aov_7 = queries.get_avg_order_value(db, *(queries._period_days(7)))             # 🆕
-        aov_30 = queries.get_avg_order_value(db, *(queries._period_days(30)))           # 🆕
-        basket_7 = queries.get_avg_basket_size(db, *(queries._period_days(7)))          # 🆕
-        basket_30 = queries.get_avg_basket_size(db, *(queries._period_days(30)))        # 🆕
+        aov_7 = queries.get_avg_order_value(db, *period_7)             # 🆕
+        aov_30 = queries.get_avg_order_value(db, *period_30)           # 🆕
+        basket_7 = queries.get_avg_basket_size(db, *period_7)          # 🆕
+        basket_30 = queries.get_avg_basket_size(db, *period_30)        # 🆕
         margin_pct_7 = (summary_7["margin"] / summary_7["revenue"] * 100) if summary_7["revenue"] else 0.0  # 🆕
         margin_pct_30 = (summary_30["margin"] / summary_30["revenue"] * 100) if summary_30["revenue"] else 0.0  # 🆕
 
@@ -151,7 +156,7 @@ def build_daily_report():
                    )
         # --- KPI по торговцам ---
         msg.append("\n👨‍💼 <b>KPI по торговцам (30 дней)</b>:\n")
-        kpi_salespersons = queries.get_salesperson_kpi(db, *(queries._period_days(30)))
+        kpi_salespersons = queries.get_salesperson_kpi(db, *period_30)
         if kpi_salespersons:
             for s in kpi_salespersons:
                 msg.append(
@@ -166,7 +171,8 @@ def build_daily_report():
         return "\n".join(msg)
 
     finally:
-        db.close()
+        if own_db:
+            db.close()
 
 
 # ============================================================
@@ -177,25 +183,28 @@ def send_daily_report():
     """Формирует и отправляет ежедневный отчёт в Telegram (чат аналитики)."""
     db = SessionLocal()
     try:
-        message = build_daily_report()
+        period_7 = queries._period_days(7)    # 🆕
+        period_30 = queries._period_days(30)  # 🆕
+
+        message = build_daily_report(db=db)
 
         # --- Получаем данные для графиков (7 дней) ---
         data7 = queries.get_daily_dynamics(db, days=7)
-        top_sellers_7 = queries.get_top_sellers(db, *(queries._period_days(7)))
-        top_products_7 = queries.get_top_products(db, *(queries._period_days(7)))
-        top_salespersons_7 = queries.get_top_salespersons(db, *(queries._period_days(7)))  # 🆕
-        cities_7 = queries.get_cities(db, *(queries._period_days(7)))
+        top_sellers_7 = queries.get_top_sellers(db, *period_7)
+        top_products_7 = queries.get_top_products(db, *period_7)
+        top_salespersons_7 = queries.get_top_salespersons(db, *period_7)  # 🆕
+        cities_7 = queries.get_cities(db, *period_7)
 
         # --- Получаем данные для графиков (30 дней) ---
         data30 = queries.get_daily_dynamics(db, days=30)
-        top_sellers_30 = queries.get_top_sellers(db, *(queries._period_days(30)))
-        top_products_30 = queries.get_top_products(db, *(queries._period_days(30)))
-        top_salespersons_30 = queries.get_top_salespersons(db, *(queries._period_days(30)))  # 🆕
-        cities_30 = queries.get_cities(db, *(queries._period_days(30)))
+        top_sellers_30 = queries.get_top_sellers(db, *period_30)
+        top_products_30 = queries.get_top_products(db, *period_30)
+        top_salespersons_30 = queries.get_top_salespersons(db, *period_30)  # 🆕
+        cities_30 = queries.get_cities(db, *period_30)
 
         # 🆕 Доп. данные: категории и heatmap
-        top_categories_30 = queries.get_top_categories(db, *(queries._period_days(30)))  # 🆕
-        heat_rows = queries.get_hourly_heatmap(db, *(queries._period_days(30)))          # 🆕
+        top_categories_30 = queries.get_top_categories(db, *period_30)  # 🆕
+        heat_rows = queries.get_hourly_heatmap(db, *period_30)          # 🆕
 
         # --- Строим графики за 7 дней ---
         img_dynamics_7 = plots.plot_sales_dynamics(data7, "7")
@@ -220,8 +229,9 @@ def send_daily_report():
             if 0 <= dow < 7 and 0 <= hour < 24:
                 matrix[dow, hour] = rev
         img_heatmap_30 = plots.plot_heatmap_demand(matrix, "Активность заказов по дням/часам (30 дней)")  # 🆕
+
         # 🆕 Тепловая карта за 7 дней
-        heat_rows_7 = queries.get_hourly_heatmap(db, *(queries._period_days(7)))  # 🆕
+        heat_rows_7 = queries.get_hourly_heatmap(db, *period_7)  # 🆕
         matrix_7 = np.zeros((7, 24), dtype=float)  # 🆕
         for r in heat_rows_7:
             dow, hour, rev = int(r["dow"]), int(r["hour"]), float(r["revenue"])
@@ -234,16 +244,19 @@ def send_daily_report():
         # --- Отправляем текстовый отчёт ---
         notifier.send_analytics(message)
         # графики
-        kpi_salespersons = queries.get_salesperson_kpi(db, *(queries._period_days(30)))
+        kpi_salespersons = queries.get_salesperson_kpi(db, *period_30)
         img_salesperson_kpi = plots.plot_salesperson_kpi_bars(kpi_salespersons)
         # --- Отправляем графики ---
-        for img in [
+        images = [
             img_dynamics_7, img_top_sellers_7, img_top_products_7, img_top_salespersons_7, img_city_7,
             img_dynamics_30, img_top_sellers_30, img_top_products_30, img_top_salespersons_30, img_city_30,
             img_top_categories_30, img_heatmap_30, img_heatmap_7, img_salesperson_kpi  # 🆕 добавлены новые
-        ]:
-            if img:
-                notifier.send_photo_analytics(img)
+        ]
+
+        images = [img for img in images if img]  # 🆕 убираем пустые значения заранее
+
+        # 🆕 отправка пачками быстрее, чем по одной картинке
+        notifier.send_photo_analytics_batch(images, batch_size=10)
 
         print("[AnalyticsReport] Отчёт и графики (7 и 30 дней) отправлены в Telegram.")
     except Exception as e:
