@@ -1,9 +1,9 @@
 from typing import Dict, List
 from decimal import Decimal
-from fastapi import APIRouter, Request, Form, Depends, UploadFile, File  # 🧾 NEW
+from fastapi import APIRouter, Request, Form, Depends, UploadFile, File, BackgroundTasks  # 🧾 NEW + background
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse  # 🔹 добавили JSONResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.models.salesperson import Salesperson
 
 from pathlib import Path  # 🧾 NEW
@@ -45,6 +45,20 @@ def _pop_flash(request: Request) -> str:
         del request.session["flash"]
     return msg or ""
 
+# 🔹 Оптимизация: отдельный helper для пакетной загрузки вариантов
+def _load_variants_map(db: Session, variant_ids: List[int]) -> Dict[int, Variant]:
+    if not variant_ids:
+        return {}
+
+    # 🔹 Подгружаем product одним запросом, чтобы не делать второй запрос на Product
+    variants = (
+        db.query(Variant)
+        .options(joinedload(Variant.product))
+        .filter(Variant.id.in_(variant_ids))
+        .all()
+    )
+    return {v.id: v for v in variants}
+
 def _cart_lines(db: Session, cart: Dict[str, dict]) -> List[dict]:
     if not cart:
         return []
@@ -52,12 +66,8 @@ def _cart_lines(db: Session, cart: Dict[str, dict]) -> List[dict]:
     if not variant_ids:
         return []
 
-    variants = db.query(Variant).filter(Variant.id.in_(variant_ids)).all()
-    variants_by_id = {v.id: v for v in variants}
-
-    product_ids = list({v.product_id for v in variants})
-    products = db.query(Product).filter(Product.id.in_(product_ids)).all()
-    products_by_id = {p.id: p for p in products}
+    # 🔹 Оптимизация: загружаем Variant + Product одним запросом
+    variants_by_id = _load_variants_map(db, variant_ids)
 
     lines: List[dict] = []
     for key, item in cart.items():
@@ -66,7 +76,9 @@ def _cart_lines(db: Session, cart: Dict[str, dict]) -> List[dict]:
         v = variants_by_id.get(vid)
         if not v:
             continue
-        p = products_by_id.get(v.product_id)
+
+        # 🔹 product уже подгружен через joinedload
+        p = v.product
         unit_price = Decimal(str(v.unit_price))
         line_total = unit_price * qty
         lines.append({
@@ -95,7 +107,8 @@ async def cart_add(
     existing_qty = int(cart.get(key, {}).get("qty", 0))
     want = existing_qty + max(1, int(qty))
 
-    v = db.query(Variant).get(int(variant_id))
+    # 🔹 Оптимизация: db.get быстрее и чище, чем query(...).get(...)
+    v = db.get(Variant, int(variant_id))
     if not v:
         if _wants_json(request):
             return JSONResponse({"ok": False, "error": "Вариант не найден."}, status_code=400)
@@ -143,7 +156,7 @@ async def cart_update(
 
     if key in cart:
         new_qty = max(0, int(qty))
-        v = db.query(Variant).get(int(variant_id))
+        v = db.get(Variant, int(variant_id))
         if not v:
             cart.pop(key, None)
             _set_cart(request, cart)
@@ -218,10 +231,12 @@ async def cart_view(request: Request, db: Session = Depends(get_db)):
         "flash": flash,
         "salespersons": salespersons,  # 👈 передаём в шаблон
     })
+
 # ----------------------- CHECKOUT -----------------------
 @router.post("/checkout")
 async def checkout(
     request: Request,
+    background_tasks: BackgroundTasks,  # 🔹 добавили фоновую отправку Telegram
     db: Session = Depends(get_db),
     customer_name: str = Form(""),
     phone: str = Form(""),
@@ -242,17 +257,21 @@ async def checkout(
         _flash(request, "Корзина пуста.")
         return RedirectResponse(url="/cart", status_code=303)
 
+    # 🔹 Оптимизация: загружаем все варианты одной пачкой и используем дальше везде
+    variant_ids = [int(l["variant_id"]) for l in lines]
+    variants_by_id = _load_variants_map(db, variant_ids)
+
     # финальная проверка остатков
     problems = []
     for l in lines:
-        v = db.query(Variant).get(int(l["variant_id"]))
+        v = variants_by_id.get(int(l["variant_id"]))
         if not v or int(l["qty"]) > int(v.stock):
             problems.append(l["product_name"])
 
     if problems:
         _flash(request, "Недостаточно на складе по позициям: {0}. Количество скорректировано.".format(", ".join(problems)))
         for l in lines:
-            v = db.query(Variant).get(int(l["variant_id"]))
+            v = variants_by_id.get(int(l["variant_id"]))
             if v:
                 key = str(l["variant_id"])
                 cart[key]["qty"] = min(int(cart[key]["qty"]), int(v.stock))
@@ -275,8 +294,9 @@ async def checkout(
 
     # списываем остатки склада
     for l in lines:
-        v = db.query(Variant).get(int(l["variant_id"]))
-        v.stock = int(v.stock) - int(l["qty"])
+        v = variants_by_id.get(int(l["variant_id"]))
+        if v:
+            v.stock = int(v.stock) - int(l["qty"])
 
     # Получаем того, кто оформил заказ
     actor = get_actor(request, db)
@@ -326,7 +346,7 @@ async def checkout(
         inv_dir.mkdir(parents=True, exist_ok=True)
 
         for f in files:
-            if not f.filename.lower().endswith(".pdf"):
+            if not f.filename or not f.filename.lower().endswith(".pdf"):
                 continue
             safe_name = f"{uuid.uuid4().hex}.pdf"
             dst = inv_dir / safe_name
@@ -348,7 +368,10 @@ async def checkout(
             {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
             for item in inv.items
         ]
-        notifier.notify_invoice_created(
+
+        # 🔹 Оптимизация: Telegram отправляем в фоне, чтобы не тормозить checkout
+        background_tasks.add_task(
+            notifier.notify_invoice_created,
             invoice_id=inv.id,
             invoice_pkey=inv.pkey,
             customer_name=inv.customer_name,
@@ -362,7 +385,10 @@ async def checkout(
             {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
             for item in inv.items
         ]
-        notifier.notify_invoice_created(
+
+        # 🔹 Оптимизация: Telegram отправляем в фоне, чтобы не тормозить checkout
+        background_tasks.add_task(
+            notifier.notify_invoice_created,
             invoice_id=inv.id,
             invoice_pkey=inv.pkey,
             customer_name=inv.customer_name,
@@ -394,7 +420,7 @@ async def cart_set(
     cart = _get_cart(request)
     key = str(variant_id)
 
-    v = db.query(Variant).get(int(variant_id))
+    v = db.get(Variant, int(variant_id))
     if not v:
         if _wants_json(request):
             return JSONResponse({"ok": False, "error": "Вариант не найден."}, status_code=400)
