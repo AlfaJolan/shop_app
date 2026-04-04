@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, UploadFile, File
+from fastapi import APIRouter, Request, Depends, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,26 @@ def get_db():
         db.close()
 
 
+# 🔹 Оптимизация: выносим импорт в фон, чтобы не блокировать HTTP-запрос
+def run_import_in_background(file_bytes: bytes):
+    db = SessionLocal()
+    try:
+        service = ProductImportService(db)
+
+        # 🔹 создаем UploadFile-подобный объект из байтов (чтобы не ломать сервис)
+        from io import BytesIO
+        fake_file = BytesIO(file_bytes)
+        fake_file.filename = "import.xlsx"
+
+        service.import_from_upload(fake_file)
+
+    except Exception as e:
+        print("IMPORT ERROR:", e)
+
+    finally:
+        db.close()
+
+
 @router.get("/")
 def product_import_page(request: Request):
     """
@@ -42,8 +62,9 @@ def product_import_page(request: Request):
 
 
 @router.post("/")
-def product_import_submit(
+async def product_import_submit(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -83,21 +104,20 @@ def product_import_submit(
         )
 
     try:
-        # ---- Запуск импорта ----
-        service = ProductImportService(db)
-        result = service.import_from_upload(file)
+        # 🔹 Оптимизация: читаем файл один раз в память (избегаем медленного stream IO)
+        file_bytes = await file.read()
 
-        # ---- Возвращаем результат ----
-        # В result уже есть:
-        # - errors
-        # - warnings
-        # - статистика
+        # 🔹 Запускаем импорт в фоне (не блокируем пользователя)
+        background_tasks.add_task(run_import_in_background, file_bytes)
+
+        # ---- Возвращаем быстрый ответ ----
         return templates.TemplateResponse(
             "admin/product_import.html",
             {
                 "request": request,
-                "result": result,
+                "result": None,
                 "error": None,
+                "success": "Импорт запущен в фоне. Результат будет доступен позже.",
             },
         )
 

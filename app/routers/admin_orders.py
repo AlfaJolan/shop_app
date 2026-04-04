@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException
+from fastapi import APIRouter, Request, Depends, Query, Form, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
 from app.models.invoice import Invoice
@@ -68,12 +68,12 @@ def live_orders(
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Invoice).order_by(Invoice.created_at.desc())
+    q = db.query(Invoice)
 
     if status != "all":
         q = q.filter(Invoice.status == status)
 
-    rows = q.limit(limit).all()
+    rows = q.order_by(Invoice.created_at.desc()).limit(limit).all()
 
     return [
         {
@@ -96,7 +96,8 @@ def order_detail(
     invoice_id: int,
     db: Session = Depends(get_db),
 ):
-    invoice: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    # 🔹 Оптимизация: используем db.get для точечной загрузки по PK
+    invoice: Optional[Invoice] = db.get(Invoice, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
 
@@ -117,6 +118,7 @@ def order_detail(
 @router.post("/{invoice_id}/status")
 def change_status(
     request: Request,  # нужен для получения текущего пользователя из session
+    background_tasks: BackgroundTasks,
     invoice_id: int,
     new_status: str = Form(...),
     note: Optional[str] = Form(None),
@@ -125,7 +127,13 @@ def change_status(
     if new_status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=400, detail="Некорректный статус")
 
-    invoice: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    # 🔹 Оптимизация: заранее подгружаем items, чтобы не было лишней ленивой догрузки после commit
+    invoice: Optional[Invoice] = (
+        db.query(Invoice)
+        .options(selectinload(Invoice.items))
+        .filter(Invoice.id == invoice_id)
+        .first()
+    )
     if not invoice:
         raise HTTPException(status_code=404, detail="Накладная не найдена")
 
@@ -176,8 +184,7 @@ def change_status(
         note=note or "Смена статуса заказа",
     )
 
-    db.commit()
-
+    # 🔹 Готовим данные для Telegram ДО commit/redirect
     items = [
         {
             "name": f"{item.product_name}, {item.variant_name}",
@@ -189,7 +196,11 @@ def change_status(
 
     status_label = STATUS_LABELS_RU.get(new_status, new_status)
 
-    notifier.notify_invoice_status_changed(
+    db.commit()
+
+    # 🔹 Оптимизация: Telegram отправляем в фоне, чтобы не тормозить смену статуса
+    background_tasks.add_task(
+        notifier.notify_invoice_status_changed,
         invoice_id=invoice.id,
         new_status=status_label,
         items=items,
