@@ -19,6 +19,7 @@ from app.routers.admin_product_import import router as admin_product_import_rout
 import json
 import time
 import logging
+import os  # 🆕 для защиты от повторного запуска в reloader-процессе
 
 # COMMIR рабочей версий
 # COMMIT Рабочей версий
@@ -117,10 +118,8 @@ async def log_request_time(request: Request, call_next):
     return response
 
 
-from app.analytics.scheduler import generate_analytics_report
-
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     """Запуск планировщика при старте приложения"""
 
     # 🔹 Создание таблиц переносим на startup, чтобы не делать это при импорте модуля
@@ -130,47 +129,57 @@ def on_startup():
     except Exception as e:
         print("[App] Ошибка при create_all:", e)
 
+    # 🆕 не запускаем фоновые задачи в reloader-процессе
+    is_reloader = os.environ.get("WATCHFILES_RELOADER") == "true"
+    if is_reloader:
+        print("[App] Пропускаем startup фоновых задач в reloader-процессе.")
+        print("🚀 Stop Polling")
+        # start_polling()
+        return
+
     # 🔹 Запускаем cleanup scheduler только один раз
     if not app.state.scheduler_started:
-        scheduler.add_job(cleanup_old_receipts, "interval", hours=24)  # раз в сутки
-        scheduler.start()
-        app.state.scheduler_started = True
-        print("[App] Cleanup scheduler запущен.")
+        try:
+            scheduler.add_job(
+                cleanup_old_receipts,
+                "interval",
+                hours=24,
+                id="cleanup_old_receipts",
+                replace_existing=True
+            )  # раз в сутки
+            scheduler.start()
+            app.state.scheduler_started = True
+            print("[App] Cleanup scheduler запущен.")
+        except Exception as e:
+            print("[App] Ошибка запуска cleanup scheduler:", e)
 
     # 🔹 Аналитический scheduler запускаем только один раз
     if not app.state.analytics_started:
-        start_analytics_scheduler()
-        app.state.analytics_started = True
-        print("[App] Планировщик запущен.")
+        try:
+            start_analytics_scheduler()
+            app.state.analytics_started = True
+            print("[App] Планировщик запущен.")
+        except Exception as e:
+            print("[App] Ошибка запуска analytics scheduler:", e)
 
     # 🔹 Тестовую отправку отключаем в проде, чтобы не тормозить startup
     if config.DEBUG:
         try:
-            #generate_analytics_report()
-            print("[App] Тестовое сообщение аналитики отправлено.")
+            # generate_analytics_report()
+            print("[App] DEBUG режим: тестовая отправка аналитики отключена.")
         except Exception as e:
             print("[App] Ошибка при тестовой отправке:", e)
 
-import requests
-from app.telegram.config_notify import notify_settings
-
-#url = f"https://api.telegram.org/bot{notify_settings.TELEGRAM_TOKEN}/sendMessage"
-#payload = {
-#    "chat_id": "1355132132",   # ← твой chat_id
-#    "text": "🔔 Тест аналитики (ручная проверка)",
-#    "parse_mode": "HTML"
-#}
-#r = requests.post(url, data=payload)
-#print(r.status_code, r.text)
+    print("🚀 Stop Polling")
+    # start_polling()
 
 
 @app.on_event("shutdown")
 def shutdown_event():
     # 🔹 Аккуратно выключаем scheduler только если он был запущен
     if app.state.scheduler_started:
-        scheduler.shutdown()
-
-@app.on_event("startup")
-async def startup_event():
-    print("🚀 Stop Polling")
-    # start_polling()
+        try:
+            scheduler.shutdown(wait=False)  # 🆕 не блокируем остановку приложения
+            print("[App] Cleanup scheduler остановлен.")
+        except Exception as e:
+            print("[App] Ошибка при остановке cleanup scheduler:", e)
