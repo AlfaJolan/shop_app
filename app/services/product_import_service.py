@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Any
 
 from openpyxl import load_workbook
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -734,15 +734,26 @@ class ProductImportService:
     def _bool_01_value(value: Any, default: bool) -> bool:
         """
         Парсинг булевого значения из:
-        1 / 0 / true / false / yes / no / да / нет
+        1 / 0 / 1.0 / 0.0 / true / false / yes / no / да / нет
         """
         if value is None or str(value).strip() == "":
             return default
 
         text = str(value).strip().lower()
-        if text in {"1", "true", "yes", "да"}:
+
+    # 🔹 сначала пробуем как число (Excel чаще всего так дает)
+        try:
+            num = int(float(text))
+            if num == 1:
+                return True
+            if num == 0:
+                return False
+        except (ValueError, TypeError):
+            pass
+    # 🔹 fallback на текстовые значения
+        if text in {"true", "yes", "да"}:
             return True
-        if text in {"0", "false", "no", "нет"}:
+        if text in {"false", "no", "нет"}:
             return False
 
         raise ValueError("is_active должен быть 0 или 1")

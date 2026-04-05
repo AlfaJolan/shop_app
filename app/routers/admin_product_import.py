@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Request, Depends, UploadFile, File
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -25,26 +25,6 @@ def get_db():
         db.close()
 
 
-# 🔹 Оптимизация: выносим импорт в фон, чтобы не блокировать HTTP-запрос
-def run_import_in_background(file_bytes: bytes):
-    db = SessionLocal()
-    try:
-        service = ProductImportService(db)
-
-        # 🔹 создаем UploadFile-подобный объект из байтов (чтобы не ломать сервис)
-        from io import BytesIO
-        fake_file = BytesIO(file_bytes)
-        fake_file.filename = "import.xlsx"
-
-        service.import_from_upload(fake_file)
-
-    except Exception as e:
-        print("IMPORT ERROR:", e)
-
-    finally:
-        db.close()
-
-
 @router.get("/")
 def product_import_page(request: Request):
     """
@@ -57,14 +37,14 @@ def product_import_page(request: Request):
             "request": request,
             "result": None,
             "error": None,
+            "success": None,
         },
     )
 
 
 @router.post("/")
-async def product_import_submit(
+def product_import_submit(
     request: Request,
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -78,6 +58,12 @@ async def product_import_submit(
     Важно:
     - result.errors → критичные ошибки (строки не импортированы)
     - result.warnings → некритичные (например, не скачалось фото)
+
+    Почему def, а не async def:
+    - импорт файла, Excel и скачивание картинок — это блокирующие операции;
+    - FastAPI выполнит такой endpoint в threadpool;
+    - пользователь дождется результата сразу;
+    - при этом event loop не будет блокироваться для остальных запросов.
     """
 
     # ---- Проверка наличия файла ----
@@ -88,6 +74,7 @@ async def product_import_submit(
                 "request": request,
                 "result": None,
                 "error": "Файл не выбран.",
+                "success": None,
             },
         )
 
@@ -99,48 +86,55 @@ async def product_import_submit(
                 "request": request,
                 "result": None,
                 "error": "Поддерживаются только Excel-файлы формата .xlsx",
+                "success": None,
             },
             status_code=400,
         )
 
     try:
-        # 🔹 Оптимизация: читаем файл один раз в память (избегаем медленного stream IO)
-        file_bytes = await file.read()
+        service = ProductImportService(db)
 
-        # 🔹 Запускаем импорт в фоне (не блокируем пользователя)
-        background_tasks.add_task(run_import_in_background, file_bytes)
+        # ---- Импорт выполняется сразу, без background task ----
+        result = service.import_from_upload(file)
 
-        # ---- Возвращаем быстрый ответ ----
+        # ---- Успешный ответ с результатом импорта ----
         return templates.TemplateResponse(
             "admin/product_import.html",
             {
                 "request": request,
-                "result": None,
+                "result": result,
                 "error": None,
-                "success": "Импорт запущен в фоне. Результат будет доступен позже.",
+                "success": "Импорт успешно завершен.",
             },
         )
 
     except ValueError as exc:
         # ---- Ошибки валидации (например, нет нужного листа или колонок) ----
+        db.rollback()
+
         return templates.TemplateResponse(
             "admin/product_import.html",
             {
                 "request": request,
                 "result": None,
                 "error": f"Ошибка импорта: {str(exc)}",
+                "success": None,
             },
             status_code=400,
         )
 
     except Exception as exc:
         # ---- Любая другая ошибка ----
+        db.rollback()
+        print("IMPORT ERROR:", exc)
+
         return templates.TemplateResponse(
             "admin/product_import.html",
             {
                 "request": request,
                 "result": None,
                 "error": "Неожиданная ошибка при импорте. Проверьте файл или логи.",
+                "success": None,
             },
             status_code=500,
         )
