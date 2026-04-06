@@ -77,6 +77,10 @@ def _cart_lines(db: Session, cart: Dict[str, dict]) -> List[dict]:
         if not v:
             continue
 
+        # 🔹 Пропускаем архивные варианты и товары
+        if not v.is_active or not v.product or not v.product.is_active:
+            continue
+
         # 🔹 product уже подгружен через joinedload
         p = v.product
         unit_price = Decimal(str(v.unit_price))
@@ -92,6 +96,37 @@ def _cart_lines(db: Session, cart: Dict[str, dict]) -> List[dict]:
             "stock": int(v.stock),
         })
     return lines
+
+# 🔹 Новый helper: очистка корзины от архивных / удалённых позиций
+def _cleanup_cart(db: Session, request: Request) -> Dict[str, dict]:
+    cart = _get_cart(request)
+    if not cart:
+        return cart
+
+    variant_ids = [int(k) for k in cart.keys()]
+    variants_by_id = _load_variants_map(db, variant_ids)
+
+    cleaned_cart: Dict[str, dict] = {}
+    removed_any = False
+
+    for key, item in cart.items():
+        vid = int(item["variant_id"])
+        v = variants_by_id.get(vid)
+
+        if not v:
+            removed_any = True
+            continue
+
+        if not v.is_active or not v.product or not v.product.is_active:
+            removed_any = True
+            continue
+
+        cleaned_cart[key] = item
+
+    if removed_any:
+        _set_cart(request, cleaned_cart)
+
+    return cleaned_cart
 
 # ----------------------- ADD -----------------------
 @router.post("/cart/add")
@@ -115,6 +150,14 @@ async def cart_add(
         _flash(request, "Вариант не найден.")
         return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
+    # 🔹 Защита от архивных товаров и вариантов
+    p = db.get(Product, int(product_id))
+    if not v.is_active or not p or not p.is_active or int(v.product_id) != int(product_id):
+        if _wants_json(request):
+            return JSONResponse({"ok": False, "error": "Товар больше недоступен."}, status_code=400)
+        _flash(request, "Товар больше недоступен.")
+        return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
+
     max_qty = int(v.stock)
     if max_qty <= 0:
         if _wants_json(request):
@@ -132,6 +175,7 @@ async def cart_add(
     _set_cart(request, cart)
 
     if _wants_json(request):
+        cart = _cleanup_cart(db, request)
         lines = _cart_lines(db, cart)
         total = sum([l["line_total"] for l in lines], Decimal("0"))
         return {
@@ -165,6 +209,16 @@ async def cart_update(
             _flash(request, "Позиция удалена (вариант не найден).")
             return RedirectResponse(url="/cart", status_code=303)
 
+        # 🔹 Если вариант или товар архивирован — удаляем позицию из корзины
+        p = db.get(Product, int(v.product_id))
+        if not v.is_active or not p or not p.is_active:
+            cart.pop(key, None)
+            _set_cart(request, cart)
+            if _wants_json(request):
+                return JSONResponse({"ok": False, "error": "Товар больше недоступен"}, status_code=400)
+            _flash(request, "Позиция удалена (товар больше недоступен).")
+            return RedirectResponse(url="/cart", status_code=303)
+
         max_qty = int(v.stock)
         if new_qty > max_qty:
             new_qty = max_qty
@@ -183,6 +237,7 @@ async def cart_update(
     _set_cart(request, cart)
 
     if _wants_json(request):
+        cart = _cleanup_cart(db, request)
         lines = _cart_lines(db, cart)
         total = sum([l["line_total"] for l in lines], Decimal("0"))
         return {
@@ -202,6 +257,7 @@ async def cart_remove(request: Request, variant_id: int = Form(...), db: Session
     _set_cart(request, cart)
 
     if _wants_json(request):
+        cart = _cleanup_cart(db, request)
         lines = _cart_lines(db, cart)
         total = sum([l["line_total"] for l in lines], Decimal("0"))
         return {
@@ -216,7 +272,7 @@ async def cart_remove(request: Request, variant_id: int = Form(...), db: Session
 # ----------------------- VIEW -----------------------
 @router.get("/cart", response_class=HTMLResponse)
 async def cart_view(request: Request, db: Session = Depends(get_db)):
-    cart = _get_cart(request)
+    cart = _cleanup_cart(db, request)
     lines = _cart_lines(db, cart)
     total = sum([l["line_total"] for l in lines], Decimal("0"))
     flash = _pop_flash(request)
@@ -251,7 +307,7 @@ async def checkout(
     - если чек не прикреплён → обычная накладная
     - если чек прикреплён → накладная + InvoiceReceipt
     """
-    cart = _get_cart(request)
+    cart = _cleanup_cart(db, request)
     lines = _cart_lines(db, cart)
     if not lines:
         _flash(request, "Корзина пуста.")
@@ -263,10 +319,23 @@ async def checkout(
 
     # финальная проверка остатков
     problems = []
+    unavailable = []
     for l in lines:
         v = variants_by_id.get(int(l["variant_id"]))
-        if not v or int(l["qty"]) > int(v.stock):
+        if not v or not v.is_active or not v.product or not v.product.is_active:
+            unavailable.append(l["product_name"])
+            continue
+        if int(l["qty"]) > int(v.stock):
             problems.append(l["product_name"])
+
+    if unavailable:
+        for l in lines:
+            v = variants_by_id.get(int(l["variant_id"]))
+            if not v or not v.is_active or not v.product or not v.product.is_active:
+                cart.pop(str(l["variant_id"]), None)
+        _set_cart(request, cart)
+        _flash(request, "Некоторые товары больше недоступны и были удалены из корзины.")
+        return RedirectResponse(url="/cart", status_code=303)
 
     if problems:
         _flash(request, "Недостаточно на складе по позициям: {0}. Количество скорректировано.".format(", ".join(problems)))
@@ -427,6 +496,16 @@ async def cart_set(
         _flash(request, "Вариант не найден.")
         return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
 
+    # 🔹 Защита от архивных товаров и вариантов
+    p = db.get(Product, int(product_id))
+    if not v.is_active or not p or not p.is_active or int(v.product_id) != int(product_id):
+        cart.pop(key, None)
+        _set_cart(request, cart)
+        if _wants_json(request):
+            return JSONResponse({"ok": False, "error": "Товар больше недоступен."}, status_code=400)
+        _flash(request, "Товар больше недоступен.")
+        return RedirectResponse(url=request.headers.get("referer") or "/", status_code=303)
+
     max_qty = int(v.stock)
     new_qty = max(0, min(int(qty), max_qty))
 
@@ -438,6 +517,7 @@ async def cart_set(
     _set_cart(request, cart)
 
     if _wants_json(request):
+        cart = _cleanup_cart(db, request)
         lines = _cart_lines(db, cart)
         total = sum([l["line_total"] for l in lines], Decimal("0"))
         return {
@@ -455,7 +535,7 @@ async def cart_state(request: Request, db: Session = Depends(get_db)):
     🔹 Новый эндпоинт: вернуть текущее состояние корзины в JSON
     Используется фронтом при загрузке страницы (для обновления UI).
     """
-    cart = _get_cart(request)
+    cart = _cleanup_cart(db, request)
     lines = _cart_lines(db, cart)
     total = sum([l["line_total"] for l in lines], Decimal("0"))
     return {

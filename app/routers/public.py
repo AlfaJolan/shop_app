@@ -31,6 +31,10 @@ def index(
         query = query.filter(Product.name.ilike(like))
     products = query.all()
 
+    # 🆕 Оставляем у товаров только активные варианты
+    for product in products:
+        product.variants = [v for v in (product.variants or []) if v.is_active]
+
     # Flash-сообщение из сессии (после /cart/add и др.)
     flash = request.session.get("flash") or ""
     if "flash" in request.session:

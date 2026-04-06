@@ -16,6 +16,18 @@
     </div>
   </div>
 
+  {% if request.query_params.get("archived") == "1" %}
+    <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+      <i class="fa-solid fa-box-archive me-2"></i>
+      <div>Товар успешно архивирован.</div>
+    </div>
+  {% elif request.query_params.get("archived") == "already" %}
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+      <i class="fa-solid fa-triangle-exclamation me-2"></i>
+      <div>Товар уже был архивирован.</div>
+    </div>
+  {% endif %}
+
   <div class="products-admin-toolbar-card mb-4">
     <div class="products-admin-toolbar">
       <div class="products-admin-toolbar-text">
@@ -46,12 +58,12 @@
               <th style="min-width: 130px;">SKU</th>
               <th style="min-width: 170px;">Категория</th>
               <th style="min-width: 320px;">Варианты</th>
-              <th class="text-end" style="width: 210px;">Действия</th>
+              <th class="text-end" style="width: 260px;">Действия</th>
             </tr>
           </thead>
           <tbody>
             {% for p in products %}
-            <tr>
+            <tr {% if not p.is_active %}class="table-light"{% endif %}>
               <td>
                 <div class="products-admin-image-wrap">
                   {% if p.image %}
@@ -69,7 +81,15 @@
               </td>
 
               <td>
-                <div class="products-admin-name">{{ p.name }}</div>
+                <div class="products-admin-name d-flex align-items-center gap-2 flex-wrap">
+                  <span>{{ p.name }}</span>
+
+                  {% if p.is_active %}
+                    <span class="badge text-bg-success">Активный</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Архивный</span>
+                  {% endif %}
+                </div>
               </td>
 
               <td>
@@ -90,7 +110,15 @@
                     {% for v in p.variants %}
                       <div class="products-admin-variant-row">
                         <div class="products-admin-variant-main">
-                          <div class="products-admin-variant-name">{{ v.name }}</div>
+                          <div class="products-admin-variant-name d-flex align-items-center gap-2 flex-wrap">
+                            <span>{{ v.name }}</span>
+
+                            {% if v.is_active %}
+                              <span class="badge text-bg-success">Активен</span>
+                            {% else %}
+                              <span class="badge text-bg-secondary">Архив</span>
+                            {% endif %}
+                          </div>
                           <div class="products-admin-variant-stock">
                             Остаток: {{ v.stock }} {{ p.unit or "" }}
                           </div>
@@ -107,7 +135,7 @@
               </td>
 
               <td class="text-end">
-                <div class="products-admin-actions justify-content-end">
+                <div class="products-admin-actions justify-content-end d-flex gap-2 flex-wrap">
                   <a
                     href="/admin/catalog/products/{{ p.id }}/edit"
                     class="btn btn-sm btn-outline-primary"
@@ -115,6 +143,25 @@
                     <i class="fa-solid fa-pen-to-square me-1"></i>
                     Редактировать
                   </a>
+
+                  {% if p.is_active %}
+                    <form
+                      method="post"
+                      action="/admin/catalog/products/{{ p.id }}/archive"
+                      class="d-inline"
+                      onsubmit="return confirm('Архивировать товар «{{ p.name }}»? Он исчезнет из каталога и поиска для клиентов.')"
+                    >
+                      <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fa-solid fa-box-archive me-1"></i>
+                        Архивировать
+                      </button>
+                    </form>
+                  {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                      <i class="fa-solid fa-box-archive me-1"></i>
+                      В архиве
+                    </button>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -128,7 +175,7 @@
     <div class="d-lg-none">
       <div class="products-admin-mobile-list">
         {% for p in products %}
-        <div class="products-admin-mobile-card">
+        <div class="products-admin-mobile-card {% if not p.is_active %}border border-2 border-secondary-subtle{% endif %}">
           <div class="products-admin-mobile-top">
             <div class="products-admin-mobile-media">
               {% if p.image %}
@@ -145,7 +192,15 @@
             </div>
 
             <div class="products-admin-mobile-main">
-              <div class="products-admin-name">{{ p.name }}</div>
+              <div class="products-admin-name d-flex align-items-center gap-2 flex-wrap">
+                <span>{{ p.name }}</span>
+
+                {% if p.is_active %}
+                  <span class="badge text-bg-success">Активный</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Архивный</span>
+                {% endif %}
+              </div>
 
               <div class="products-admin-mobile-meta mt-2">
                 <div class="products-admin-mobile-meta-item">
@@ -171,7 +226,15 @@
                 {% for v in p.variants %}
                   <div class="products-admin-variant-row">
                     <div class="products-admin-variant-main">
-                      <div class="products-admin-variant-name">{{ v.name }}</div>
+                      <div class="products-admin-variant-name d-flex align-items-center gap-2 flex-wrap">
+                        <span>{{ v.name }}</span>
+
+                        {% if v.is_active %}
+                          <span class="badge text-bg-success">Активен</span>
+                        {% else %}
+                          <span class="badge text-bg-secondary">Архив</span>
+                        {% endif %}
+                      </div>
                       <div class="products-admin-variant-stock">
                         Остаток: {{ v.stock }} {{ p.unit or "" }}
                       </div>
@@ -189,7 +252,7 @@
             {% endif %}
           </div>
 
-          <div class="products-admin-actions mt-3">
+          <div class="products-admin-actions mt-3 d-grid gap-2">
             <a
               href="/admin/catalog/products/{{ p.id }}/edit"
               class="btn btn-outline-primary w-100"
@@ -197,6 +260,25 @@
               <i class="fa-solid fa-pen-to-square me-2"></i>
               Редактировать
             </a>
+
+            {% if p.is_active %}
+              <form
+                method="post"
+                action="/admin/catalog/products/{{ p.id }}/archive"
+                class="w-100"
+                onsubmit="return confirm('Архивировать товар «{{ p.name }}»? Он исчезнет из каталога и поиска для клиентов.')"
+              >
+                <button type="submit" class="btn btn-outline-danger w-100">
+                  <i class="fa-solid fa-box-archive me-2"></i>
+                  Архивировать
+                </button>
+              </form>
+            {% else %}
+              <button type="button" class="btn btn-outline-secondary w-100" disabled>
+                <i class="fa-solid fa-box-archive me-2"></i>
+                Товар в архиве
+              </button>
+            {% endif %}
           </div>
         </div>
         {% endfor %}

@@ -16,7 +16,7 @@ def product_to_dict(p: Product) -> Dict[str, any]:
                 "name": v.name,
                 "unit_price": float(v.unit_price),
                 "stock": v.stock,
-            } for v in (p.variants or [])
+            } for v in (p.variants or []) if v.is_active
         ],
     }
 
@@ -46,7 +46,8 @@ def rank_product_obj(p: Product, q: str) -> tuple:
     qn = _norm(q)
     pn = _norm(p.name)
     catn = _norm(getattr(getattr(p, "category", None), "name", ""))
-    var_names = [_norm(v.name) for v in (p.variants or [])]
+    active_variants = [v for v in (p.variants or []) if v.is_active]
+    var_names = [_norm(v.name) for v in active_variants]
 
     if pn.startswith(qn):
         return (0, 0, len(p.name or ""))
@@ -54,10 +55,10 @@ def rank_product_obj(p: Product, q: str) -> tuple:
         return (1, _find_pos(p.name, q), len(p.name or ""))
 
     if any(vn.startswith(qn) for vn in var_names):
-        pos = min((_find_pos(v.name, q) for v in (p.variants or [])), default=10_000)
+        pos = min((_find_pos(v.name, q) for v in active_variants), default=10_000)
         return (2, pos, len(p.name or ""))
     if any(qn in vn for vn in var_names):
-        pos = min((_find_pos(v.name, q) for v in (p.variants or [])), default=10_000)
+        pos = min((_find_pos(v.name, q) for v in active_variants), default=10_000)
         return (3, pos, len(p.name or ""))
 
     if catn and catn.startswith(qn):

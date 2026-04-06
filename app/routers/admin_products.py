@@ -498,3 +498,88 @@ def product_update(
 
     db.commit()
     return RedirectResponse(f"/admin/catalog/products/{product.id}/edit", status_code=303)
+
+# 🗃️ архивирование товара (мягкое удаление)
+@router.post("/{product_id}/archive")
+def product_archive(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    # 🆕 Получаем текущего пользователя для аудита
+    actor = get_actor(request, db)
+
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+
+    # Если уже архивный — просто возвращаем назад
+    if not product.is_active:
+        return RedirectResponse("/admin/catalog/products?archived=already", status_code=303)
+
+    old_data = {
+        "product": {
+            "id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "is_active": product.is_active,
+        },
+        "variants": [
+            {
+                "id": v.id,
+                "name": v.name,
+                "stock": v.stock,
+                "is_active": v.is_active,
+            }
+            for v in product.variants
+        ],
+    }
+
+    # 🔹 Сам товар архивируем
+    product.is_active = False
+
+    # 🔹 Все варианты тоже архивируем и обнуляем остатки
+    archived_variants = []
+    for v in product.variants:
+        archived_variants.append({
+            "id": v.id,
+            "name": v.name,
+            "stock_before": v.stock,
+            "is_active_before": v.is_active,
+        })
+
+        v.is_active = False
+        v.stock = 0
+
+    new_data = {
+        "product": {
+            "id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "is_active": product.is_active,
+        },
+        "variants": [
+            {
+                "id": v.id,
+                "name": v.name,
+                "stock": v.stock,
+                "is_active": v.is_active,
+            }
+            for v in product.variants
+        ],
+    }
+
+    write_audit(
+        db=db,
+        entity_type="product",
+        entity_id=product.id,
+        action="product_archived",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note="Товар архивирован (мягкое удаление)",
+    )
+
+    db.commit()
+
+    return RedirectResponse("/admin/catalog/products?archived=1", status_code=303)

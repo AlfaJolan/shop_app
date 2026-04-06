@@ -22,8 +22,12 @@ def get_db():
 @router.get("/{product_id}")
 def product_detail(product_id: int, request: Request, db: Session = Depends(get_db)):
     product = db.query(Product).get(product_id)
-    if not product:
+    if not product or not product.is_active:
         raise HTTPException(status_code=404, detail="Товар не найден")
+
+    # 🆕 оставляем только активные варианты
+    product.variants = [v for v in (product.variants or []) if v.is_active]
+
     return templates.TemplateResponse("public/product_detail.html", {
         "request": request,
         "product": product,

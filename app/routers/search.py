@@ -44,6 +44,7 @@ def suggest(
     # Товары
     prods = (
         db.query(Product)
+        .filter(Product.is_active == True)
         .filter(Product.name.ilike(f"%{q}%"))
         .limit(limit)
         .all()
@@ -60,6 +61,8 @@ def suggest(
     vars_ = (
         db.query(Variant)
         .join(Product, Product.id == Variant.product_id)
+        .filter(Product.is_active == True)
+        .filter(Variant.is_active == True)
         .filter(Variant.name.ilike(f"%{q}%"))
         .limit(limit)
         .all()
@@ -99,20 +102,28 @@ def search_products(
     if selected_type and selected_id:
         st = selected_type.lower().strip()
         if st == "product":
-            p = db.query(Product).filter(Product.id == selected_id).first()
+            p = (
+                db.query(Product)
+                .filter(Product.id == selected_id, Product.is_active == True)
+                .first()
+            )
             results = [p] if p else []
         elif st == "variant":
             v = (
                 db.query(Variant)
                 .join(Product, Product.id == Variant.product_id)
-                .filter(Variant.id == selected_id)
+                .filter(
+                    Variant.id == selected_id,
+                    Variant.is_active == True,
+                    Product.is_active == True,
+                )
                 .first()
             )
             results = [v.product] if v and v.product else []
         elif st == "category":
             results = (
                 db.query(Product)
-                .filter(Product.category_id == selected_id)
+                .filter(Product.category_id == selected_id, Product.is_active == True)
                 .limit(limit)
                 .all()
             )
@@ -125,7 +136,7 @@ def search_products(
         # Если нет запроса и категории → вернуть пусто
         # Если нет запроса и категории → вернуть пусто
         if not q and not category_id:
-            results = db.query(Product).limit(limit).all()
+            results = db.query(Product).filter(Product.is_active == True).limit(limit).all()
             return [product_to_dict(p) for p in results if p]
 
         # Базовый запрос
@@ -133,6 +144,7 @@ def search_products(
             db.query(Product)
             .join(Category, Category.id == Product.category_id, isouter=True)
             .join(Variant, Variant.product_id == Product.id, isouter=True)
+            .filter(Product.is_active == True)
         )
 
         # Фильтрация по поисковому запросу
@@ -142,6 +154,11 @@ def search_products(
                     Product.name.ilike(f"%{q}%"),
                     Category.name.ilike(f"%{q}%"),
                     Variant.name.ilike(f"%{q}%"),
+                )
+            ).filter(
+                or_(
+                    Variant.id.is_(None),
+                    Variant.is_active == True,
                 )
             )
 
@@ -164,6 +181,7 @@ def search_products(
         db.query(Product)
         .join(Category, Category.id == Product.category_id, isouter=True)
         .join(Variant, Variant.product_id == Product.id, isouter=True)
+        .filter(Product.is_active == True)
     )
 
     if q:
@@ -172,6 +190,11 @@ def search_products(
                 Product.name.ilike(f"%{q}%"),
                 Category.name.ilike(f"%{q}%"),
                 Variant.name.ilike(f"%{q}%"),
+            )
+        ).filter(
+            or_(
+                Variant.id.is_(None),
+                Variant.is_active == True,
             )
         )
     if category_id:
