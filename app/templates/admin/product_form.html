@@ -418,6 +418,32 @@
           <span id="spinner" class="spinner-border spinner-border-sm ms-2" style="display:none;" role="status" aria-hidden="true"></span>
         </button>
 
+        {% if product %}
+          {% if product.is_active %}
+            <button
+              type="submit"
+              class="btn btn-outline-danger"
+              formaction="/admin/catalog/products/{{ product.id }}/archive"
+              formmethod="post"
+              onclick="return confirm('Архивировать товар «{{ product.name }}»? Он исчезнет из каталога и поиска для клиентов.')"
+            >
+              <i class="fa-solid fa-box-archive me-2"></i>
+              В архив
+            </button>
+          {% else %}
+            <button
+              type="submit"
+              class="btn btn-outline-success"
+              formaction="/admin/catalog/products/{{ product.id }}/restore"
+              formmethod="post"
+              onclick="return confirm('Восстановить товар «{{ product.name }}» из архива? Он снова появится в каталоге и поиске.')"
+            >
+              <i class="fa-solid fa-rotate-left me-2"></i>
+              Вернуть из архива
+            </button>
+          {% endif %}
+        {% endif %}
+
         <a href="/admin/catalog/products" class="btn btn-outline-secondary">
           <i class="fa-solid fa-arrow-left me-2"></i>
           Назад
@@ -529,5 +555,4 @@
     });
   });
 </script>
-
 {% endblock %}
