@@ -30,10 +30,10 @@ async function renderOrderStatusBar() {
         #order-status-bar .order-status-bar__inner {
           max-width: 1320px !important;
           margin: 0 auto !important;
-          padding: 12px 14px !important;
+          padding: 6px 14px !important;
           display: grid !important;
           grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-          gap: 10px !important;
+          gap: 8px !important;
           box-sizing: border-box !important;
         }
 
@@ -41,11 +41,11 @@ async function renderOrderStatusBar() {
           display: flex !important;
           justify-content: space-between !important;
           align-items: center !important;
-          gap: 10px !important;
-          padding: 10px 14px !important;
-          border-radius: 14px !important;
+          gap: 6px !important;
+          padding: 6px 10px !important;
+          border-radius: 11px !important;
           font-weight: 600 !important;
-          font-size: 14px !important;
+          font-size: 12.5px !important;
           text-decoration: none !important;
           transition: all .15s ease !important;
           background: #fff !important;
@@ -53,6 +53,7 @@ async function renderOrderStatusBar() {
           box-shadow: 0 1px 3px rgba(0,0,0,.06) !important;
           min-width: 0 !important;
           box-sizing: border-box !important;
+          min-height: 38px !important;
         }
 
         #order-status-bar .order-status-chip:hover {
@@ -62,22 +63,22 @@ async function renderOrderStatusBar() {
 
         #order-status-bar .order-status-chip__label {
           font-weight: 700 !important;
-          line-height: 1.1 !important;
-          font-size: 14px !important;
+          line-height: 1 !important;
+          font-size: 12.5px !important;
           white-space: nowrap !important;
         }
 
         #order-status-bar .order-status-chip__count {
-          min-width: 24px !important;
-          height: 24px !important;
-          padding: 0 8px !important;
+          min-width: 20px !important;
+          height: 20px !important;
+          padding: 0 6px !important;
           border-radius: 999px !important;
           background: #6b7280 !important;
           color: #fff !important;
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
-          font-size: 12px !important;
+          font-size: 10px !important;
           font-weight: 800 !important;
           line-height: 1 !important;
           flex-shrink: 0 !important;
@@ -127,25 +128,26 @@ async function renderOrderStatusBar() {
         @media (max-width: 767.98px) {
           #order-status-bar .order-status-bar__inner {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 8px !important;
-            padding: 10px 12px !important;
+            gap: 6px !important;
+            padding: 6px 8px !important;
           }
 
           #order-status-bar .order-status-chip {
-            padding: 9px 12px !important;
-            border-radius: 12px !important;
-            font-size: 13px !important;
+            padding: 5px 8px !important;
+            border-radius: 10px !important;
+            font-size: 12px !important;
+            min-height: 34px !important;
           }
 
           #order-status-bar .order-status-chip__label {
-            font-size: 13px !important;
+            font-size: 12px !important;
           }
 
           #order-status-bar .order-status-chip__count {
-            min-width: 22px !important;
-            height: 22px !important;
-            font-size: 11px !important;
-            padding: 0 7px !important;
+            min-width: 18px !important;
+            height: 18px !important;
+            font-size: 9.5px !important;
+            padding: 0 5px !important;
           }
         }
 
@@ -153,16 +155,23 @@ async function renderOrderStatusBar() {
         @media (max-width: 420px) {
           #order-status-bar .order-status-bar__inner {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 8px !important;
-            padding: 8px 10px !important;
+            gap: 5px !important;
+            padding: 5px 6px !important;
           }
 
           #order-status-bar .order-status-chip {
-            padding: 8px 10px !important;
+            padding: 4px 7px !important;
+            min-height: 32px !important;
           }
 
           #order-status-bar .order-status-chip__label {
-            font-size: 12px !important;
+            font-size: 11px !important;
+          }
+
+          #order-status-bar .order-status-chip__count {
+            min-width: 16px !important;
+            height: 16px !important;
+            font-size: 9px !important;
           }
         }
       `;

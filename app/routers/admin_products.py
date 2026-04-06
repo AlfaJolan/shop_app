@@ -583,3 +583,79 @@ def product_archive(
     db.commit()
 
     return RedirectResponse("/admin/catalog/products?archived=1", status_code=303)
+
+# ♻️ восстановление товара из архива
+@router.post("/{product_id}/restore")
+def product_restore(
+    product_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    # 🆕 Получаем текущего пользователя для аудита
+    actor = get_actor(request, db)
+
+    product = db.query(Product).filter(Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+
+    # Если уже активный — просто возвращаем назад
+    if product.is_active:
+        return RedirectResponse("/admin/catalog/products?restored=already", status_code=303)
+
+    old_data = {
+        "product": {
+            "id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "is_active": product.is_active,
+        },
+        "variants": [
+            {
+                "id": v.id,
+                "name": v.name,
+                "stock": v.stock,
+                "is_active": v.is_active,
+            }
+            for v in product.variants
+        ],
+    }
+
+    # 🔹 Сам товар восстанавливаем
+    product.is_active = True
+
+    # 🔹 Все варианты тоже восстанавливаем
+    for v in product.variants:
+        v.is_active = True
+
+    new_data = {
+        "product": {
+            "id": product.id,
+            "name": product.name,
+            "sku": product.sku,
+            "is_active": product.is_active,
+        },
+        "variants": [
+            {
+                "id": v.id,
+                "name": v.name,
+                "stock": v.stock,
+                "is_active": v.is_active,
+            }
+            for v in product.variants
+        ],
+    }
+
+    write_audit(
+        db=db,
+        entity_type="product",
+        entity_id=product.id,
+        action="product_restored",
+        actor=actor,
+        old_data=old_data,
+        new_data=new_data,
+        note="Товар восстановлен из архива",
+    )
+
+    db.commit()
+
+    return RedirectResponse("/admin/catalog/products?restored=1", status_code=303)

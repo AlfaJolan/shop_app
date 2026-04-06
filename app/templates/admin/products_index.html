@@ -28,6 +28,18 @@
     </div>
   {% endif %}
 
+  {% if request.query_params.get("restored") == "1" %}
+    <div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+      <i class="fa-solid fa-rotate-left me-2"></i>
+      <div>Товар успешно восстановлен.</div>
+    </div>
+  {% elif request.query_params.get("restored") == "already" %}
+    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+      <i class="fa-solid fa-triangle-exclamation me-2"></i>
+      <div>Товар уже активен.</div>
+    </div>
+  {% endif %}
+
   <div class="products-admin-toolbar-card mb-4">
     <div class="products-admin-toolbar">
       <div class="products-admin-toolbar-text">
@@ -157,10 +169,17 @@
                       </button>
                     </form>
                   {% else %}
-                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-                      <i class="fa-solid fa-box-archive me-1"></i>
-                      В архиве
-                    </button>
+                    <form
+                      method="post"
+                      action="/admin/catalog/products/{{ p.id }}/restore"
+                      class="d-inline"
+                      onsubmit="return confirm('Восстановить товар «{{ p.name }}» из архива? Он снова появится в каталоге и поиске.')"
+                    >
+                      <button type="submit" class="btn btn-sm btn-outline-success">
+                        <i class="fa-solid fa-rotate-left me-1"></i>
+                        Восстановить
+                      </button>
+                    </form>
                   {% endif %}
                 </div>
               </td>
@@ -274,10 +293,17 @@
                 </button>
               </form>
             {% else %}
-              <button type="button" class="btn btn-outline-secondary w-100" disabled>
-                <i class="fa-solid fa-box-archive me-2"></i>
-                Товар в архиве
-              </button>
+              <form
+                method="post"
+                action="/admin/catalog/products/{{ p.id }}/restore"
+                class="w-100"
+                onsubmit="return confirm('Восстановить товар «{{ p.name }}» из архива? Он снова появится в каталоге и поиске.')"
+              >
+                <button type="submit" class="btn btn-outline-success w-100">
+                  <i class="fa-solid fa-rotate-left me-2"></i>
+                  Восстановить
+                </button>
+              </form>
             {% endif %}
           </div>
         </div>
