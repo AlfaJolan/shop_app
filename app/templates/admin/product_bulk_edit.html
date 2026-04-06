@@ -1,0 +1,597 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-section product-bulk-edit-page">
+  <div class="bulk-edit-head mb-4">
+    <div>
+      <h1 class="bulk-edit-title mb-1">Массовое редактирование товаров</h1>
+      <p class="bulk-edit-subtitle mb-0">
+        Выгрузите каталог в Excel, измените нужные поля и загрузите файл обратно.
+      </p>
+    </div>
+
+    <div class="bulk-edit-mode">
+      <i class="fa-solid fa-file-excel me-2"></i>
+      Bulk Edit
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-danger bulk-alert mb-4" role="alert">
+      <div class="d-flex align-items-start">
+        <i class="fa-solid fa-circle-exclamation me-3 mt-1"></i>
+        <div>
+          <div class="fw-semibold mb-1">Ошибка</div>
+          <div>{{ error }}</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if success %}
+    <div class="alert alert-success bulk-alert mb-4" role="alert">
+      <div class="d-flex align-items-start">
+        <i class="fa-solid fa-circle-check me-3 mt-1"></i>
+        <div>
+          <div class="fw-semibold mb-1">Успешно</div>
+          <div>{{ success }}</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-8">
+      <div class="bulk-card h-100">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Как это работает</h2>
+            <p class="bulk-card-text mb-0">
+              Скачайте Excel-файл, измените нужные значения и загрузите его обратно.
+            </p>
+          </div>
+        </div>
+
+        <div class="bulk-steps">
+          <div class="bulk-step">
+            <div class="bulk-step-icon">
+              <i class="fa-solid fa-download"></i>
+            </div>
+            <div>
+              <div class="bulk-step-title">1. Скачайте Excel</div>
+              <div class="bulk-step-text">
+                Файл содержит все товары и их варианты. Одна строка — один вариант товара.
+              </div>
+            </div>
+          </div>
+
+          <div class="bulk-step">
+            <div class="bulk-step-icon">
+              <i class="fa-solid fa-pen"></i>
+            </div>
+            <div>
+              <div class="bulk-step-title">2. Измените нужные поля</div>
+              <div class="bulk-step-text">
+                Можно менять название товара, SKU, категорию, продавца, единицу измерения,
+                активность, название варианта, фасовку, цены и остаток.
+              </div>
+            </div>
+          </div>
+
+          <div class="bulk-step">
+            <div class="bulk-step-icon">
+              <i class="fa-solid fa-upload"></i>
+            </div>
+            <div>
+              <div class="bulk-step-title">3. Загрузите файл обратно</div>
+              <div class="bulk-step-text">
+                Система проверит файл, применит изменения и сохранит аудит по изменениям.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bulk-actions mt-4">
+          <a href="/admin/catalog/products/bulk-edit/export" class="btn btn-dark bulk-btn">
+            <i class="fa-solid fa-file-arrow-down me-2"></i>
+            Скачать Excel
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="bulk-card h-100">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Важно</h2>
+            <p class="bulk-card-text mb-0">
+              Перед загрузкой проверьте, что структура файла не была изменена.
+            </p>
+          </div>
+        </div>
+
+        <div class="bulk-note-list">
+          <div class="bulk-note-item">
+            <i class="fa-solid fa-lock"></i>
+            <span><strong>Не меняйте</strong> <code>product_id</code> и <code>variant_id</code></span>
+          </div>
+          <div class="bulk-note-item">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Категория и продавец должны существовать в системе</span>
+          </div>
+          <div class="bulk-note-item">
+            <i class="fa-solid fa-cubes"></i>
+            <span>Остаток задается как итоговое значение, а не дельта</span>
+          </div>
+          <div class="bulk-note-item">
+            <i class="fa-solid fa-check-double"></i>
+            <span>Поддерживается только формат <code>.xlsx</code></span>
+          </div>
+          <div class="bulk-note-item">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Все изменения проходят проверку перед сохранением</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bulk-card mt-4">
+    <div class="bulk-card-head">
+      <div>
+        <h2 class="bulk-card-title mb-1">Загрузка измененного файла</h2>
+        <p class="bulk-card-text mb-0">
+          Используйте только файл, который был выгружен из этой системы.
+        </p>
+      </div>
+    </div>
+
+    <form
+      method="post"
+      action="/admin/catalog/products/bulk-edit/import"
+      enctype="multipart/form-data"
+      class="bulk-upload-form"
+    >
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-8">
+          <label for="bulk-file" class="form-label bulk-label">Excel-файл</label>
+          <input
+            id="bulk-file"
+            type="file"
+            name="file"
+            class="form-control bulk-input"
+            accept=".xlsx"
+            required
+          >
+        </div>
+
+        <div class="col-12 col-lg-4">
+          <button type="submit" class="btn btn-primary bulk-submit-btn w-100">
+            <i class="fa-solid fa-upload me-2"></i>
+            Загрузить и применить
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  {% if result %}
+    <div class="bulk-card mt-4">
+      <div class="bulk-card-head">
+        <div>
+          <h2 class="bulk-card-title mb-1">Результат обработки</h2>
+          <p class="bulk-card-text mb-0">
+            Итог по последней загруженной Excel-выгрузке.
+          </p>
+        </div>
+      </div>
+
+      <div class="row g-3 bulk-stats">
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="bulk-stat-card">
+            <div class="bulk-stat-value">{{ result.rows_total or 0 }}</div>
+            <div class="bulk-stat-label">Строк обработано</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="bulk-stat-card">
+            <div class="bulk-stat-value">{{ result.rows_success or 0 }}</div>
+            <div class="bulk-stat-label">Успешно</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="bulk-stat-card">
+            <div class="bulk-stat-value">{{ result.rows_failed or 0 }}</div>
+            <div class="bulk-stat-label">С ошибками</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="bulk-stat-card">
+            <div class="bulk-stat-value">{{ result.rows_skipped_no_changes or 0 }}</div>
+            <div class="bulk-stat-label">Без изменений</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="bulk-stat-card">
+            <div class="bulk-stat-value">{{ result.products_updated or 0 }}</div>
+            <div class="bulk-stat-label">Товаров обновлено</div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-4 col-xl-2">
+          <div class="bulk-stat-card">
+            <div class="bulk-stat-value">{{ result.variants_updated or 0 }}</div>
+            <div class="bulk-stat-label">Вариантов обновлено</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mt-1">
+        <div class="col-12 col-md-6">
+          <div class="bulk-stat-card bulk-stat-card-soft">
+            <div class="bulk-stat-value">{{ result.stock_updated or 0 }}</div>
+            <div class="bulk-stat-label">Остатков обновлено</div>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="bulk-stat-card bulk-stat-card-soft">
+            <div class="bulk-stat-value">{{ (result.warnings or [])|length }}</div>
+            <div class="bulk-stat-label">Предупреждений</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if result.errors and result.errors|length > 0 %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Ошибки</h2>
+            <p class="bulk-card-text mb-0">
+              Исправьте строки ниже в Excel и загрузите файл снова.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table bulk-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Строка</th>
+                <th>Сообщение</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in result.errors %}
+                <tr>
+                  <td>
+                    <span class="bulk-badge bulk-badge-danger">#{{ item.row }}</span>
+                  </td>
+                  <td>{{ item.message }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if result.warnings and result.warnings|length > 0 %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Предупреждения</h2>
+            <p class="bulk-card-text mb-0">
+              Файл обработан, но на эти строки стоит обратить внимание.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table bulk-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Строка</th>
+                <th>Сообщение</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in result.warnings %}
+                <tr>
+                  <td>
+                    <span class="bulk-badge bulk-badge-warning">#{{ item.row }}</span>
+                  </td>
+                  <td>{{ item.message }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>
+
+<style>
+  .product-bulk-edit-page {
+    padding-bottom: 24px;
+  }
+
+  .bulk-edit-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .bulk-edit-title {
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: -0.02em;
+  }
+
+  .bulk-edit-subtitle {
+    color: #6b7280;
+    font-size: 0.98rem;
+  }
+
+  .bulk-edit-mode {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: #f3f4f6;
+    color: #111827;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .bulk-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    box-shadow: 0 8px 30px rgba(17, 24, 39, 0.04);
+    padding: 22px;
+  }
+
+  .bulk-card-head {
+    margin-bottom: 18px;
+  }
+
+  .bulk-card-title {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .bulk-card-text {
+    color: #6b7280;
+    font-size: 0.95rem;
+  }
+
+  .bulk-steps {
+    display: grid;
+    gap: 14px;
+  }
+
+  .bulk-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    background: #f9fafb;
+    border: 1px solid #eef2f7;
+  }
+
+  .bulk-step-icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111827;
+    color: #ffffff;
+    font-size: 0.95rem;
+  }
+
+  .bulk-step-title {
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+
+  .bulk-step-text {
+    color: #6b7280;
+    font-size: 0.94rem;
+    line-height: 1.45;
+  }
+
+  .bulk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .bulk-btn,
+  .bulk-submit-btn {
+    min-height: 44px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+
+  .bulk-note-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .bulk-note-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #374151;
+    font-size: 0.94rem;
+    line-height: 1.45;
+  }
+
+  .bulk-note-item i {
+    color: #111827;
+    margin-top: 3px;
+    min-width: 16px;
+  }
+
+  .bulk-upload-form {
+    margin-top: 4px;
+  }
+
+  .bulk-label {
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .bulk-input {
+    min-height: 46px;
+    border-radius: 12px;
+  }
+
+  .bulk-stats {
+    margin-top: 4px;
+  }
+
+  .bulk-stat-card {
+    height: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 18px 16px;
+  }
+
+  .bulk-stat-card-soft {
+    background: #f9fafb;
+  }
+
+  .bulk-stat-value {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  .bulk-stat-label {
+    color: #6b7280;
+    font-size: 0.9rem;
+    line-height: 1.35;
+  }
+
+  .bulk-table thead th {
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6b7280;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .bulk-table tbody td {
+    padding-top: 14px;
+    padding-bottom: 14px;
+    border-color: #eef2f7;
+    color: #111827;
+    vertical-align: middle;
+  }
+
+  .bulk-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+
+  .bulk-badge-danger {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .bulk-badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .bulk-alert {
+    border-radius: 16px;
+    border: 1px solid transparent;
+    padding: 16px 18px;
+  }
+
+  .alert.bulk-alert.alert-danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+  }
+
+  .alert.bulk-alert.alert-success {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+  }
+
+  @media (max-width: 991.98px) {
+    .bulk-edit-title {
+      font-size: 1.6rem;
+    }
+
+    .bulk-card {
+      padding: 18px;
+      border-radius: 16px;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .bulk-edit-head {
+      gap: 12px;
+    }
+
+    .bulk-edit-title {
+      font-size: 1.4rem;
+    }
+
+    .bulk-step {
+      padding: 12px;
+      border-radius: 12px;
+    }
+
+    .bulk-step-icon {
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      border-radius: 10px;
+    }
+
+    .bulk-card {
+      padding: 16px;
+    }
+
+    .bulk-stat-value {
+      font-size: 1.35rem;
+    }
+  }
+</style>
+
+{% endblock %}

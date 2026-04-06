@@ -15,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from app.routers import admin_audit
 from app.routers.admin_product_import import router as admin_product_import_router
-
+from app.routers.admin_product_bulk_edit import router as admin_product_bulk_edit_router
 import json
 import time
 import logging
@@ -72,6 +72,7 @@ app.include_router(products_router.router)
 app.include_router(ws_orders_router.router)
 app.include_router(salespersons_router.router)
 app.include_router(admin_product_import_router) # ✅ добавляем роуты импорта продуктов первая версия, без аудита и без телеграма
+app.include_router(admin_product_bulk_edit_router)  # ✅ bulk edit каталога через Excel
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
