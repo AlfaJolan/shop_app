@@ -325,7 +325,7 @@ class ProductBulkExcelService:
         # ---- 3. Строгая валидация связей до любых изменений ----
         row_errors: list[BulkImportErrorItem] = []
 
-                # Проверка дубликатов SKU внутри файла после изменений
+        # Проверка дубликатов SKU внутри файла после изменений
         # Пустые SKU не проверяем.
         future_sku_map: dict[str, int] = {}
         changed_sku_map: dict[str, int] = {}
@@ -460,6 +460,8 @@ class ProductBulkExcelService:
         # ---- 4. Применение изменений ----
         changed_product_ids: set[int] = set()
         changed_variant_ids: set[int] = set()
+        changed_products_info: dict[int, dict[str, Any]] = {}
+        changed_variants_info: dict[int, dict[str, Any]] = {}
 
         for row in parsed_rows:
             product = products_by_id[row.product_id]
@@ -485,6 +487,11 @@ class ProductBulkExcelService:
             if product_old:
                 changed_any = True
                 changed_product_ids.add(product.id)
+                changed_products_info[product.id] = {
+                    "product_id": product.id,
+                    "product_name": product.name,
+                    "product_sku": product.sku,
+                }
                 write_audit(
                     self.db,
                     entity_type="product",
@@ -493,12 +500,18 @@ class ProductBulkExcelService:
                     actor=actor,
                     old_data=product_old,
                     new_data=product_new,
-                    note="Массовое обновление из Excel",
+                    note=self._build_product_audit_note(product),
                 )
 
             if variant_old:
                 changed_any = True
                 changed_variant_ids.add(variant.id)
+                changed_variants_info[variant.id] = {
+                    "variant_id": variant.id,
+                    "variant_name": variant.name,
+                    "product_id": product.id,
+                    "product_name": product.name,
+                }
                 write_audit(
                     self.db,
                     entity_type="variant",
@@ -507,7 +520,7 @@ class ProductBulkExcelService:
                     actor=actor,
                     old_data=variant_old,
                     new_data=variant_new,
-                    note="Массовое обновление из Excel",
+                    note=self._build_variant_audit_note(product, variant),
                 )
 
             if stock_changed:
@@ -534,6 +547,8 @@ class ProductBulkExcelService:
                 "products_updated": len(changed_product_ids),
                 "variants_updated": len(changed_variant_ids),
                 "stock_updated": result.stock_updated,
+                "changed_products": list(changed_products_info.values()),
+                "changed_variants": list(changed_variants_info.values()),
             },
             note="Массовое обновление каталога через Excel",
         )
@@ -921,3 +936,20 @@ class ProductBulkExcelService:
         if value is None:
             return "0.00"
         return str(Decimal(value).quantize(Decimal("0.01")))
+
+    def _build_product_audit_note(self, product: Product) -> str:
+        return (
+            f"Массовое обновление из Excel · "
+            f"product_id={product.id} · "
+            f"name={product.name or '-'} · "
+            f"sku={product.sku or '-'}"
+        )
+
+    def _build_variant_audit_note(self, product: Product, variant: Variant) -> str:
+        return (
+            f"Массовое обновление из Excel · "
+            f"variant_id={variant.id} · "
+            f"variant_name={variant.name or '-'} · "
+            f"product_id={product.id} · "
+            f"product_name={product.name or '-'}"
+        )
