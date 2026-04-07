@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session, selectinload, joinedload
 
 from app.models import Category, Product, Seller, Variant, StockAudit
 from app.services.audit import write_audit
-
+from datetime import datetime
 
 SHEET_NAME = "products_bulk_edit"
 REFS_SHEET_NAME = "refs"
@@ -128,7 +128,8 @@ class ProductBulkExcelService:
     # =========================================================
     # EXPORT
     # =========================================================
-
+    def _today_str(self) -> str:
+        return datetime.now().strftime("%Y_%m_%d")
     def export_catalog_excel(self, actor: dict[str, Any] | None = None) -> tuple[bytes, str]:
         """
         Выгружает каталог в Excel.
@@ -170,13 +171,13 @@ class ProductBulkExcelService:
                     product.category.name if product.category else "",
                     product.seller.name if product.seller else "",
                     product.unit or "шт",
-                    "TRUE" if bool(product.is_active) else "FALSE",
+                    1 if bool(product.is_active) else 0,
                     variant.name or "",
                     variant.pack_size if variant.pack_size is not None else 1,
                     self._decimal_to_excel(variant.unit_price_net_cost),
                     self._decimal_to_excel(variant.unit_price),
                     variant.stock if variant.stock is not None else 0,
-                    "TRUE" if bool(variant.is_active) else "FALSE",
+                    1 if (bool(product.is_active) and bool(variant.is_active)) else 0,
                 ])
 
         self._build_refs_sheet(refs_ws)
@@ -189,8 +190,7 @@ class ProductBulkExcelService:
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-
-        filename = "catalog_bulk_edit.xlsx"
+        filename = f"catalog_bulk_edit_{self._today_str()}.xlsx"
         return output.getvalue(), filename
 
     # =========================================================
@@ -533,12 +533,15 @@ class ProductBulkExcelService:
         old_stock = int(variant.stock or 0)
         new_stock = int(row.stock)
 
+        # 🔹 если товар выключен, вариант тоже всегда выключаем
+        final_variant_is_active = row.variant_is_active if row.product_is_active else False
+
         track("name", variant.name, row.variant_name)
         track("pack_size", int(variant.pack_size or 1), row.pack_size)
         track("unit_price_net_cost", self._to_decimal_str(variant.unit_price_net_cost), self._to_decimal_str(row.cost_price))
         track("unit_price", self._to_decimal_str(variant.unit_price), self._to_decimal_str(row.sale_price))
         track("stock", old_stock, new_stock)
-        track("is_active", bool(variant.is_active), row.variant_is_active)
+        track("is_active", bool(variant.is_active), final_variant_is_active)
 
         if old_data:
             variant.name = row.variant_name
@@ -546,7 +549,7 @@ class ProductBulkExcelService:
             variant.unit_price_net_cost = row.cost_price
             variant.unit_price = row.sale_price
             variant.stock = new_stock
-            variant.is_active = row.variant_is_active
+            variant.is_active = final_variant_is_active
 
         if old_stock != new_stock:
             stock_changed = True
@@ -594,8 +597,8 @@ class ProductBulkExcelService:
             ws.cell(row=row, column=2, value=seller.name)
             row += 1
 
-        ws["C2"] = "TRUE"
-        ws["C3"] = "FALSE"
+        ws["C2"] = 1
+        ws["C3"] = 0
 
     def _apply_sheet_style(self, ws) -> None:
         widths = {
@@ -799,6 +802,18 @@ class ProductBulkExcelService:
         if isinstance(value, bool):
             return value
 
+        if isinstance(value, int):
+            if value == 1:
+                return True
+            if value == 0:
+                return False
+
+        if isinstance(value, float):
+            if value == 1.0:
+                return True
+            if value == 0.0:
+                return False
+
         normalized = "" if value is None else str(value).strip().casefold()
 
         true_values = {"1", "true", "yes", "y", "да", "активен"}
@@ -810,8 +825,7 @@ class ProductBulkExcelService:
             return False
 
         raise ValueError(
-            f"Строка {row_num}: поле '{field_name}' должно быть TRUE/FALSE, "
-            f"1/0, да/нет"
+            f"Строка {row_num}: поле '{field_name}' должно быть 1/0, true/false, да/нет"
         )
 
     # =========================================================
