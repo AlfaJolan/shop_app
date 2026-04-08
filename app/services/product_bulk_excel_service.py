@@ -47,12 +47,20 @@ logger = logging.getLogger(__name__)
 class BulkImportErrorItem:
     row: int
     message: str
+    code: str | None = None
+    field: str | None = None
+    value: Any = None
+    details: dict[str, Any] | None = None
 
 
 @dataclass
 class BulkImportWarningItem:
     row: int
     message: str
+    code: str | None = None
+    field: str | None = None
+    value: Any = None
+    details: dict[str, Any] | None = None
 
 
 @dataclass
@@ -69,12 +77,66 @@ class BulkImportResult:
     errors: list[BulkImportErrorItem] = field(default_factory=list)
     warnings: list[BulkImportWarningItem] = field(default_factory=list)
 
-    def add_error(self, row: int, message: str) -> None:
+    def add_error(
+        self,
+        row: int,
+        message: str,
+        *,
+        code: str | None = None,
+        field: str | None = None,
+        value: Any = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
         self.rows_failed += 1
-        self.errors.append(BulkImportErrorItem(row=row, message=message))
+        self.errors.append(
+            BulkImportErrorItem(
+                row=row,
+                message=message,
+                code=code,
+                field=field,
+                value=value,
+                details=details,
+            )
+        )
 
-    def add_warning(self, row: int, message: str) -> None:
-        self.warnings.append(BulkImportWarningItem(row=row, message=message))
+    def add_warning(
+        self,
+        row: int,
+        message: str,
+        *,
+        code: str | None = None,
+        field: str | None = None,
+        value: Any = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        self.warnings.append(
+            BulkImportWarningItem(
+                row=row,
+                message=message,
+                code=code,
+                field=field,
+                value=value,
+                details=details,
+            )
+        )
+
+    def error_cases_summary(self) -> dict[str, int]:
+        summary: dict[str, int] = {}
+
+        for err in self.errors:
+            key = err.code or "UNKNOWN_ERROR"
+            summary[key] = summary.get(key, 0) + 1
+
+        return summary
+
+    def warning_cases_summary(self) -> dict[str, int]:
+        summary: dict[str, int] = {}
+
+        for warn in self.warnings:
+            key = warn.code or "UNKNOWN_WARNING"
+            summary[key] = summary.get(key, 0) + 1
+
+        return summary
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -85,8 +147,30 @@ class BulkImportResult:
             "products_updated": self.products_updated,
             "variants_updated": self.variants_updated,
             "stock_updated": self.stock_updated,
-            "errors": [{"row": x.row, "message": x.message} for x in self.errors],
-            "warnings": [{"row": x.row, "message": x.message} for x in self.warnings],
+            "errors": [
+                {
+                    "row": x.row,
+                    "message": x.message,
+                    "code": x.code,
+                    "field": x.field,
+                    "value": x.value,
+                    "details": x.details,
+                }
+                for x in self.errors
+            ],
+            "warnings": [
+                {
+                    "row": x.row,
+                    "message": x.message,
+                    "code": x.code,
+                    "field": x.field,
+                    "value": x.value,
+                    "details": x.details,
+                }
+                for x in self.warnings
+            ],
+            "error_cases_summary": self.error_cases_summary(),
+            "warning_cases_summary": self.warning_cases_summary(),
         }
 
 
@@ -232,345 +316,569 @@ class ProductBulkExcelService:
 
         logger.info("[BULK IMPORT] start filename=%s size_bytes=%s", original_filename, len(file_bytes))
 
-        wb = load_workbook(filename=BytesIO(file_bytes), data_only=False)
-
-        if SHEET_NAME not in wb.sheetnames:
-            raise ValueError(f"Лист '{SHEET_NAME}' не найден в Excel-файле")
-
-        ws = wb[SHEET_NAME]
-
-        logger.info("[BULK IMPORT] sheet=%s max_row=%s max_column=%s", SHEET_NAME, ws.max_row, ws.max_column)
-
-        if ws.max_row > MAX_EXCEL_ROWS:
-            raise ValueError(f"Слишком много строк в Excel. Лимит: {MAX_EXCEL_ROWS}")
-
-        header_map = self._read_headers(ws)
-        self._validate_headers(header_map)
-
-        logger.info("[BULK IMPORT] headers=%s", list(header_map.keys()))
-
-        parsed_rows: list[ParsedBulkRow] = []
-        seen_variant_ids: set[int] = set()
-
-        # ---- 1. Первичный разбор и валидация строк ----
-        for row_idx in range(2, ws.max_row + 1):
-            raw = self._row_to_dict(ws, row_idx, header_map)
-
-            if self._is_empty_row(raw):
-                continue
-
-            result.rows_total += 1
-
-            row = self._parse_and_validate_row(raw, row_idx)
-
-            if row.variant_id in seen_variant_ids:
-                raise ValueError(
-                    f"Дубликат variant_id={row.variant_id} внутри Excel-файла "
-                    f"(строка {row.row_num})"
-                )
-            seen_variant_ids.add(row.variant_id)
-
-            parsed_rows.append(row)
-
-        if not parsed_rows:
-            raise ValueError("В файле нет ни одной строки для обновления")
-
-        logger.info(
-            "[BULK IMPORT] parsed_rows=%s unique_products=%s unique_variants=%s",
-            len(parsed_rows),
-            len({r.product_id for r in parsed_rows}),
-            len({r.variant_id for r in parsed_rows}),
-        )
-
-        # ---- 2. Грузим все нужное пачкой ----
-        product_ids = {r.product_id for r in parsed_rows}
-        variant_ids = {r.variant_id for r in parsed_rows}
-        category_names = {r.category_name.casefold() for r in parsed_rows}
-        seller_names = {r.seller_name.casefold() for r in parsed_rows}
-
-        products = (
-            self.db.query(Product)
-            .filter(Product.id.in_(product_ids))
-            .all()
-        )
-        variants = (
-            self.db.query(Variant)
-            .filter(Variant.id.in_(variant_ids))
-            .all()
-        )
-        categories = (
-            self.db.query(Category)
-            .filter(func.lower(Category.name).in_(category_names))
-            .all()
-        )
-        sellers = (
-            self.db.query(Seller)
-            .filter(func.lower(Seller.name).in_(seller_names))
-            .all()
-        )
-
-        products_by_id = {p.id: p for p in products}
-        variants_by_id = {v.id: v for v in variants}
-        categories_by_name = {c.name.casefold(): c for c in categories}
-        sellers_by_name = {s.name.casefold(): s for s in sellers}
-
-        logger.info(
-            "[BULK IMPORT] loaded products=%s variants=%s categories=%s sellers=%s",
-            len(products_by_id),
-            len(variants_by_id),
-            len(categories_by_name),
-            len(sellers_by_name),
-        )
-
-        # ---- 3. Строгая валидация связей до любых изменений ----
-        row_errors: list[BulkImportErrorItem] = []
-
-        # Проверка дубликатов SKU внутри файла после изменений
-        # Пустые SKU не проверяем.
-        future_sku_map: dict[str, int] = {}
-        changed_sku_map: dict[str, int] = {}
-
-        for row in parsed_rows:
-            product = products_by_id.get(row.product_id)
-            variant = variants_by_id.get(row.variant_id)
-            category = categories_by_name.get(row.category_name.casefold())
-            seller = sellers_by_name.get(row.seller_name.casefold())
-
-            if not category:
-                logger.warning(
-                    "[BULK IMPORT DEBUG] category_not_found row=%s raw_category=%r normalized=%r available_sample=%s",
-                    row.row_num,
-                    row.category_name,
-                    row.category_name.casefold(),
-                    list(categories_by_name.keys())[:10],
+        try:
+            try:
+                wb = load_workbook(filename=BytesIO(file_bytes), data_only=False)
+            except Exception as e:
+                logger.exception("[BULK IMPORT] workbook_open_failed filename=%s", original_filename)
+                return self._build_error_response(
+                    result=result,
+                    original_filename=original_filename,
+                    stage="open_workbook",
+                    error_type="workbook_open_error",
+                    message="Не удалось открыть Excel-файл",
+                    extra={
+                        "exception_class": e.__class__.__name__,
+                        "exception_message": str(e),
+                    },
                 )
 
-            if not seller:
-                logger.warning(
-                    "[BULK IMPORT DEBUG] seller_not_found row=%s raw_seller=%r normalized=%r available_sample=%s",
-                    row.row_num,
-                    row.seller_name,
-                    row.seller_name.casefold(),
-                    list(sellers_by_name.keys())[:10],
+            if SHEET_NAME not in wb.sheetnames:
+                result.add_error(
+                    0,
+                    f"Лист '{SHEET_NAME}' не найден в Excel-файле",
+                    code="SHEET_NOT_FOUND",
+                    field="sheet_name",
+                    value=SHEET_NAME,
+                    details={
+                        "expected_sheet": SHEET_NAME,
+                        "available_sheets": list(wb.sheetnames),
+                    },
+                )
+                return self._build_error_response(
+                    result=result,
+                    original_filename=original_filename,
+                    stage="validate_sheet",
+                    error_type="sheet_validation_error",
+                    message=f"Лист '{SHEET_NAME}' не найден в Excel-файле",
                 )
 
-            if not product:
-                row_errors.append(BulkImportErrorItem(row=row.row_num, message=f"Товар product_id={row.product_id} не найден"))
-                continue
+            ws = wb[SHEET_NAME]
 
-            if not variant:
-                row_errors.append(BulkImportErrorItem(row=row.row_num, message=f"Вариант variant_id={row.variant_id} не найден"))
-                continue
+            logger.info("[BULK IMPORT] sheet=%s max_row=%s max_column=%s", SHEET_NAME, ws.max_row, ws.max_column)
 
-            if variant.product_id != row.product_id:
-                row_errors.append(
-                    BulkImportErrorItem(
-                        row=row.row_num,
-                        message=(
-                            f"variant_id={row.variant_id} не принадлежит "
-                            f"product_id={row.product_id}"
-                        ),
+            if ws.max_row > MAX_EXCEL_ROWS:
+                result.add_error(
+                    0,
+                    f"Слишком много строк в Excel. Лимит: {MAX_EXCEL_ROWS}",
+                    code="MAX_ROWS_EXCEEDED",
+                    field="max_row",
+                    value=ws.max_row,
+                    details={
+                        "max_row": ws.max_row,
+                        "limit": MAX_EXCEL_ROWS,
+                    },
+                )
+                return self._build_error_response(
+                    result=result,
+                    original_filename=original_filename,
+                    stage="validate_sheet_size",
+                    error_type="sheet_size_error",
+                    message=f"Слишком много строк в Excel. Лимит: {MAX_EXCEL_ROWS}",
+                )
+
+            header_map = self._read_headers(ws)
+            self._validate_headers(header_map)
+
+            logger.info("[BULK IMPORT] headers=%s", list(header_map.keys()))
+
+            parsed_rows: list[ParsedBulkRow] = []
+            seen_variant_ids: set[int] = set()
+
+            # ---- 1. Первичный разбор и валидация строк ----
+            for row_idx in range(2, ws.max_row + 1):
+                raw = self._row_to_dict(ws, row_idx, header_map)
+
+                if self._is_empty_row(raw):
+                    continue
+
+                result.rows_total += 1
+
+                try:
+                    row = self._parse_and_validate_row(raw, row_idx)
+                except ValueError as e:
+                    result.add_error(
+                        row_idx,
+                        str(e),
+                        code="ROW_PARSE_VALIDATION_ERROR",
+                        details={
+                            "raw_row": raw,
+                        },
                     )
-                )
-                continue
+                    continue
 
-            if not category:
-                row_errors.append(
-                    BulkImportErrorItem(
-                        row=row.row_num,
-                        message=f"Категория '{row.category_name}' не найдена",
+                if row.variant_id in seen_variant_ids:
+                    result.add_error(
+                        row.row_num,
+                        f"Дубликат variant_id={row.variant_id} внутри Excel-файла",
+                        code="DUPLICATE_VARIANT_ID_IN_FILE",
+                        field="variant_id",
+                        value=row.variant_id,
+                        details={
+                            "variant_id": row.variant_id,
+                            "row_num": row.row_num,
+                        },
                     )
+                    continue
+
+                seen_variant_ids.add(row.variant_id)
+                parsed_rows.append(row)
+
+            if result.errors:
+                logger.error(
+                    "[BULK IMPORT] row_parsing_failed total_errors=%s filename=%s",
+                    len(result.errors),
+                    original_filename,
+                )
+                return self._build_error_response(
+                    result=result,
+                    original_filename=original_filename,
+                    stage="parse_rows",
+                    error_type="row_validation_error",
+                    message="Файл содержит ошибки в строках. Исправьте Excel и загрузите снова.",
                 )
 
-            if not seller:
-                row_errors.append(
-                    BulkImportErrorItem(
-                        row=row.row_num,
-                        message=f"Продавец '{row.seller_name}' не найден",
+            if not parsed_rows:
+                result.add_error(
+                    0,
+                    "В файле нет ни одной строки для обновления",
+                    code="NO_DATA_ROWS",
+                    details={
+                        "rows_total_in_sheet": ws.max_row,
+                    },
+                )
+                return self._build_error_response(
+                    result=result,
+                    original_filename=original_filename,
+                    stage="parse_rows",
+                    error_type="empty_file_error",
+                    message="В файле нет ни одной строки для обновления",
+                )
+
+            logger.info(
+                "[BULK IMPORT] parsed_rows=%s unique_products=%s unique_variants=%s",
+                len(parsed_rows),
+                len({r.product_id for r in parsed_rows}),
+                len({r.variant_id for r in parsed_rows}),
+            )
+
+            # ---- 2. Грузим все нужное пачкой ----
+            product_ids = {r.product_id for r in parsed_rows}
+            variant_ids = {r.variant_id for r in parsed_rows}
+            category_names = {r.category_name.casefold() for r in parsed_rows}
+            seller_names = {r.seller_name.casefold() for r in parsed_rows}
+
+            products = (
+                self.db.query(Product)
+                .filter(Product.id.in_(product_ids))
+                .all()
+            )
+            variants = (
+                self.db.query(Variant)
+                .filter(Variant.id.in_(variant_ids))
+                .all()
+            )
+            categories = (
+                self.db.query(Category)
+                .filter(func.lower(Category.name).in_(category_names))
+                .all()
+            )
+            sellers = (
+                self.db.query(Seller)
+                .filter(func.lower(Seller.name).in_(seller_names))
+                .all()
+            )
+
+            products_by_id = {p.id: p for p in products}
+            variants_by_id = {v.id: v for v in variants}
+            categories_by_name = {c.name.casefold(): c for c in categories}
+            sellers_by_name = {s.name.casefold(): s for s in sellers}
+
+            logger.info(
+                "[BULK IMPORT] loaded products=%s variants=%s categories=%s sellers=%s",
+                len(products_by_id),
+                len(variants_by_id),
+                len(categories_by_name),
+                len(sellers_by_name),
+            )
+
+            # ---- 3. Строгая валидация связей до любых изменений ----
+            row_errors: list[BulkImportErrorItem] = []
+
+            # Проверка дубликатов SKU внутри файла после изменений
+            # Пустые SKU не проверяем.
+            future_sku_map: dict[str, int] = {}
+            changed_sku_map: dict[str, int] = {}
+
+            for row in parsed_rows:
+                product = products_by_id.get(row.product_id)
+                variant = variants_by_id.get(row.variant_id)
+                category = categories_by_name.get(row.category_name.casefold())
+                seller = sellers_by_name.get(row.seller_name.casefold())
+
+                if not category:
+                    logger.warning(
+                        "[BULK IMPORT DEBUG] category_not_found row=%s raw_category=%r normalized=%r available_sample=%s",
+                        row.row_num,
+                        row.category_name,
+                        row.category_name.casefold(),
+                        list(categories_by_name.keys())[:10],
                     )
-                )
 
-            if row.product_sku:
-                sku_key = row.product_sku.casefold()
-                existing_product_id = future_sku_map.get(sku_key)
-                if existing_product_id and existing_product_id != row.product_id:
+                if not seller:
+                    logger.warning(
+                        "[BULK IMPORT DEBUG] seller_not_found row=%s raw_seller=%r normalized=%r available_sample=%s",
+                        row.row_num,
+                        row.seller_name,
+                        row.seller_name.casefold(),
+                        list(sellers_by_name.keys())[:10],
+                    )
+
+                if not product:
                     row_errors.append(
                         BulkImportErrorItem(
                             row=row.row_num,
-                            message=f"SKU '{row.product_sku}' повторяется для разных товаров внутри файла",
+                            message=f"Товар product_id={row.product_id} не найден",
+                            code="PRODUCT_NOT_FOUND",
+                            field="product_id",
+                            value=row.product_id,
+                            details={
+                                "product_id": row.product_id,
+                                "variant_id": row.variant_id,
+                            },
                         )
                     )
-                else:
-                    future_sku_map[sku_key] = row.product_id
+                    continue
 
-                # ✅ SKU проверяем на конфликт с БД только если пользователь реально меняет SKU
-                current_product_sku = (product.sku or "").casefold()
-                if sku_key != current_product_sku:
-                    changed_existing_product_id = changed_sku_map.get(sku_key)
-                    if changed_existing_product_id and changed_existing_product_id != row.product_id:
+                if not variant:
+                    row_errors.append(
+                        BulkImportErrorItem(
+                            row=row.row_num,
+                            message=f"Вариант variant_id={row.variant_id} не найден",
+                            code="VARIANT_NOT_FOUND",
+                            field="variant_id",
+                            value=row.variant_id,
+                            details={
+                                "product_id": row.product_id,
+                                "variant_id": row.variant_id,
+                            },
+                        )
+                    )
+                    continue
+
+                if variant.product_id != row.product_id:
+                    row_errors.append(
+                        BulkImportErrorItem(
+                            row=row.row_num,
+                            message=(
+                                f"variant_id={row.variant_id} не принадлежит "
+                                f"product_id={row.product_id}"
+                            ),
+                            code="VARIANT_PRODUCT_MISMATCH",
+                            field="variant_id",
+                            value=row.variant_id,
+                            details={
+                                "variant_id": row.variant_id,
+                                "incoming_product_id": row.product_id,
+                                "actual_product_id": variant.product_id,
+                            },
+                        )
+                    )
+                    continue
+
+                if not category:
+                    row_errors.append(
+                        BulkImportErrorItem(
+                            row=row.row_num,
+                            message=f"Категория '{row.category_name}' не найдена",
+                            code="CATEGORY_NOT_FOUND",
+                            field="category_name",
+                            value=row.category_name,
+                            details={
+                                "category_name": row.category_name,
+                            },
+                        )
+                    )
+
+                if not seller:
+                    row_errors.append(
+                        BulkImportErrorItem(
+                            row=row.row_num,
+                            message=f"Продавец '{row.seller_name}' не найден",
+                            code="SELLER_NOT_FOUND",
+                            field="seller_name",
+                            value=row.seller_name,
+                            details={
+                                "seller_name": row.seller_name,
+                            },
+                        )
+                    )
+
+                if row.product_sku:
+                    sku_key = row.product_sku.casefold()
+                    existing_product_id = future_sku_map.get(sku_key)
+                    if existing_product_id and existing_product_id != row.product_id:
                         row_errors.append(
                             BulkImportErrorItem(
                                 row=row.row_num,
-                                message=f"SKU '{row.product_sku}' повторяется для разных товаров среди измененных строк",
+                                message=f"SKU '{row.product_sku}' повторяется для разных товаров внутри файла",
+                                code="SKU_DUPLICATE_IN_FILE",
+                                field="product_sku",
+                                value=row.product_sku,
+                                details={
+                                    "sku": row.product_sku,
+                                    "current_product_id": row.product_id,
+                                    "existing_product_id": existing_product_id,
+                                },
                             )
                         )
                     else:
-                        changed_sku_map[sku_key] = row.product_id
+                        future_sku_map[sku_key] = row.product_id
 
-        # Проверка конфликта SKU с БД только для реально измененных SKU
-        if changed_sku_map:
-            sku_conflicts = (
-                self.db.query(Product)
-                .filter(func.lower(Product.sku).in_(list(changed_sku_map.keys())))
-                .all()
-            )
-            for db_product in sku_conflicts:
-                if not db_product.sku:
-                    continue
+                    # ✅ SKU проверяем на конфликт с БД только если пользователь реально меняет SKU
+                    current_product_sku = (product.sku or "").casefold()
+                    if sku_key != current_product_sku:
+                        changed_existing_product_id = changed_sku_map.get(sku_key)
+                        if changed_existing_product_id and changed_existing_product_id != row.product_id:
+                            row_errors.append(
+                                BulkImportErrorItem(
+                                    row=row.row_num,
+                                    message=f"SKU '{row.product_sku}' повторяется для разных товаров среди измененных строк",
+                                    code="SKU_DUPLICATE_IN_CHANGED_ROWS",
+                                    field="product_sku",
+                                    value=row.product_sku,
+                                    details={
+                                        "sku": row.product_sku,
+                                        "current_product_id": row.product_id,
+                                        "existing_product_id": changed_existing_product_id,
+                                    },
+                                )
+                            )
+                        else:
+                            changed_sku_map[sku_key] = row.product_id
 
-                sku_key = db_product.sku.casefold()
-                incoming_product_id = changed_sku_map.get(sku_key)
+            # Проверка конфликта SKU с БД только для реально измененных SKU
+            if changed_sku_map:
+                sku_conflicts = (
+                    self.db.query(Product)
+                    .filter(func.lower(Product.sku).in_(list(changed_sku_map.keys())))
+                    .all()
+                )
+                for db_product in sku_conflicts:
+                    if not db_product.sku:
+                        continue
 
-                if incoming_product_id and incoming_product_id != db_product.id:
-                    conflict_row = next(
-                        (
-                            r.row_num
-                            for r in parsed_rows
-                            if r.product_sku
-                            and r.product_sku.casefold() == sku_key
-                            and r.product_id == incoming_product_id
-                        ),
-                        0,
-                    )
-                    row_errors.append(
-                        BulkImportErrorItem(
-                            row=conflict_row,
-                            message=f"SKU '{db_product.sku}' уже используется другим товаром в базе (product_id={db_product.id})",
+                    sku_key = db_product.sku.casefold()
+                    incoming_product_id = changed_sku_map.get(sku_key)
+
+                    if incoming_product_id and incoming_product_id != db_product.id:
+                        conflict_row = next(
+                            (
+                                r.row_num
+                                for r in parsed_rows
+                                if r.product_sku
+                                and r.product_sku.casefold() == sku_key
+                                and r.product_id == incoming_product_id
+                            ),
+                            0,
                         )
+                        row_errors.append(
+                            BulkImportErrorItem(
+                                row=conflict_row,
+                                message=f"SKU '{db_product.sku}' уже используется другим товаром в базе (product_id={db_product.id})",
+                                code="SKU_ALREADY_USED_IN_DB",
+                                field="product_sku",
+                                value=db_product.sku,
+                                details={
+                                    "sku": db_product.sku,
+                                    "incoming_product_id": incoming_product_id,
+                                    "db_product_id": db_product.id,
+                                },
+                            )
+                        )
+
+            if row_errors:
+                for err in row_errors:
+                    logger.error("[BULK IMPORT ERROR] row=%s code=%s message=%s", err.row, err.code, err.message)
+                    result.add_error(
+                        err.row,
+                        err.message,
+                        code=err.code,
+                        field=err.field,
+                        value=err.value,
+                        details=err.details,
                     )
 
-        if row_errors:
-            for err in row_errors:
-                logger.error("[BULK IMPORT ERROR] row=%s message=%s", err.row, err.message)
-                result.add_error(err.row, err.message)
+                logger.error("[BULK IMPORT] validation_failed total_errors=%s filename=%s", len(row_errors), original_filename)
+                return self._build_error_response(
+                    result=result,
+                    original_filename=original_filename,
+                    stage="validate_relations",
+                    error_type="business_validation_error",
+                    message="Файл содержит ошибки. Исправьте Excel и загрузите снова.",
+                )
 
-            logger.error("[BULK IMPORT] validation_failed total_errors=%s filename=%s", len(row_errors), original_filename)
-            raise ValueError("Файл содержит ошибки. Исправьте Excel и загрузите снова.")
+            # ---- 4. Применение изменений ----
+            changed_product_ids: set[int] = set()
+            changed_variant_ids: set[int] = set()
+            changed_products_info: dict[int, dict[str, Any]] = {}
+            changed_variants_info: dict[int, dict[str, Any]] = {}
 
-        # ---- 4. Применение изменений ----
-        changed_product_ids: set[int] = set()
-        changed_variant_ids: set[int] = set()
-        changed_products_info: dict[int, dict[str, Any]] = {}
-        changed_variants_info: dict[int, dict[str, Any]] = {}
+            for row in parsed_rows:
+                product = products_by_id[row.product_id]
+                variant = variants_by_id[row.variant_id]
+                category = categories_by_name[row.category_name.casefold()]
+                seller = sellers_by_name[row.seller_name.casefold()]
 
-        for row in parsed_rows:
-            product = products_by_id[row.product_id]
-            variant = variants_by_id[row.variant_id]
-            category = categories_by_name[row.category_name.casefold()]
-            seller = sellers_by_name[row.seller_name.casefold()]
+                product_old, product_new = self._apply_product_changes(
+                    product=product,
+                    row=row,
+                    category=category,
+                    seller=seller,
+                )
 
-            product_old, product_new = self._apply_product_changes(
-                product=product,
-                row=row,
-                category=category,
-                seller=seller,
-            )
+                variant_old, variant_new, stock_changed = self._apply_variant_changes(
+                    variant=variant,
+                    row=row,
+                    actor=actor,
+                )
 
-            variant_old, variant_new, stock_changed = self._apply_variant_changes(
-                variant=variant,
-                row=row,
+                changed_any = False
+
+                if product_old:
+                    changed_any = True
+                    changed_product_ids.add(product.id)
+                    changed_products_info[product.id] = {
+                        "product_id": product.id,
+                        "product_name": product.name,
+                        "product_sku": product.sku,
+                    }
+                    write_audit(
+                        self.db,
+                        entity_type="product",
+                        entity_id=product.id,
+                        action="product_bulk_updated",
+                        actor=actor,
+                        old_data=product_old,
+                        new_data=product_new,
+                        note=self._build_product_audit_note(product),
+                    )
+
+                if variant_old:
+                    changed_any = True
+                    changed_variant_ids.add(variant.id)
+                    changed_variants_info[variant.id] = {
+                        "variant_id": variant.id,
+                        "variant_name": variant.name,
+                        "product_id": product.id,
+                        "product_name": product.name,
+                    }
+                    write_audit(
+                        self.db,
+                        entity_type="variant",
+                        entity_id=variant.id,
+                        action="variant_bulk_updated",
+                        actor=actor,
+                        old_data=variant_old,
+                        new_data=variant_new,
+                        note=self._build_variant_audit_note(product, variant),
+                    )
+
+                if stock_changed:
+                    result.stock_updated += 1
+
+                if changed_any:
+                    result.rows_success += 1
+                else:
+                    result.rows_skipped_no_changes += 1
+
+            # ---- 5. Общий batch audit ----
+            write_audit(
+                self.db,
+                entity_type="product_bulk_edit",
+                entity_id=None,
+                action="bulk_import",
                 actor=actor,
+                old_data=None,
+                new_data={
+                    "filename": original_filename,
+                    "rows_total": result.rows_total,
+                    "rows_success": result.rows_success,
+                    "rows_skipped_no_changes": result.rows_skipped_no_changes,
+                    "products_updated": len(changed_product_ids),
+                    "variants_updated": len(changed_variant_ids),
+                    "stock_updated": result.stock_updated,
+                    "changed_products": list(changed_products_info.values()),
+                    "changed_variants": list(changed_variants_info.values()),
+                },
+                note="Массовое обновление каталога через Excel",
             )
 
-            changed_any = False
+            logger.info(
+                "[BULK IMPORT] ready_to_commit rows_total=%s rows_success=%s rows_skipped=%s products_updated=%s variants_updated=%s stock_updated=%s",
+                result.rows_total,
+                result.rows_success,
+                result.rows_skipped_no_changes,
+                len(changed_product_ids),
+                len(changed_variant_ids),
+                result.stock_updated,
+            )
 
-            if product_old:
-                changed_any = True
-                changed_product_ids.add(product.id)
-                changed_products_info[product.id] = {
-                    "product_id": product.id,
-                    "product_name": product.name,
-                    "product_sku": product.sku,
-                }
-                write_audit(
-                    self.db,
-                    entity_type="product",
-                    entity_id=product.id,
-                    action="product_bulk_updated",
-                    actor=actor,
-                    old_data=product_old,
-                    new_data=product_new,
-                    note=self._build_product_audit_note(product),
-                )
+            self.db.commit()
 
-            if variant_old:
-                changed_any = True
-                changed_variant_ids.add(variant.id)
-                changed_variants_info[variant.id] = {
-                    "variant_id": variant.id,
-                    "variant_name": variant.name,
-                    "product_id": product.id,
-                    "product_name": product.name,
-                }
-                write_audit(
-                    self.db,
-                    entity_type="variant",
-                    entity_id=variant.id,
-                    action="variant_bulk_updated",
-                    actor=actor,
-                    old_data=variant_old,
-                    new_data=variant_new,
-                    note=self._build_variant_audit_note(product, variant),
-                )
+            logger.info("[BULK IMPORT] commit_success filename=%s", original_filename)
 
-            if stock_changed:
-                result.stock_updated += 1
+            result.products_updated = len(changed_product_ids)
+            result.variants_updated = len(changed_variant_ids)
 
-            if changed_any:
-                result.rows_success += 1
-            else:
-                result.rows_skipped_no_changes += 1
-
-        # ---- 5. Общий batch audit ----
-        write_audit(
-            self.db,
-            entity_type="product_bulk_edit",
-            entity_id=None,
-            action="bulk_import",
-            actor=actor,
-            old_data=None,
-            new_data={
+            return {
+                "ok": True,
+                "message": "Импорт успешно завершен",
                 "filename": original_filename,
-                "rows_total": result.rows_total,
-                "rows_success": result.rows_success,
-                "rows_skipped_no_changes": result.rows_skipped_no_changes,
-                "products_updated": len(changed_product_ids),
-                "variants_updated": len(changed_variant_ids),
-                "stock_updated": result.stock_updated,
-                "changed_products": list(changed_products_info.values()),
-                "changed_variants": list(changed_variants_info.values()),
-            },
-            note="Массовое обновление каталога через Excel",
-        )
+                "data": result.to_dict(),
+            }
 
-        logger.info(
-            "[BULK IMPORT] ready_to_commit rows_total=%s rows_success=%s rows_skipped=%s products_updated=%s variants_updated=%s stock_updated=%s",
-            result.rows_total,
-            result.rows_success,
-            result.rows_skipped_no_changes,
-            len(changed_product_ids),
-            len(changed_variant_ids),
-            result.stock_updated,
-        )
-
-        self.db.commit()
-
-        logger.info("[BULK IMPORT] commit_success filename=%s", original_filename)
-
-        result.products_updated = len(changed_product_ids)
-        result.variants_updated = len(changed_variant_ids)
-
-        return result.to_dict()
+        except ValueError as e:
+            self.db.rollback()
+            logger.exception("[BULK IMPORT] validation_exception filename=%s", original_filename)
+            result.add_error(
+                0,
+                str(e),
+                code="VALIDATION_EXCEPTION",
+                details={
+                    "exception_class": e.__class__.__name__,
+                },
+            )
+            return self._build_error_response(
+                result=result,
+                original_filename=original_filename,
+                stage="unexpected_validation_exception",
+                error_type="validation_exception",
+                message=str(e),
+            )
+        except Exception as e:
+            self.db.rollback()
+            logger.exception("[BULK IMPORT] unexpected_exception filename=%s", original_filename)
+            result.add_error(
+                0,
+                "Внутренняя ошибка при обработке Excel",
+                code="UNEXPECTED_EXCEPTION",
+                details={
+                    "exception_class": e.__class__.__name__,
+                    "exception_message": str(e),
+                },
+            )
+            return self._build_error_response(
+                result=result,
+                original_filename=original_filename,
+                stage="unexpected_exception",
+                error_type="internal_error",
+                message="Внутренняя ошибка при обработке Excel",
+                extra={
+                    "exception_class": e.__class__.__name__,
+                    "exception_message": str(e),
+                },
+            )
 
     # =========================================================
     # APPLY CHANGES
@@ -953,3 +1261,32 @@ class ProductBulkExcelService:
             f"product_id={product.id} · "
             f"product_name={product.name or '-'}"
         )
+
+    def _build_error_response(
+        self,
+        *,
+        result: BulkImportResult,
+        original_filename: str,
+        stage: str,
+        error_type: str,
+        message: str,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            "ok": False,
+            "message": message,
+            "filename": original_filename,
+            "error": {
+                "type": error_type,
+                "stage": stage,
+                "message": message,
+                "cases": result.error_cases_summary(),
+                "warnings_cases": result.warning_cases_summary(),
+            },
+            "data": result.to_dict(),
+        }
+
+        if extra:
+            payload["error"]["details"] = extra
+
+        return payload

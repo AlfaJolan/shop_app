@@ -138,6 +138,16 @@ def product_bulk_edit_import(
         return render_bulk_edit_page(
             request,
             error="Файл не выбран.",
+            result={
+                "ok": False,
+                "message": "Файл не выбран.",
+                "error": {
+                    "type": "file_missing",
+                    "stage": "request_validation",
+                    "message": "Файл не выбран.",
+                },
+                "data": None,
+            },
             status_code=400,
         )
 
@@ -148,6 +158,20 @@ def product_bulk_edit_import(
         return render_bulk_edit_page(
             request,
             error="Поддерживаются только Excel-файлы формата .xlsx",
+            result={
+                "ok": False,
+                "message": "Поддерживаются только Excel-файлы формата .xlsx",
+                "filename": filename,
+                "error": {
+                    "type": "invalid_extension",
+                    "stage": "request_validation",
+                    "message": "Поддерживаются только Excel-файлы формата .xlsx",
+                    "details": {
+                        "filename": filename,
+                    },
+                },
+                "data": None,
+            },
             status_code=400,
         )
 
@@ -166,6 +190,21 @@ def product_bulk_edit_import(
             return render_bulk_edit_page(
                 request,
                 error="Файл пустой.",
+                result={
+                    "ok": False,
+                    "message": "Файл пустой.",
+                    "filename": filename,
+                    "error": {
+                        "type": "empty_file",
+                        "stage": "request_validation",
+                        "message": "Файл пустой.",
+                        "details": {
+                            "filename": filename,
+                            "size_bytes": 0,
+                        },
+                    },
+                    "data": None,
+                },
                 status_code=400,
             )
 
@@ -174,6 +213,22 @@ def product_bulk_edit_import(
             return render_bulk_edit_page(
                 request,
                 error="Файл слишком большой. Используйте Excel до 15 MB.",
+                result={
+                    "ok": False,
+                    "message": "Файл слишком большой. Используйте Excel до 15 MB.",
+                    "filename": filename,
+                    "error": {
+                        "type": "file_too_large",
+                        "stage": "request_validation",
+                        "message": "Файл слишком большой. Используйте Excel до 15 MB.",
+                        "details": {
+                            "filename": filename,
+                            "size_bytes": len(file_bytes),
+                            "max_size_bytes": MAX_UPLOAD_SIZE,
+                        },
+                    },
+                    "data": None,
+                },
                 status_code=400,
             )
 
@@ -186,10 +241,18 @@ def product_bulk_edit_import(
             actor=actor,
         )
 
+        if result.get("ok") is False:
+            return render_bulk_edit_page(
+                request,
+                result=result,
+                error=result.get("message") or "Ошибка импорта.",
+                status_code=400,
+            )
+
         return render_bulk_edit_page(
             request,
             result=result,
-            success="Массовое обновление каталога успешно завершено.",
+            success=result.get("message") or "Массовое обновление каталога успешно завершено.",
         )
 
     except ValueError as exc:
@@ -198,6 +261,17 @@ def product_bulk_edit_import(
         return render_bulk_edit_page(
             request,
             error=f"Ошибка импорта: {str(exc)}",
+            result={
+                "ok": False,
+                "message": f"Ошибка импорта: {str(exc)}",
+                "filename": filename,
+                "error": {
+                    "type": "value_error",
+                    "stage": "router_exception",
+                    "message": str(exc),
+                },
+                "data": None,
+            },
             status_code=400,
         )
 
@@ -208,5 +282,20 @@ def product_bulk_edit_import(
         return render_bulk_edit_page(
             request,
             error="Неожиданная ошибка при массовом обновлении. Проверьте файл или логи.",
+            result={
+                "ok": False,
+                "message": "Неожиданная ошибка при массовом обновлении. Проверьте файл или логи.",
+                "filename": filename,
+                "error": {
+                    "type": "unexpected_error",
+                    "stage": "router_exception",
+                    "message": "Неожиданная ошибка при массовом обновлении. Проверьте файл или логи.",
+                    "details": {
+                        "exception_class": exc.__class__.__name__,
+                        "exception_message": str(exc),
+                    },
+                },
+                "data": None,
+            },
             status_code=500,
         )

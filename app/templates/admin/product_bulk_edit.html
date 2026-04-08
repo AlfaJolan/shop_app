@@ -20,9 +20,34 @@
     <div class="alert alert-danger bulk-alert mb-4" role="alert">
       <div class="d-flex align-items-start">
         <i class="fa-solid fa-circle-exclamation me-3 mt-1"></i>
-        <div>
+        <div class="w-100">
           <div class="fw-semibold mb-1">Ошибка</div>
           <div>{{ error }}</div>
+
+          {% if result and result.error %}
+            <div class="bulk-alert-meta mt-3">
+              {% if result.error.type %}
+                <span class="bulk-meta-badge bulk-meta-badge-danger">
+                  <span class="bulk-meta-label">Тип</span>
+                  <span>{{ result.error.type }}</span>
+                </span>
+              {% endif %}
+
+              {% if result.error.stage %}
+                <span class="bulk-meta-badge bulk-meta-badge-danger">
+                  <span class="bulk-meta-label">Этап</span>
+                  <span>{{ result.error.stage }}</span>
+                </span>
+              {% endif %}
+
+              {% if result.filename %}
+                <span class="bulk-meta-badge bulk-meta-badge-neutral">
+                  <span class="bulk-meta-label">Файл</span>
+                  <span>{{ result.filename }}</span>
+                </span>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -32,9 +57,18 @@
     <div class="alert alert-success bulk-alert mb-4" role="alert">
       <div class="d-flex align-items-start">
         <i class="fa-solid fa-circle-check me-3 mt-1"></i>
-        <div>
+        <div class="w-100">
           <div class="fw-semibold mb-1">Успешно</div>
           <div>{{ success }}</div>
+
+          {% if result and result.filename %}
+            <div class="bulk-alert-meta mt-3">
+              <span class="bulk-meta-badge bulk-meta-badge-success">
+                <span class="bulk-meta-label">Файл</span>
+                <span>{{ result.filename }}</span>
+              </span>
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -177,6 +211,9 @@
   </div>
 
   {% if result %}
+    {% set result_data = result.data if result.data is defined and result.data else result %}
+    {% set result_error = result.error if result.error is defined and result.error else None %}
+
     <div class="bulk-card mt-4">
       <div class="bulk-card-head">
         <div>
@@ -187,45 +224,75 @@
         </div>
       </div>
 
+      {% if result_error %}
+        <div class="bulk-summary-strip mb-4">
+          <div class="bulk-summary-item">
+            <div class="bulk-summary-label">Статус</div>
+            <div class="bulk-summary-value bulk-summary-value-danger">Ошибка</div>
+          </div>
+
+          {% if result_error.type %}
+            <div class="bulk-summary-item">
+              <div class="bulk-summary-label">Тип</div>
+              <div class="bulk-summary-value">{{ result_error.type }}</div>
+            </div>
+          {% endif %}
+
+          {% if result_error.stage %}
+            <div class="bulk-summary-item">
+              <div class="bulk-summary-label">Этап</div>
+              <div class="bulk-summary-value">{{ result_error.stage }}</div>
+            </div>
+          {% endif %}
+
+          {% if result.filename %}
+            <div class="bulk-summary-item">
+              <div class="bulk-summary-label">Файл</div>
+              <div class="bulk-summary-value">{{ result.filename }}</div>
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
+
       <div class="row g-3 bulk-stats">
         <div class="col-6 col-md-4 col-xl-2">
           <div class="bulk-stat-card">
-            <div class="bulk-stat-value">{{ result.rows_total or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.rows_total or 0 }}</div>
             <div class="bulk-stat-label">Строк обработано</div>
           </div>
         </div>
 
         <div class="col-6 col-md-4 col-xl-2">
           <div class="bulk-stat-card">
-            <div class="bulk-stat-value">{{ result.rows_success or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.rows_success or 0 }}</div>
             <div class="bulk-stat-label">Успешно</div>
           </div>
         </div>
 
         <div class="col-6 col-md-4 col-xl-2">
           <div class="bulk-stat-card">
-            <div class="bulk-stat-value">{{ result.rows_failed or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.rows_failed or 0 }}</div>
             <div class="bulk-stat-label">С ошибками</div>
           </div>
         </div>
 
         <div class="col-6 col-md-4 col-xl-2">
           <div class="bulk-stat-card">
-            <div class="bulk-stat-value">{{ result.rows_skipped_no_changes or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.rows_skipped_no_changes or 0 }}</div>
             <div class="bulk-stat-label">Без изменений</div>
           </div>
         </div>
 
         <div class="col-6 col-md-4 col-xl-2">
           <div class="bulk-stat-card">
-            <div class="bulk-stat-value">{{ result.products_updated or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.products_updated or 0 }}</div>
             <div class="bulk-stat-label">Товаров обновлено</div>
           </div>
         </div>
 
         <div class="col-6 col-md-4 col-xl-2">
           <div class="bulk-stat-card">
-            <div class="bulk-stat-value">{{ result.variants_updated or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.variants_updated or 0 }}</div>
             <div class="bulk-stat-label">Вариантов обновлено</div>
           </div>
         </div>
@@ -234,19 +301,85 @@
       <div class="row g-3 mt-1">
         <div class="col-12 col-md-6">
           <div class="bulk-stat-card bulk-stat-card-soft">
-            <div class="bulk-stat-value">{{ result.stock_updated or 0 }}</div>
+            <div class="bulk-stat-value">{{ result_data.stock_updated or 0 }}</div>
             <div class="bulk-stat-label">Остатков обновлено</div>
           </div>
         </div>
 
         <div class="col-12 col-md-6">
           <div class="bulk-stat-card bulk-stat-card-soft">
-            <div class="bulk-stat-value">{{ (result.warnings or [])|length }}</div>
+            <div class="bulk-stat-value">{{ (result_data.warnings or [])|length }}</div>
             <div class="bulk-stat-label">Предупреждений</div>
           </div>
         </div>
       </div>
     </div>
+
+    {% if result_error and result_error.cases %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Сводка по кейсам ошибок</h2>
+            <p class="bulk-card-text mb-0">
+              Какие типы ошибок встретились при обработке файла.
+            </p>
+          </div>
+        </div>
+
+        <div class="bulk-case-grid">
+          {% for case_name, case_count in result_error.cases.items() %}
+            <div class="bulk-case-card">
+              <div class="bulk-case-count">{{ case_count }}</div>
+              <div class="bulk-case-name">{{ case_name }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if result_data.error_cases_summary %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Сводка по ошибкам</h2>
+            <p class="bulk-card-text mb-0">
+              Группировка ошибок по кодам для быстрой проверки.
+            </p>
+          </div>
+        </div>
+
+        <div class="bulk-case-grid">
+          {% for case_name, case_count in result_data.error_cases_summary.items() %}
+            <div class="bulk-case-card">
+              <div class="bulk-case-count">{{ case_count }}</div>
+              <div class="bulk-case-name">{{ case_name }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if result_data.warning_cases_summary %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Сводка по предупреждениям</h2>
+            <p class="bulk-card-text mb-0">
+              Группировка предупреждений по кодам.
+            </p>
+          </div>
+        </div>
+
+        <div class="bulk-case-grid">
+          {% for case_name, case_count in result_data.warning_cases_summary.items() %}
+            <div class="bulk-case-card bulk-case-card-warning">
+              <div class="bulk-case-count">{{ case_count }}</div>
+              <div class="bulk-case-name">{{ case_name }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
 
     {% if result.errors and result.errors|length > 0 %}
       <div class="bulk-card mt-4">
@@ -264,7 +397,10 @@
             <thead>
               <tr>
                 <th style="width: 120px;">Строка</th>
+                <th style="width: 220px;">Кейс</th>
+                <th style="width: 180px;">Поле</th>
                 <th>Сообщение</th>
+                <th style="width: 220px;">Значение</th>
               </tr>
             </thead>
             <tbody>
@@ -273,7 +409,102 @@
                   <td>
                     <span class="bulk-badge bulk-badge-danger">#{{ item.row }}</span>
                   </td>
-                  <td>{{ item.message }}</td>
+                  <td>
+                    {% if item.code %}
+                      <span class="bulk-inline-code">{{ item.code }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.field %}
+                      <span class="bulk-inline-code">{{ item.field }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div>{{ item.message }}</div>
+
+                    {% if item.details %}
+                      <details class="bulk-details mt-2">
+                        <summary>Подробнее</summary>
+                        <pre>{{ item.details | tojson(indent=2) }}</pre>
+                      </details>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.value is not none %}
+                      <span class="bulk-value-pill">{{ item.value }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% elif result_data.errors and result_data.errors|length > 0 %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Ошибки</h2>
+            <p class="bulk-card-text mb-0">
+              Исправьте строки ниже в Excel и загрузите файл снова.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table bulk-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Строка</th>
+                <th style="width: 220px;">Кейс</th>
+                <th style="width: 180px;">Поле</th>
+                <th>Сообщение</th>
+                <th style="width: 220px;">Значение</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in result_data.errors %}
+                <tr>
+                  <td>
+                    <span class="bulk-badge bulk-badge-danger">#{{ item.row }}</span>
+                  </td>
+                  <td>
+                    {% if item.code %}
+                      <span class="bulk-inline-code">{{ item.code }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.field %}
+                      <span class="bulk-inline-code">{{ item.field }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div>{{ item.message }}</div>
+
+                    {% if item.details %}
+                      <details class="bulk-details mt-2">
+                        <summary>Подробнее</summary>
+                        <pre>{{ item.details | tojson(indent=2) }}</pre>
+                      </details>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.value is not none %}
+                      <span class="bulk-value-pill">{{ item.value }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -298,7 +529,10 @@
             <thead>
               <tr>
                 <th style="width: 120px;">Строка</th>
+                <th style="width: 220px;">Кейс</th>
+                <th style="width: 180px;">Поле</th>
                 <th>Сообщение</th>
+                <th style="width: 220px;">Значение</th>
               </tr>
             </thead>
             <tbody>
@@ -307,7 +541,102 @@
                   <td>
                     <span class="bulk-badge bulk-badge-warning">#{{ item.row }}</span>
                   </td>
-                  <td>{{ item.message }}</td>
+                  <td>
+                    {% if item.code %}
+                      <span class="bulk-inline-code">{{ item.code }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.field %}
+                      <span class="bulk-inline-code">{{ item.field }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div>{{ item.message }}</div>
+
+                    {% if item.details %}
+                      <details class="bulk-details mt-2">
+                        <summary>Подробнее</summary>
+                        <pre>{{ item.details | tojson(indent=2) }}</pre>
+                      </details>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.value is not none %}
+                      <span class="bulk-value-pill">{{ item.value }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% elif result_data.warnings and result_data.warnings|length > 0 %}
+      <div class="bulk-card mt-4">
+        <div class="bulk-card-head">
+          <div>
+            <h2 class="bulk-card-title mb-1">Предупреждения</h2>
+            <p class="bulk-card-text mb-0">
+              Файл обработан, но на эти строки стоит обратить внимание.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table bulk-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Строка</th>
+                <th style="width: 220px;">Кейс</th>
+                <th style="width: 180px;">Поле</th>
+                <th>Сообщение</th>
+                <th style="width: 220px;">Значение</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in result_data.warnings %}
+                <tr>
+                  <td>
+                    <span class="bulk-badge bulk-badge-warning">#{{ item.row }}</span>
+                  </td>
+                  <td>
+                    {% if item.code %}
+                      <span class="bulk-inline-code">{{ item.code }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.field %}
+                      <span class="bulk-inline-code">{{ item.field }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div>{{ item.message }}</div>
+
+                    {% if item.details %}
+                      <details class="bulk-details mt-2">
+                        <summary>Подробнее</summary>
+                        <pre>{{ item.details | tojson(indent=2) }}</pre>
+                      </details>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.value is not none %}
+                      <span class="bulk-value-pill">{{ item.value }}</span>
+                    {% else %}
+                      <span class="bulk-muted">—</span>
+                    {% endif %}
+                  </td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -494,6 +823,67 @@
     line-height: 1.35;
   }
 
+  .bulk-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .bulk-summary-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: #f9fafb;
+  }
+
+  .bulk-summary-label {
+    color: #6b7280;
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+  }
+
+  .bulk-summary-value {
+    color: #111827;
+    font-weight: 700;
+    word-break: break-word;
+  }
+
+  .bulk-summary-value-danger {
+    color: #b91c1c;
+  }
+
+  .bulk-case-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .bulk-case-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 16px;
+  }
+
+  .bulk-case-card-warning {
+    background: #fffbeb;
+    border-color: #fde68a;
+  }
+
+  .bulk-case-count {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+
+  .bulk-case-name {
+    color: #6b7280;
+    font-size: 0.9rem;
+    word-break: break-word;
+  }
+
   .bulk-table thead th {
     font-size: 0.84rem;
     text-transform: uppercase;
@@ -552,6 +942,99 @@
     color: #065f46;
   }
 
+  .bulk-alert-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bulk-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .bulk-meta-badge-danger {
+    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid #fecaca;
+    color: #991b1b;
+  }
+
+  .bulk-meta-badge-neutral {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #374151;
+  }
+
+  .bulk-meta-badge-success {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+  }
+
+  .bulk-meta-label {
+    opacity: 0.7;
+    font-weight: 700;
+  }
+
+  .bulk-inline-code {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    color: #111827;
+    font-size: 0.83rem;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .bulk-value-pill {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.84rem;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .bulk-muted {
+    color: #9ca3af;
+  }
+
+  .bulk-details {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    padding: 10px 12px;
+  }
+
+  .bulk-details summary {
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .bulk-details pre {
+    margin: 10px 0 0 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #374151;
+  }
+
   @media (max-width: 991.98px) {
     .bulk-edit-title {
       font-size: 1.6rem;
@@ -590,6 +1073,11 @@
 
     .bulk-stat-value {
       font-size: 1.35rem;
+    }
+
+    .bulk-meta-badge {
+      width: 100%;
+      justify-content: space-between;
     }
   }
 </style>
