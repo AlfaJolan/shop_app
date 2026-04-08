@@ -12,7 +12,7 @@ async function renderAuthButtons() {
     if (data && data.role) {
       if (["admin", "seller", "picker"].includes(data.role)) {
         container.innerHTML += `
-          <a href="/admin" class="btn btn-sm btn-outline-success">⚙️ Админка</a>
+          <a href="/admin/dashboard" class="btn btn-sm btn-outline-success">⚙️ Админка</a>
         `;
       }
       container.innerHTML += `
