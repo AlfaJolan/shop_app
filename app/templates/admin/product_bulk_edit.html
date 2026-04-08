@@ -1,6 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
 
+{% set error_type_labels = {
+  "file_missing": "Файл не выбран",
+  "invalid_extension": "Неверный формат файла",
+  "empty_file": "Пустой файл",
+  "file_too_large": "Файл слишком большой",
+  "workbook_open_error": "Ошибка открытия Excel-файла",
+  "sheet_validation_error": "Ошибка структуры листа",
+  "sheet_size_error": "Превышен лимит строк",
+  "row_validation_error": "Ошибка в строках файла",
+  "empty_file_error": "Нет данных для обновления",
+  "business_validation_error": "Ошибка проверки данных",
+  "validation_exception": "Ошибка валидации",
+  "internal_error": "Внутренняя ошибка",
+  "unexpected_error": "Неожиданная ошибка",
+  "value_error": "Ошибка значения"
+} %}
+
+{% set error_stage_labels = {
+  "request_validation": "Проверка запроса",
+  "open_workbook": "Открытие Excel-файла",
+  "validate_sheet": "Проверка листа",
+  "validate_sheet_size": "Проверка размера файла",
+  "parse_rows": "Разбор строк",
+  "validate_relations": "Проверка связей",
+  "router_exception": "Ошибка на уровне роута",
+  "unexpected_validation_exception": "Ошибка валидации",
+  "unexpected_exception": "Внутренняя обработка"
+} %}
+
+{% set error_case_labels = {
+  "SHEET_NOT_FOUND": "Лист не найден",
+  "MAX_ROWS_EXCEEDED": "Превышен лимит строк",
+  "ROW_PARSE_VALIDATION_ERROR": "Ошибка разбора строки",
+  "DUPLICATE_VARIANT_ID_IN_FILE": "Дубликат variant_id в файле",
+  "NO_DATA_ROWS": "Нет строк с данными",
+  "PRODUCT_NOT_FOUND": "Товар не найден",
+  "VARIANT_NOT_FOUND": "Вариант не найден",
+  "VARIANT_PRODUCT_MISMATCH": "Вариант не принадлежит товару",
+  "CATEGORY_NOT_FOUND": "Категория не найдена",
+  "SELLER_NOT_FOUND": "Продавец не найден",
+  "SKU_DUPLICATE_IN_FILE": "SKU дублируется в файле",
+  "SKU_DUPLICATE_IN_CHANGED_ROWS": "SKU дублируется среди изменённых строк",
+  "SKU_ALREADY_USED_IN_DB": "SKU уже используется в базе",
+  "VALIDATION_EXCEPTION": "Ошибка валидации",
+  "UNEXPECTED_EXCEPTION": "Внутренняя ошибка",
+  "UNKNOWN_ERROR": "Неизвестная ошибка",
+  "UNKNOWN_WARNING": "Неизвестное предупреждение"
+} %}
+
 <div class="page-section product-bulk-edit-page">
   <div class="bulk-edit-head mb-4">
     <div>
@@ -29,14 +78,14 @@
               {% if result.error.type %}
                 <span class="bulk-meta-badge bulk-meta-badge-danger">
                   <span class="bulk-meta-label">Тип</span>
-                  <span>{{ result.error.type }}</span>
+                  <span>{{ error_type_labels.get(result.error.type, result.error.type) }}</span>
                 </span>
               {% endif %}
 
               {% if result.error.stage %}
                 <span class="bulk-meta-badge bulk-meta-badge-danger">
                   <span class="bulk-meta-label">Этап</span>
-                  <span>{{ result.error.stage }}</span>
+                  <span>{{ error_stage_labels.get(result.error.stage, result.error.stage) }}</span>
                 </span>
               {% endif %}
 
@@ -234,14 +283,14 @@
           {% if result_error.type %}
             <div class="bulk-summary-item">
               <div class="bulk-summary-label">Тип</div>
-              <div class="bulk-summary-value">{{ result_error.type }}</div>
+              <div class="bulk-summary-value">{{ error_type_labels.get(result_error.type, result_error.type) }}</div>
             </div>
           {% endif %}
 
           {% if result_error.stage %}
             <div class="bulk-summary-item">
               <div class="bulk-summary-label">Этап</div>
-              <div class="bulk-summary-value">{{ result_error.stage }}</div>
+              <div class="bulk-summary-value">{{ error_stage_labels.get(result_error.stage, result_error.stage) }}</div>
             </div>
           {% endif %}
 
@@ -330,7 +379,7 @@
           {% for case_name, case_count in result_error.cases.items() %}
             <div class="bulk-case-card">
               <div class="bulk-case-count">{{ case_count }}</div>
-              <div class="bulk-case-name">{{ case_name }}</div>
+              <div class="bulk-case-name">{{ error_case_labels.get(case_name, case_name) }}</div>
             </div>
           {% endfor %}
         </div>
@@ -352,7 +401,7 @@
           {% for case_name, case_count in result_data.error_cases_summary.items() %}
             <div class="bulk-case-card">
               <div class="bulk-case-count">{{ case_count }}</div>
-              <div class="bulk-case-name">{{ case_name }}</div>
+              <div class="bulk-case-name">{{ error_case_labels.get(case_name, case_name) }}</div>
             </div>
           {% endfor %}
         </div>
@@ -374,7 +423,7 @@
           {% for case_name, case_count in result_data.warning_cases_summary.items() %}
             <div class="bulk-case-card bulk-case-card-warning">
               <div class="bulk-case-count">{{ case_count }}</div>
-              <div class="bulk-case-name">{{ case_name }}</div>
+              <div class="bulk-case-name">{{ error_case_labels.get(case_name, case_name) }}</div>
             </div>
           {% endfor %}
         </div>
@@ -411,7 +460,7 @@
                   </td>
                   <td>
                     {% if item.code %}
-                      <span class="bulk-inline-code">{{ item.code }}</span>
+                      <span class="bulk-inline-code">{{ error_case_labels.get(item.code, item.code) }}</span>
                     {% else %}
                       <span class="bulk-muted">—</span>
                     {% endif %}
@@ -476,7 +525,7 @@
                   </td>
                   <td>
                     {% if item.code %}
-                      <span class="bulk-inline-code">{{ item.code }}</span>
+                      <span class="bulk-inline-code">{{ error_case_labels.get(item.code, item.code) }}</span>
                     {% else %}
                       <span class="bulk-muted">—</span>
                     {% endif %}
@@ -543,7 +592,7 @@
                   </td>
                   <td>
                     {% if item.code %}
-                      <span class="bulk-inline-code">{{ item.code }}</span>
+                      <span class="bulk-inline-code">{{ error_case_labels.get(item.code, item.code) }}</span>
                     {% else %}
                       <span class="bulk-muted">—</span>
                     {% endif %}
@@ -608,7 +657,7 @@
                   </td>
                   <td>
                     {% if item.code %}
-                      <span class="bulk-inline-code">{{ item.code }}</span>
+                      <span class="bulk-inline-code">{{ error_case_labels.get(item.code, item.code) }}</span>
                     {% else %}
                       <span class="bulk-muted">—</span>
                     {% endif %}
