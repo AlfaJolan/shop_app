@@ -13,6 +13,11 @@ from app.models.invoice_audit import InvoiceAudit  # Убедись, что эт
 from app.models.catalog import Variant  # 🔹 импорт для работы со складом
 from datetime import datetime                  # 🆕 для отметки времени
 from app.services.audit import write_audit, get_actor  # ✅ импорт для аудита
+from app.services.invoice_edit_service import (
+    InvoiceEditError,
+    add_variant_to_invoice,
+    search_active_invoice_variants,
+)
 
 
 templates = Jinja2Templates(directory="app/templates")
@@ -61,6 +66,92 @@ def edit_invoice(request: Request, invoice_id: int, db: Session = Depends(get_db
         "items": inv.items,
         "receipts": inv.receipts,   # 🆕 передаём чеки в шаблон
     })
+
+
+@router.get("/{invoice_id}/variants/search")
+def search_invoice_variants(invoice_id: int, q: str = "", db: Session = Depends(get_db)):
+    """
+    AJAX-поиск вариантов для добавления в накладную.
+    Показываем только активные товары и активные варианты.
+    """
+    inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
+
+    items = search_active_invoice_variants(db, q=q, limit=30)
+    return {"items": items}
+
+
+@router.post("/{invoice_id}/items/add", response_class=HTMLResponse)
+async def add_invoice_item(request: Request, invoice_id: int, db: Session = Depends(get_db)):
+    """
+    Добавление товара в накладную:
+    - только активные товары и активные варианты,
+    - если variant уже есть в накладной — делаем merge,
+    - корректируем склад,
+    - пишем аудит.
+    """
+    inv: Optional[Invoice] = db.query(Invoice).get(invoice_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Накладная не найдена")
+
+    form = await request.form()
+    actor = get_actor(request, db)
+
+    variant_id_raw = form.get("variant_id")
+    qty_raw = form.get("qty")
+
+    try:
+        variant_id = int(variant_id_raw)
+    except (TypeError, ValueError):
+        return templates.TemplateResponse(
+            "admin/invoice_edit.html",
+            {
+                "request": request,
+                "inv": inv,
+                "items": inv.items,
+                "receipts": inv.receipts,
+                "error": "Ошибка: некорректный variant_id.",
+            }
+        )
+
+    try:
+        qty = int(qty_raw)
+    except (TypeError, ValueError):
+        return templates.TemplateResponse(
+            "admin/invoice_edit.html",
+            {
+                "request": request,
+                "inv": inv,
+                "items": inv.items,
+                "receipts": inv.receipts,
+                "error": "Ошибка: количество должно быть целым числом.",
+            }
+        )
+
+    try:
+        add_variant_to_invoice(
+            db,
+            invoice_id=invoice_id,
+            variant_id=variant_id,
+            qty=qty,
+            actor=actor,
+        )
+    except InvoiceEditError as e:
+        db.rollback()
+        inv = db.query(Invoice).get(invoice_id)
+        return templates.TemplateResponse(
+            "admin/invoice_edit.html",
+            {
+                "request": request,
+                "inv": inv,
+                "items": inv.items if inv else [],
+                "receipts": inv.receipts if inv else [],
+                "error": str(e),
+            }
+        )
+
+    return RedirectResponse(url=f"/admin/invoices/{invoice_id}/edit", status_code=303)
 
 
 @router.post("/{invoice_id}/update", response_class=HTMLResponse)
@@ -149,6 +240,7 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
                         "request": request,
                         "inv": inv,
                         "items": inv.items,
+                        "receipts": inv.receipts,
                         "error": f"Ошибка: у позиции '{it.product_name}' нет variant_id, нельзя обновить склад."
                     }
                 )
@@ -161,6 +253,7 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
                         "request": request,
                         "inv": inv,
                         "items": inv.items,
+                        "receipts": inv.receipts,
                         "error": f"Ошибка: вариант товара для '{it.product_name}' не найден."
                     }
                 )
@@ -173,6 +266,7 @@ async def update_invoice(request: Request, invoice_id: int, db: Session = Depend
                         "request": request,
                         "inv": inv,
                         "items": inv.items,
+                        "receipts": inv.receipts,
                         "error": f"Недостаточно товара '{variant.name}'. На складе {variant.stock}, требуется +{delta}."
                     }
                 )

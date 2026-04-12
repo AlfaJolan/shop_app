@@ -16,6 +16,16 @@
   Итого (текущий): <b>{{ "%.2f"|format(inv.total_amount_final) }} KZT</b>
 </p>
 
+<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
+  <button
+    type="button"
+    id="open-add-item-modal"
+    style="padding:8px 12px; border:1px solid #ddd; background:#f5f5f5; border-radius:8px; cursor:pointer;"
+  >
+    ➕ Добавить товар
+  </button>
+</div>
+
 <form method="post" action="/admin/invoices/{{ inv.id }}/update">
   <div style="overflow-x:auto;">
     <table style="width:100%; border-collapse:collapse;">
@@ -71,11 +81,13 @@
           </td>
 
           <td style="padding:8px; text-align:center;">
-            <form method="post" action="/admin/invoices/{{ inv.id }}/reset-item/{{ it.id }}">
-              <button type="submit" style="padding:6px 10px; border:1px solid #ddd; background:#fafafa; border-radius:8px; cursor:pointer;">
-                Отменить изменения
-              </button>
-            </form>
+            <button
+              type="submit"
+              form="reset-item-form-{{ it.id }}"
+              style="padding:6px 10px; border:1px solid #ddd; background:#fafafa; border-radius:8px; cursor:pointer;"
+            >
+              Отменить изменения
+            </button>
           </td>
         </tr>
       {% endfor %}
@@ -98,6 +110,10 @@
   </div>
 </form>
 
+{% for it in items %}
+  <form id="reset-item-form-{{ it.id }}" method="post" action="/admin/invoices/{{ inv.id }}/reset-item/{{ it.id }}"></form>
+{% endfor %}
+
 <div class="mb-3 mt-4">   <!-- 🆕 добавил mt-4 -->
   {% if not inv.is_paid %}
     <form action="/admin/invoices/{{ inv.id }}/mark-paid" method="post">
@@ -111,7 +127,6 @@
     </div>
   {% endif %}
 </div>
-
 
 <h4 class="mt-4">Загруженные чеки</h4>
 <table class="table">
@@ -148,5 +163,185 @@
     {% endfor %}
   </tbody>
 </table>
+
+<div id="add-item-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9998;"></div>
+
+<div
+  id="add-item-modal"
+  data-invoice-id="{{ inv.id }}"
+  style="display:none; position:fixed; z-index:9999; left:50%; top:50%; transform:translate(-50%, -50%); width:min(900px, calc(100vw - 24px)); max-height:calc(100vh - 24px); background:#fff; border-radius:12px; box-shadow:0 20px 50px rgba(0,0,0,0.2); overflow:hidden;"
+>
+  <div style="padding:14px 16px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <div>
+      <div style="font-size:18px; font-weight:700;">Добавить товар</div>
+      <div style="font-size:13px; color:#666;">Только активные товары и активные варианты</div>
+    </div>
+    <button type="button" id="close-add-item-modal" style="padding:6px 10px; border:1px solid #ddd; background:#fafafa; border-radius:8px; cursor:pointer;">
+      ✕
+    </button>
+  </div>
+
+  <div style="padding:16px; border-bottom:1px solid #eee;">
+    <input
+      type="text"
+      id="add-item-search"
+      placeholder="Поиск по товару, варианту или SKU"
+      style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px;"
+    >
+  </div>
+
+  <div id="add-item-results" style="padding:16px; max-height:60vh; overflow:auto;">
+    <div style="color:#666;">Загрузка...</div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var openBtn = document.getElementById("open-add-item-modal");
+  var closeBtn = document.getElementById("close-add-item-modal");
+  var overlay = document.getElementById("add-item-overlay");
+  var modal = document.getElementById("add-item-modal");
+  var searchInput = document.getElementById("add-item-search");
+  var results = document.getElementById("add-item-results");
+
+  if (!openBtn || !closeBtn || !overlay || !modal || !searchInput || !results) {
+    return;
+  }
+
+  var invoiceId = modal.getAttribute("data-invoice-id");
+  var debounceTimer = null;
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  function openModal() {
+    overlay.style.display = "block";
+    modal.style.display = "block";
+    document.body.style.overflow = "hidden";
+    searchInput.focus();
+    loadItems(searchInput.value.trim());
+  }
+
+  function closeModal() {
+    overlay.style.display = "none";
+    modal.style.display = "none";
+    document.body.style.overflow = "";
+  }
+
+  function renderItems(items) {
+    if (!items || !items.length) {
+      results.innerHTML = '<div style="color:#666;">Ничего не найдено.</div>';
+      return;
+    }
+
+    var html = "";
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var stock = Number(item.stock || 0);
+      var disabled = stock <= 0 ? "disabled" : "";
+      var priceText = (item.unit_price !== null && item.unit_price !== undefined)
+        ? Number(item.unit_price).toFixed(2) + " KZT"
+        : "—";
+
+      var imageHtml = "";
+      if (item.product_image) {
+        imageHtml = '<img src="/static/uploads/products/' + escapeHtml(item.product_image) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px;">';
+      } else {
+        imageHtml = '<div style="width:64px; height:64px; border:1px solid #eee; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#999;">—</div>';
+      }
+
+      var sellerHtml = item.seller_name ? ('Продавец: ' + escapeHtml(item.seller_name) + '<br>') : '';
+      var skuHtml = item.sku ? ('SKU: ' + escapeHtml(item.sku) + '<br>') : '';
+
+      html += ''
+        + '<form method="post" action="/admin/invoices/' + invoiceId + '/items/add" style="display:flex; gap:12px; align-items:center; border:1px solid #eee; border-radius:10px; padding:12px; margin-bottom:12px; flex-wrap:wrap;">'
+        +   '<input type="hidden" name="variant_id" value="' + escapeHtml(item.variant_id) + '">'
+        +   '<div>' + imageHtml + '</div>'
+        +   '<div style="flex:1; min-width:220px;">'
+        +     '<div style="font-weight:700;">' + escapeHtml(item.product_name) + '</div>'
+        +     '<div style="color:#444; margin-top:4px;">' + escapeHtml(item.variant_name) + '</div>'
+        +     '<div style="font-size:13px; color:#666; margin-top:6px;">'
+        +       skuHtml
+        +       sellerHtml
+        +       'Остаток: <b>' + stock + '</b>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div style="min-width:120px; text-align:right; font-weight:700;">' + priceText + '</div>'
+        +   '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">'
+        +     '<input type="number" name="qty" value="1" min="1" max="' + (stock > 0 ? stock : 1) + '" ' + disabled + ' style="width:84px; padding:8px; border:1px solid #ddd; border-radius:8px; text-align:right;">'
+        +     '<button type="submit" ' + disabled + ' style="padding:8px 12px; border:1px solid #ddd; background:#f5f5f5; border-radius:8px; cursor:pointer;">Добавить</button>'
+        +   '</div>'
+        + '</form>';
+    }
+
+    results.innerHTML = html;
+  }
+
+  function loadItems(query) {
+    results.innerHTML = '<div style="color:#666;">Загрузка...</div>';
+
+    fetch("/admin/invoices/" + invoiceId + "/variants/search?q=" + encodeURIComponent(query), {
+      credentials: "same-origin"
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("search_failed");
+        }
+        return response.json();
+      })
+      .then(function (data) {
+        renderItems(data.items || []);
+      })
+      .catch(function () {
+        results.innerHTML = '<div style="color:#900;">Не удалось загрузить товары.</div>';
+      });
+  }
+
+  function adaptModal() {
+    if (window.innerWidth <= 768) {
+      modal.style.width = "calc(100vw - 12px)";
+      modal.style.maxHeight = "calc(100vh - 12px)";
+      modal.style.left = "6px";
+      modal.style.top = "6px";
+      modal.style.transform = "none";
+      modal.style.borderRadius = "10px";
+    } else {
+      modal.style.width = "min(900px, calc(100vw - 24px))";
+      modal.style.maxHeight = "calc(100vh - 24px)";
+      modal.style.left = "50%";
+      modal.style.top = "50%";
+      modal.style.transform = "translate(-50%, -50%)";
+      modal.style.borderRadius = "12px";
+    }
+  }
+
+  openBtn.addEventListener("click", openModal);
+  closeBtn.addEventListener("click", closeModal);
+  overlay.addEventListener("click", closeModal);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && modal.style.display !== "none") {
+      closeModal();
+    }
+  });
+
+  searchInput.addEventListener("input", function () {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function () {
+      loadItems(searchInput.value.trim());
+    }, 250);
+  });
+
+  adaptModal();
+  window.addEventListener("resize", adaptModal);
+});
+</script>
 
 {% endblock %}

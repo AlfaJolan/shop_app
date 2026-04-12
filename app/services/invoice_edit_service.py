@@ -1,331 +1,311 @@
-from decimal import Decimal, InvalidOperation
-from typing import Optional, List
+# app/services/invoice_edit_service.py
+from __future__ import annotations
 
-from sqlalchemy.orm import Session, selectinload
+from decimal import Decimal
+from typing import Any
 
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
+
+from app.models.catalog import Product, Variant
 from app.models.invoice import Invoice, InvoiceItem
 from app.models.invoice_audit import InvoiceAudit
-from app.models.catalog import Variant
 from app.services.audit import write_audit
 
 
-# ----------------------------
-# 🔥 Кастомные ошибки сервиса
-# ----------------------------
-
 class InvoiceEditError(Exception):
-    pass
+    """Контролируемая ошибка бизнес-логики редактирования накладной."""
 
 
-class InvoiceValidationError(InvoiceEditError):
-    pass
+def _to_decimal(value: Any, default: str = "0.00") -> Decimal:
+    """
+    Безопасно приводит значение к Decimal.
+    Нужен, чтобы не словить None/float-проблемы при создании строки накладной.
+    """
+    if value is None:
+        return Decimal(default)
+    return Decimal(str(value))
 
 
-class InvoiceStockError(InvoiceEditError):
-    pass
+def search_active_invoice_variants(db: Session, q: str | None, limit: int = 20) -> list[dict[str, Any]]:
+    """
+    Поиск только по активным товарам и активным вариантам для добавления в накладную.
 
+    Ищем по:
+    - Product.name
+    - Variant.name
+    - Product.sku
+    """
+    limit = max(1, min(int(limit or 20), 50))
+    query_text = (q or "").strip()
 
-# ----------------------------
-# 🔧 Сервис редактирования накладной
-# ----------------------------
+    query = (
+        db.query(Variant, Product)
+        .join(Product, Variant.product_id == Product.id)
+        .filter(Product.is_active.is_(True), Variant.is_active.is_(True))
+    )
 
-class InvoiceEditService:
-
-    def __init__(self, db: Session):
-        self.db = db
-
-    # ----------------------------
-    # 📦 Получение накладной (с загрузкой связей)
-    # ----------------------------
-    def get_invoice(self, invoice_id: int) -> Invoice:
-        inv = (
-            self.db.query(Invoice)
-            .options(selectinload(Invoice.items))
-            .filter(Invoice.id == invoice_id)
-            .first()
+    if query_text:
+        like = f"%{query_text}%"
+        query = query.filter(
+            or_(
+                Product.name.ilike(like),
+                Variant.name.ilike(like),
+                Product.sku.ilike(like),
+            )
         )
 
-        if not inv:
-            raise InvoiceValidationError("Накладная не найдена")
+    rows = (
+        query.order_by(Product.name.asc(), Variant.name.asc(), Variant.id.asc())
+        .limit(limit)
+        .all()
+    )
 
-        return inv
+    results: list[dict[str, Any]] = []
+    for variant, product in rows:
+        seller = product.seller if product else None
 
-    # ----------------------------
-    # 🧠 Безопасный Decimal
-    # ----------------------------
-    def _dec(self, val: Optional[str], default: Decimal) -> Decimal:
-        if val is None:
-            return default
-        val = val.replace(",", ".").strip()
-        try:
-            return Decimal(val)
-        except (InvalidOperation, ValueError):
-            return default
+        results.append({
+            "product_id": product.id if product else None,
+            "variant_id": variant.id,
+            "product_name": product.name if product else "—",
+            "variant_name": variant.name,
+            "sku": product.sku if product and product.sku else None,
+            "stock": int(variant.stock or 0),
+            "unit_price": float(variant.unit_price) if variant.unit_price is not None else None,
+            "product_image": product.image if product else None,
+            "seller_name": seller.name if seller else None,
+        })
 
-    # ----------------------------
-    # ✏️ Обновление существующих строк (перенос твоего update)
-    # ----------------------------
-    def update_items(self, inv: Invoice, form, actor):
-        audits: List[InvoiceAudit] = []
-        changed = False
+    return results
 
-        old_items_map = {
-            it.id: {
-                "qty_final": int(it.qty_final),
-                "unit_price_final": float(it.unit_price_final or 0),
-            }
-            for it in inv.items
-        }
 
-        old_total = float(getattr(inv, "total_amount_final", 0) or 0)
+def add_variant_to_invoice(
+    db: Session,
+    *,
+    invoice_id: int,
+    variant_id: int,
+    qty: int,
+    actor: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Добавляет товар в накладную.
 
-        changed_items_old = []
-        changed_items_new = []
+    Правила:
+    - доступны только активные Product + Variant
+    - если variant_id уже есть в накладной -> merge в существующую строку
+    - merge меняет только final-часть (qty_final / line_total_final)
+    - original-поля существующей строки не трогаем
+    - склад уменьшается в той же транзакции
+    - Variant блокируется через FOR UPDATE для Postgres
+    """
+    if qty is None or int(qty) <= 0:
+        raise InvoiceEditError("Количество должно быть больше 0.")
 
-        for it in inv.items:
-            qty_key = f"qty_final_{it.id}"
-            price_key = f"unit_price_final_{it.id}"
+    qty = int(qty)
 
-            qty_val = form.get(qty_key)
-            price_val = form.get(price_key)
+    inv = db.query(Invoice).get(invoice_id)
+    if not inv:
+        raise InvoiceEditError("Накладная не найдена.")
 
-            new_qty = it.qty_final
-            new_price = it.unit_price_final
+    # 🔒 Лочим только Variant без joinedload, чтобы Postgres не падал на FOR UPDATE + OUTER JOIN
+    variant = (
+        db.query(Variant)
+        .filter(Variant.id == variant_id)
+        .with_for_update()
+        .first()
+    )
+    if not variant:
+        raise InvoiceEditError("Вариант товара не найден.")
 
-            # ----------------------------
-            # qty
-            # ----------------------------
-            if qty_val is not None:
-                try:
-                    v = int(qty_val)
-                    new_qty = max(v, 0)
-                except:
-                    pass
+    product = db.query(Product).get(variant.product_id)
+    if not product:
+        raise InvoiceEditError("Товар для выбранного варианта не найден.")
 
-            # ----------------------------
-            # price
-            # ----------------------------
-            if price_val is not None:
-                v = self._dec(price_val, it.unit_price_final)
-                new_price = max(v, Decimal("0"))
+    if not product.is_active:
+        raise InvoiceEditError("Нельзя добавить неактивный товар в накладную.")
 
-            old_stock = None
-            new_stock = None
+    if not variant.is_active:
+        raise InvoiceEditError("Нельзя добавить неактивный вариант в накладную.")
 
-            # ----------------------------
-            # изменение qty → склад
-            # ----------------------------
-            if int(new_qty) != int(it.qty_final):
+    if variant.stock < qty:
+        raise InvoiceEditError(
+            f"Недостаточно товара '{variant.name}'. На складе {variant.stock}, требуется {qty}."
+        )
 
-                delta = new_qty - it.qty_final
+    # Цена продажи обязательна для накладной
+    unit_price = variant.unit_price
+    if unit_price is None:
+        raise InvoiceEditError("У выбранного варианта не заполнена цена продажи.")
 
-                if not it.variant_id:
-                    raise InvoiceValidationError(f"Нет variant_id у {it.product_name}")
+    unit_price_dec = _to_decimal(unit_price, "0.00")
+    net_cost_dec = _to_decimal(variant.unit_price_net_cost, "0.00")
 
-                variant = self.db.query(Variant).get(it.variant_id)
-                if not variant:
-                    raise InvoiceValidationError("Вариант не найден")
+    old_invoice_total = float(getattr(inv, "total_amount_final", 0) or 0)
+    stock_before = int(variant.stock or 0)
 
-                if delta > 0 and variant.stock < delta:
-                    raise InvoiceStockError(
-                        f"Недостаточно '{variant.name}'. Остаток {variant.stock}"
-                    )
+    existing_item = (
+        db.query(InvoiceItem)
+        .filter(
+            InvoiceItem.invoice_id == inv.id,
+            InvoiceItem.variant_id == variant.id,
+        )
+        .first()
+    )
 
-                old_stock = int(variant.stock)
-                variant.stock -= delta
-                new_stock = int(variant.stock)
+    # ===== MERGE В СУЩЕСТВУЮЩУЮ СТРОКУ =====
+    if existing_item:
+        qty_before = int(existing_item.qty_final)
+        line_total_before = float(existing_item.line_total_final or 0)
 
-                audits.append(InvoiceAudit(
-                    invoice_id=inv.id,
-                    item_id=it.id,
-                    field="qty",
-                    old_value=Decimal(str(it.qty_final)),
-                    new_value=Decimal(str(new_qty)),
-                    user="admin",
-                ))
+        new_qty = qty_before + qty
 
-                it.qty_final = int(new_qty)
-                changed = True
+        existing_item.qty_final = new_qty
+        existing_item.recompute_line()
 
-            # ----------------------------
-            # изменение цены
-            # ----------------------------
-            if Decimal(str(new_price)) != Decimal(str(it.unit_price_final or 0)):
-
-                audits.append(InvoiceAudit(
-                    invoice_id=inv.id,
-                    item_id=it.id,
-                    field="price",
-                    old_value=Decimal(str(it.unit_price_final or 0)),
-                    new_value=Decimal(str(new_price)),
-                    user="admin",
-                ))
-
-                it.unit_price_final = new_price
-                changed = True
-
-            it.recompute_line()
-
-            # ----------------------------
-            # собираем diff для audit_log
-            # ----------------------------
-            if (
-                old_items_map[it.id]["qty_final"] != it.qty_final
-                or old_items_map[it.id]["unit_price_final"] != float(it.unit_price_final or 0)
-            ):
-                changed_items_old.append({
-                    "item_id": it.id,
-                    "qty": old_items_map[it.id]["qty_final"],
-                })
-                changed_items_new.append({
-                    "item_id": it.id,
-                    "qty": it.qty_final,
-                    "stock": new_stock,
-                })
+        variant.stock -= qty
+        stock_after = int(variant.stock or 0)
 
         inv.recompute_totals()
 
-        # ----------------------------
-        # аудит
-        # ----------------------------
-        if changed:
-            for a in audits:
-                self.db.add(a)
+        # Детальный аудит изменения количества существующей строки
+        db.add(InvoiceAudit(
+            invoice_id=inv.id,
+            item_id=existing_item.id,
+            field="qty",
+            old_value=Decimal(str(qty_before)),
+            new_value=Decimal(str(new_qty)),
+            user=(actor or {}).get("username") or "admin",
+        ))
 
-            write_audit(
-                db=self.db,
-                entity_type="invoice",
-                entity_id=inv.id,
-                action="invoice_updated",
-                actor=actor,
-                old_data={"total": old_total, "items": changed_items_old},
-                new_data={"total": float(inv.total_amount_final or 0), "items": changed_items_new},
-                note="Обновление накладной",
-            )
-
-    # ----------------------------
-    # ➕ ДОБАВЛЕНИЕ ТОВАРА (НОВОЕ)
-    # ----------------------------
-    def add_item(
-        self,
-        invoice_id: int,
-        variant_id: int,
-        qty: int,
-        unit_price: Optional[Decimal],
-        actor,
-    ):
-
-        if qty <= 0:
-            raise InvoiceValidationError("Количество должно быть больше 0")
-
-        # 🔒 блокируем накладную
-        inv = (
-            self.db.query(Invoice)
-            .options(selectinload(Invoice.items))
-            .filter(Invoice.id == invoice_id)
-            .with_for_update()
-            .first()
-        )
-
-        if not inv:
-            raise InvoiceValidationError("Накладная не найдена")
-
-        # 🔒 блокируем вариант
-        variant = (
-            self.db.query(Variant)
-            .filter(Variant.id == variant_id)
-            .with_for_update()
-            .first()
-        )
-
-        if not variant:
-            raise InvoiceValidationError("Товар не найден")
-
-        product = variant.product
-
-        if not product or not product.is_active:
-            raise InvoiceValidationError("Товар неактивен")
-
-        if variant.stock < qty:
-            raise InvoiceStockError(
-                f"Недостаточно товара. Остаток: {variant.stock}"
-            )
-
-        catalog_price = variant.unit_price or Decimal("0")
-        final_price = unit_price if unit_price is not None else catalog_price
-
-        old_total = float(inv.total_amount_final or 0)
-        old_stock = int(variant.stock)
-
-        # ----------------------------
-        # 🔁 проверяем есть ли уже строка
-        # ----------------------------
-        existing_item = next(
-            (i for i in inv.items if i.variant_id == variant.id),
-            None
-        )
-
-        merged = False
-
-        if existing_item:
-            # 🔥 merge логика
-            existing_item.qty_final += qty
-            existing_item.recompute_line()
-
-            variant.stock -= qty
-            merged = True
-
-        else:
-            # 🆕 новая строка
-            item = InvoiceItem(
-                invoice_id=inv.id,
-                product_id=variant.product_id,
-                variant_id=variant.id,
-
-                product_name=product.name,
-                variant_name=variant.name,
-
-                qty_original=qty,
-                qty_final=qty,
-
-                unit_price_original=catalog_price,
-                unit_price_final=final_price,
-
-                line_total_original=catalog_price * qty,
-                line_total_final=final_price * qty,
-            )
-
-            self.db.add(item)
-
-            variant.stock -= qty
-            self.db.flush()  # чтобы новая строка уже существовала до recompute_totals()
-
-        inv.recompute_totals()
-
-        new_stock = int(variant.stock)
-
-        # ----------------------------
-        # 🧾 аудит
-        # ----------------------------
         write_audit(
-            db=self.db,
+            db=db,
             entity_type="invoice",
             entity_id=inv.id,
-            action="invoice_item_added",
+            action="invoice_item_merged",
             actor=actor,
             old_data={
-                "total": old_total,
-                "stock": old_stock,
+                "invoice_id": inv.id,
+                "total_amount_final": old_invoice_total,
+                "item": {
+                    "item_id": existing_item.id,
+                    "product_id": existing_item.product_id,
+                    "variant_id": existing_item.variant_id,
+                    "product_name": existing_item.product_name,
+                    "variant_name": existing_item.variant_name,
+                    "qty_before": qty_before,
+                    "line_total_before": line_total_before,
+                    "variant_stock_before": stock_before,
+                },
             },
             new_data={
-                "total": float(inv.total_amount_final or 0),
-                "variant_id": variant.id,
-                "qty_added": qty,
-                "price": float(final_price),
-                "stock": new_stock,
-                "merged": merged,
+                "invoice_id": inv.id,
+                "total_amount_final": float(getattr(inv, "total_amount_final", 0) or 0),
+                "item": {
+                    "item_id": existing_item.id,
+                    "product_id": existing_item.product_id,
+                    "variant_id": existing_item.variant_id,
+                    "product_name": existing_item.product_name,
+                    "variant_name": existing_item.variant_name,
+                    "qty_added": qty,
+                    "qty_after": int(existing_item.qty_final),
+                    "unit_price_final": float(existing_item.unit_price_final) if existing_item.unit_price_final is not None else None,
+                    "line_total_after": float(existing_item.line_total_final or 0),
+                    "variant_stock_after": stock_after,
+                },
             },
-            note="Добавление товара в накладную",
+            note="Добавление товара в накладную с merge по существующей позиции",
         )
 
-        self.db.commit()
+        db.commit()
+
+        return {
+            "mode": "merged",
+            "invoice_id": inv.id,
+            "item_id": existing_item.id,
+            "variant_id": variant.id,
+            "qty_added": qty,
+            "qty_after": int(existing_item.qty_final),
+            "variant_stock_after": stock_after,
+            "invoice_total_after": float(getattr(inv, "total_amount_final", 0) or 0),
+        }
+
+    # ===== СОЗДАНИЕ НОВОЙ СТРОКИ =====
+    product_image = product.image if product.image else None
+    seller = product.seller
+
+    line_total = unit_price_dec * qty
+
+    new_item = InvoiceItem(
+        invoice_id=inv.id,
+        seller_id=product.seller_id,
+        seller_name=seller.name if seller else None,
+        product_id=product.id,
+        variant_id=variant.id,
+        product_name=product.name,
+        variant_name=variant.name,
+        product_image=product_image,
+        qty_original=qty,
+        qty_final=qty,
+        unit_price_net_cost=net_cost_dec,
+        unit_price_original=unit_price_dec,
+        unit_price_final=unit_price_dec,
+        line_total_original=line_total,
+        line_total_final=line_total,
+    )
+
+    db.add(new_item)
+
+    variant.stock -= qty
+    stock_after = int(variant.stock or 0)
+
+    # flush нужен, чтобы получить new_item.id до общего аудита
+    db.flush()
+
+    inv.recompute_totals()
+
+    write_audit(
+        db=db,
+        entity_type="invoice",
+        entity_id=inv.id,
+        action="invoice_item_added",
+        actor=actor,
+        old_data={
+            "invoice_id": inv.id,
+            "total_amount_final": old_invoice_total,
+        },
+        new_data={
+            "invoice_id": inv.id,
+            "total_amount_final": float(getattr(inv, "total_amount_final", 0) or 0),
+            "added_item": {
+                "item_id": new_item.id,
+                "product_id": new_item.product_id,
+                "variant_id": new_item.variant_id,
+                "product_name": new_item.product_name,
+                "variant_name": new_item.variant_name,
+                "qty_original": int(new_item.qty_original),
+                "qty_final": int(new_item.qty_final),
+                "unit_price_net_cost": float(new_item.unit_price_net_cost) if new_item.unit_price_net_cost is not None else None,
+                "unit_price_original": float(new_item.unit_price_original) if new_item.unit_price_original is not None else None,
+                "unit_price_final": float(new_item.unit_price_final) if new_item.unit_price_final is not None else None,
+                "line_total_original": float(new_item.line_total_original) if new_item.line_total_original is not None else None,
+                "line_total_final": float(new_item.line_total_final) if new_item.line_total_final is not None else None,
+                "variant_stock_before": stock_before,
+                "variant_stock_after": stock_after,
+            },
+        },
+        note="Добавление новой позиции в накладную",
+    )
+
+    db.commit()
+
+    return {
+        "mode": "created",
+        "invoice_id": inv.id,
+        "item_id": new_item.id,
+        "variant_id": variant.id,
+        "qty_added": qty,
+        "qty_after": int(new_item.qty_final),
+        "variant_stock_after": stock_after,
+        "invoice_total_after": float(getattr(inv, "total_amount_final", 0) or 0),
+    }
