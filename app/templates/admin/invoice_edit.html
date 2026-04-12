@@ -1,168 +1,555 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Редактирование накладной № {{ inv.id }}</h2>
 
-{# 🔹 блок ошибки, если не хватает товара на складе #}
-{% if error %}
-  <div style="padding:10px; margin-bottom:12px; border:1px solid #f00; background:#fee; color:#900; border-radius:6px;">
-    ⚠️ {{ error }}
-  </div>
-{% endif %}
+<style>
+  @media (max-width: 768px) {
+  .invoice-edit-table td:nth-child(2),
+  .invoice-edit-table td:nth-child(3) {
+    display: none;
+  }
+}
+  .invoice-edit-page {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
 
-<p>
-  Имя: <b>{{ inv.customer_name or "—" }}</b><br>
-  Телефон: <b>{{ inv.phone or "—" }}</b><br>
-  Время: <b>{{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</b><br>
-  Итого (текущий): <b>{{ "%.2f"|format(inv.total_amount_final) }} KZT</b>
-</p>
+  .invoice-edit-title {
+    margin-bottom: 16px;
+    font-size: 28px;
+    font-weight: 700;
+  }
 
-<div style="margin-bottom:12px; display:flex; gap:8px; flex-wrap:wrap;">
-  <button
-    type="button"
-    id="open-add-item-modal"
-    style="padding:8px 12px; border:1px solid #ddd; background:#f5f5f5; border-radius:8px; cursor:pointer;"
-  >
-    ➕ Добавить товар
-  </button>
-</div>
+  .invoice-edit-error {
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #f00;
+    background: #fee;
+    color: #900;
+    border-radius: 6px;
+  }
 
-<form method="post" action="/admin/invoices/{{ inv.id }}/update">
-  <div style="overflow-x:auto;">
-    <table style="width:100%; border-collapse:collapse;">
-      <thead>
-        <tr>
-          <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Фото</th>
-          <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Наименование</th>
-          <th style="text-align:left; border-bottom:1px solid #eee; padding:8px;">Вариант</th>
-          <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Кол-во</th>
-          <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Цена</th>
-          <th style="text-align:right; border-bottom:1px solid #eee; padding:8px;">Сумма</th>
-          <th style="text-align:center; border-bottom:1px solid #eee; padding:8px;">Действия</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for it in items %}
-        <tr>
-          <td style="padding:8px; width:70px;">
-            {% if it.product_image %}
-              <img src="/static/uploads/products/{{ it.product_image }}" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:6px;">
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td style="padding:8px;">{{ it.product_name }}</td>
-          <td style="padding:8px;">{{ it.variant_name }}</td>
+  .invoice-edit-meta {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    background: #fff;
+    line-height: 1.65;
+  }
 
-          <td style="padding:8px; text-align:right;">
-            {% if it.qty_original != it.qty_final %}
-              <div><s style="color:#999;">{{ it.qty_original }}</s> → <b>{{ it.qty_final }}</b></div>
-            {% else %}
-              <div>{{ it.qty_final }}</div>
-            {% endif %}
-            <input type="number" name="qty_final_{{ it.id }}" value="{{ it.qty_final }}" min="0"
-                   style="width:88px; padding:6px; border:1px solid #ddd; border-radius:8px; text-align:right;">
-          </td>
+  .invoice-edit-actions {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 
-          <td style="padding:8px; text-align:right;">
-            {% if it.unit_price_original != it.unit_price_final %}
-              <div>
-                <s style="color:#999;">{{ "%.2f"|format(it.unit_price_original) }}</s> →
-                <b>{{ "%.2f"|format(it.unit_price_final) }}</b> KZT
-              </div>
-            {% else %}
-              <div>{{ "%.2f"|format(it.unit_price_final) }} KZT</div>
-            {% endif %}
-            <input type="text" name="unit_price_final_{{ it.id }}" value="{{ "%.2f"|format(it.unit_price_final) }}"
-                   style="width:100px; padding:6px; border:1px solid #ddd; border-radius:8px; text-align:right;">
-          </td>
+  .invoice-edit-btn {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    background: #f5f5f5;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-          <td style="padding:8px; text-align:right;">
-            {{ "%.2f"|format(it.line_total_final) }} KZT
-          </td>
+  .invoice-edit-btn:hover {
+    background: #ededed;
+  }
 
-          <td style="padding:8px; text-align:center;">
-            <button
-              type="submit"
-              form="reset-item-form-{{ it.id }}"
-              style="padding:6px 10px; border:1px solid #ddd; background:#fafafa; border-radius:8px; cursor:pointer;"
-            >
-              Отменить изменения
-            </button>
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="5" style="padding:8px; text-align:right; font-weight:700;">Итого:</td>
-          <td style="padding:8px; text-align:right; font-weight:700;">{{ "%.2f"|format(inv.total_amount_final) }} KZT</td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
+  .invoice-edit-table-wrap {
+    overflow-x: auto;
+  }
 
-  <div style="margin-top:12px;">
-    <button type="submit" style="padding:8px 12px; border:1px solid #ddd; background:#f5f5f5; border-radius:8px; cursor:pointer;">
-      💾 Сохранить изменения
-    </button>
-    <a href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}" style="margin-left:12px;">Публичная ссылка</a>
-  </div>
-</form>
+  .invoice-edit-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+  }
 
-{% for it in items %}
-  <form id="reset-item-form-{{ it.id }}" method="post" action="/admin/invoices/{{ inv.id }}/reset-item/{{ it.id }}"></form>
-{% endfor %}
+  .invoice-edit-table th {
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    padding: 10px 8px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
 
-<div class="mb-3 mt-4">   <!-- 🆕 добавил mt-4 -->
-  {% if not inv.is_paid %}
-    <form action="/admin/invoices/{{ inv.id }}/mark-paid" method="post">
-      <button type="submit" class="btn btn-success">
-        💳 Пометить как оплачено
-      </button>
-    </form>
-  {% else %}
-    <div class="alert alert-success">
-      ✅ Оплачено
+  .invoice-edit-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #f3f3f3;
+    vertical-align: middle;
+  }
+
+  .invoice-edit-table td.num,
+  .invoice-edit-table th.num {
+    text-align: right;
+  }
+
+  .invoice-edit-table td.center,
+  .invoice-edit-table th.center {
+    text-align: center;
+  }
+
+  .invoice-edit-photo {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+  }
+
+  .invoice-edit-muted {
+    color: #999;
+  }
+
+  .invoice-edit-diff s {
+    color: #999;
+  }
+
+  .invoice-edit-diff b {
+    font-weight: 700;
+  }
+
+  .invoice-edit-input {
+    width: 100%;
+    max-width: 100px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    text-align: right;
+    background: #fff;
+  }
+
+  .invoice-edit-input.qty {
+    max-width: 78px;
+  }
+
+  .invoice-edit-input.price {
+    max-width: 96px;
+  }
+
+  /* убираем крутилки */
+  input[type="number"].invoice-edit-input::-webkit-outer-spin-button,
+  input[type="number"].invoice-edit-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"].invoice-edit-input {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  .invoice-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+  }
+
+  .invoice-edit-total {
+    font-weight: 700;
+  }
+
+  .invoice-edit-footer {
+    margin-top: 12px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .invoice-edit-link {
+    color: #333;
+    text-decoration: none;
+  }
+
+  .invoice-edit-link:hover {
+    text-decoration: underline;
+  }
+
+  .invoice-edit-section-title {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    .invoice-edit-page {
+      max-width: 100%;
+    }
+
+    .invoice-edit-title {
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+
+    .invoice-edit-meta {
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    .invoice-edit-table-wrap {
+      overflow: visible;
+    }
+
+    .invoice-edit-table,
+    .invoice-edit-table tbody,
+    .invoice-edit-table tr,
+    .invoice-edit-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .invoice-edit-table thead,
+    .invoice-edit-table tfoot {
+      display: none;
+    }
+
+    .invoice-edit-table tr {
+      border: 1px solid #e9e9e9;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+
+    .invoice-edit-table td {
+      border: none;
+      padding: 0;
+      text-align: left !important;
+    }
+
+    .invoice-edit-mobile-top {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .invoice-edit-mobile-photo-box {
+      width: 56px;
+      min-width: 56px;
+    }
+
+    .invoice-edit-photo {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+    }
+
+    .invoice-edit-mobile-main {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .invoice-edit-mobile-name {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+
+    .invoice-edit-mobile-variant {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.35;
+    }
+
+    .invoice-edit-mobile-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding-top: 8px;
+      margin-top: 8px;
+      border-top: 1px solid #f2f2f2;
+    }
+
+    .invoice-edit-mobile-label {
+      font-size: 12px;
+      color: #777;
+      margin-bottom: 4px;
+    }
+
+    .invoice-edit-mobile-value {
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .invoice-edit-field {
+      align-items: flex-end;
+      min-width: 92px;
+    }
+
+    .invoice-edit-input.qty {
+      max-width: 72px;
+      height: 38px;
+      font-size: 14px;
+    }
+
+    .invoice-edit-input.price {
+      max-width: 90px;
+      height: 38px;
+      font-size: 14px;
+    }
+
+    .invoice-edit-mobile-actions {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #f2f2f2;
+    }
+
+    .invoice-edit-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .invoice-edit-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .invoice-edit-footer .invoice-edit-btn,
+    .invoice-edit-footer .invoice-edit-link {
+      width: 100%;
+      text-align: center;
+      justify-content: center;
+    }
+  }
+</style>
+
+<div class="invoice-edit-page">
+  <h2 class="invoice-edit-title">Редактирование накладной № {{ inv.id }}</h2>
+
+  {# 🔹 блок ошибки, если не хватает товара на складе #}
+  {% if error %}
+    <div class="invoice-edit-error">
+      ⚠️ {{ error }}
     </div>
   {% endif %}
-</div>
 
-<h4 class="mt-4">Загруженные чеки</h4>
-<table class="table">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Файл</th>
-      <th>Статус</th>
-      <th>Сумма</th>
-      <th>Действия</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for r in receipts %}
-    <tr>
-      <td>{{ r.id }}</td>
-      <td><a href="/invoice/{{ inv.id }}/receipts/{{ r.id }}?pkey={{ inv.pkey }}" target="_blank">Открыть PDF</a></td>
-      <td>{{ r.status }}</td>
-      <td>{{ r.amount or "—" }}</td>
-      <td>
-        {% if r.status == "pending" %}
-        <form action="/admin/invoices/{{ inv.id }}/receipts/{{ r.id }}/approve" method="post" style="display:inline;">
-          <input type="number" name="amount" step="0.01" required placeholder="Сумма">
-          <button type="submit" class="btn btn-sm btn-success">✅ Подтвердить</button>
-        </form>
-        <form action="/admin/invoices/{{ inv.id }}/receipts/{{ r.id }}/reject" method="post" style="display:inline;">
-          <button type="submit" class="btn btn-sm btn-danger">❌ Отклонить</button>
-        </form>
-        {% else %}
-          <span class="badge bg-secondary">{{ r.status }}</span>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <div class="invoice-edit-meta">
+    Имя: <b>{{ inv.customer_name or "—" }}</b><br>
+    Телефон: <b>{{ inv.phone or "—" }}</b><br>
+    Время: <b>{{ inv.created_at.strftime("%Y-%m-%d %H:%M") }}</b><br>
+    Итого (текущий): <b>{{ "%.2f"|format(inv.total_amount_final) }} KZT</b>
+  </div>
+
+  <div class="invoice-edit-actions">
+    <button
+      type="button"
+      id="open-add-item-modal"
+      class="invoice-edit-btn"
+    >
+      ➕ Добавить товар
+    </button>
+  </div>
+
+  <form method="post" action="/admin/invoices/{{ inv.id }}/update">
+    <div class="invoice-edit-table-wrap">
+      <table class="invoice-edit-table">
+        <thead>
+          <tr>
+            <th>Фото</th>
+            <th>Наименование</th>
+            <th>Вариант</th>
+            <th class="num">Кол-во</th>
+            <th class="num">Цена</th>
+            <th class="num">Сумма</th>
+            <th class="center">Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for it in items %}
+          <tr>
+            <td>
+              <div class="invoice-edit-mobile-top">
+                <div class="invoice-edit-mobile-photo-box">
+                  {% if it.product_image %}
+                    <img src="/static/uploads/products/{{ it.product_image }}" alt="" class="invoice-edit-photo">
+                  {% else %}
+                    <div class="invoice-edit-muted">—</div>
+                  {% endif %}
+                </div>
+
+                <div class="invoice-edit-mobile-main">
+                  <div class="invoice-edit-mobile-name">{{ it.product_name }}</div>
+                  <div class="invoice-edit-mobile-variant">{{ it.variant_name }}</div>
+                </div>
+              </div>
+            </td>
+
+            <td>
+              <div class="invoice-edit-mobile-name">{{ it.product_name }}</div>
+            </td>
+
+            <td>
+              <div class="invoice-edit-mobile-variant">{{ it.variant_name }}</div>
+            </td>
+
+            <td class="num">
+              <div class="invoice-edit-mobile-row">
+                <div>
+                  <div class="invoice-edit-mobile-label">Количество</div>
+                  <div class="invoice-edit-mobile-value">
+                    {% if it.qty_original != it.qty_final %}
+                      <div class="invoice-edit-diff"><s>{{ it.qty_original }}</s> → <b>{{ it.qty_final }}</b></div>
+                    {% else %}
+                      <div>{{ it.qty_final }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="invoice-edit-field">
+                  <input
+                    type="number"
+                    name="qty_final_{{ it.id }}"
+                    value="{{ it.qty_final }}"
+                    min="0"
+                    inputmode="numeric"
+                    class="invoice-edit-input qty"
+                  >
+                </div>
+              </div>
+            </td>
+
+            <td class="num">
+              <div class="invoice-edit-mobile-row">
+                <div>
+                  <div class="invoice-edit-mobile-label">Цена</div>
+                  <div class="invoice-edit-mobile-value">
+                    {% if it.unit_price_original != it.unit_price_final %}
+                      <div class="invoice-edit-diff">
+                        <s>{{ "%.2f"|format(it.unit_price_original) }}</s> →
+                        <b>{{ "%.2f"|format(it.unit_price_final) }}</b> KZT
+                      </div>
+                    {% else %}
+                      <div>{{ "%.2f"|format(it.unit_price_final) }} KZT</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="invoice-edit-field">
+                  <input
+                    type="text"
+                    name="unit_price_final_{{ it.id }}"
+                    value="{{ "%.2f"|format(it.unit_price_final) }}"
+                    inputmode="decimal"
+                    class="invoice-edit-input price"
+                  >
+                </div>
+              </div>
+            </td>
+
+            <td class="num">
+              <div class="invoice-edit-mobile-row">
+                <div>
+                  <div class="invoice-edit-mobile-label">Сумма</div>
+                  <div class="invoice-edit-mobile-value invoice-edit-total">
+                    {{ "%.2f"|format(it.line_total_final) }} KZT
+                  </div>
+                </div>
+              </div>
+            </td>
+
+            <td class="center">
+              <div class="invoice-edit-mobile-actions">
+                <button
+                  type="submit"
+                  form="reset-item-form-{{ it.id }}"
+                  class="invoice-edit-btn"
+                >
+                  Отменить изменения
+                </button>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5" class="num" style="font-weight:700;">Итого:</td>
+            <td class="num" style="font-weight:700;">{{ "%.2f"|format(inv.total_amount_final) }} KZT</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="invoice-edit-footer">
+      <button type="submit" class="invoice-edit-btn">
+        💾 Сохранить изменения
+      </button>
+      <a href="/invoice/{{ inv.id }}?pkey={{ inv.pkey }}" class="invoice-edit-link">
+        Публичная ссылка
+      </a>
+    </div>
+  </form>
+
+  {% for it in items %}
+    <form id="reset-item-form-{{ it.id }}" method="post" action="/admin/invoices/{{ inv.id }}/reset-item/{{ it.id }}"></form>
+  {% endfor %}
+
+  <div class="mb-3 mt-4">
+    {% if not inv.is_paid %}
+      <form action="/admin/invoices/{{ inv.id }}/mark-paid" method="post">
+        <button type="submit" class="btn btn-success">
+          💳 Пометить как оплачено
+        </button>
+      </form>
+    {% else %}
+      <div class="alert alert-success">
+        ✅ Оплачено
+      </div>
+    {% endif %}
+  </div>
+
+  <h4 class="invoice-edit-section-title">Загруженные чеки</h4>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Файл</th>
+        <th>Статус</th>
+        <th>Сумма</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in receipts %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td><a href="/invoice/{{ inv.id }}/receipts/{{ r.id }}?pkey={{ inv.pkey }}" target="_blank">Открыть PDF</a></td>
+        <td>{{ r.status }}</td>
+        <td>{{ r.amount or "—" }}</td>
+        <td>
+          {% if r.status == "pending" %}
+          <form action="/admin/invoices/{{ inv.id }}/receipts/{{ r.id }}/approve" method="post" style="display:inline;">
+            <input type="number" name="amount" step="0.01" required placeholder="Сумма">
+            <button type="submit" class="btn btn-sm btn-success">✅ Подтвердить</button>
+          </form>
+          <form action="/admin/invoices/{{ inv.id }}/receipts/{{ r.id }}/reject" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-danger">❌ Отклонить</button>
+          </form>
+          {% else %}
+            <span class="badge bg-secondary">{{ r.status }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 <div id="add-item-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:9998;"></div>
 
