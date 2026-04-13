@@ -342,6 +342,148 @@ h6 {
     padding: 0.38rem 0.58rem;
     min-height: 34px;
   }
+  
+.site-header {
+  z-index: 1040 !important;
+}
+
+.auth-actions-mobile .dropdown {
+  position: relative;
+  z-index: 1041;
+}
+
+.auth-mobile-menu {
+  z-index: 1042 !important;
+}
+}
+/* =========================
+   HEADER AUTH ACTIONS
+   ========================= */
+
+.auth-actions-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.auth-actions-mobile {
+  display: none;
+  width: 100%;
+}
+
+.auth-mobile-toggle {
+  min-height: 38px;
+  border-radius: 12px;
+  font-weight: 700;
+  background: #fff;
+}
+
+.auth-mobile-menu {
+  margin-top: 0.5rem;
+  padding: 0.45rem;
+  border: 1px solid var(--ez-border);
+  border-radius: 16px;
+  box-shadow: var(--ez-shadow-md);
+  background: #fff;
+}
+
+.auth-mobile-menu-section + .auth-mobile-menu-section {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.auth-mobile-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ez-text);
+  text-align: left;
+  font-weight: 600;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.auth-mobile-item:hover,
+.auth-mobile-item:focus {
+  background: var(--ez-surface-muted);
+  color: var(--ez-text);
+}
+
+.auth-mobile-item-cart {
+  align-items: flex-start;
+}
+
+.auth-mobile-item-meta {
+  color: var(--ez-text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.auth-mobile-item-danger {
+  color: var(--ez-danger);
+}
+
+.auth-mobile-item-danger:hover,
+.auth-mobile-item-danger:focus {
+  background: #fef2f2;
+  color: var(--ez-danger-hover);
+}
+
+@media (max-width: 767.98px) {
+  /* --- На мобилке старый ряд кнопок скрываем,
+     а вместо него показываем один dropdown-блок. */
+  .auth-actions-desktop {
+    display: none;
+  }
+
+  .auth-actions-mobile {
+    display: block;
+  }
+
+  .auth-mobile-toggle {
+    min-height: 40px;
+    font-size: 0.9rem;
+    padding: 0.55rem 0.85rem;
+  }
+
+  .auth-mobile-menu {
+    border-radius: 14px;
+  }
+
+  .auth-mobile-item {
+    padding: 0.78rem 0.82rem;
+    font-size: 0.92rem;
+  }
+
+  .auth-mobile-item-meta {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .auth-mobile-toggle {
+    min-height: 38px;
+    font-size: 0.86rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .auth-mobile-item {
+    padding: 0.72rem 0.76rem;
+    font-size: 0.88rem;
+  }
+
+  .auth-mobile-item-meta {
+    font-size: 0.76rem;
+  }
 }
 /* =========================
    7. BUTTONS
