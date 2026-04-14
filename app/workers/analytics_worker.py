@@ -7,7 +7,7 @@ import time
 from apscheduler.schedulers.background import BackgroundScheduler
 from pytz import timezone
 
-from app.analytics.scheduler import start_analytics_scheduler, stop_analytics_scheduler
+from app.analytics.scheduler import start_analytics_scheduler, stop_analytics_scheduler, generate_analytics_report  # 🆕 добавил generate_analytics_report для тестовой отправки при старте
 from app.tasks.cleanup_receipts import cleanup_old_receipts
 
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +42,9 @@ def start_worker():
     try:
         start_analytics_scheduler()
         logger.info("[AnalyticsWorker] Analytics scheduler started.")
+
+        generate_analytics_report()  # 🆕 тестовая отправка аналитики при старте worker; чтобы отключить, просто закомментируй эту строку
+        logger.info("[AnalyticsWorker] Test analytics report sent on startup.")
     except Exception as e:
         logger.exception("[AnalyticsWorker] Failed to start analytics scheduler: %s", e)
 

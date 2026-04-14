@@ -7,9 +7,9 @@ from app.db import Base, engine
 import app.models  # noqa: F401
 from sqlalchemy.orm import configure_mappers
 from app import config
-from apscheduler.schedulers.background import BackgroundScheduler
-from app.tasks.cleanup_receipts import cleanup_old_receipts
-from app.analytics.scheduler import start_analytics_scheduler
+# from apscheduler.schedulers.background import BackgroundScheduler  # 🆕 закомментировал: scheduler вынесен в отдельный worker
+# from app.tasks.cleanup_receipts import cleanup_old_receipts  # 🆕 закомментировал: cleanup вынесен в отдельный worker
+# from app.analytics.scheduler import start_analytics_scheduler  # 🆕 закомментировал: analytics scheduler вынесен в отдельный worker
 
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -19,7 +19,7 @@ from app.routers.admin_product_bulk_edit import router as admin_product_bulk_edi
 import json
 import time
 import logging
-import os  # 🆕 для защиты от повторного запуска в reloader-процессе
+# import os  # 🆕 для защиты от повторного запуска в reloader-процессе  # 🆕 закомментировал: больше не нужен, т.к. фоновые задачи вынесены в отдельный worker
 
 # COMMIR рабочей версий
 # COMMIT Рабочей версий
@@ -88,11 +88,11 @@ app.state.contacts = CONTACTS                 # ← добавил
 templates.env.globals["build_ts"] = str(int(time.time()))
 
 # 🔹 Один экземпляр scheduler, но запускаем его только на startup
-scheduler = BackgroundScheduler()
+# scheduler = BackgroundScheduler()  # 🆕 закомментировал: scheduler вынесен в отдельный worker
 
 # 🔹 Флаги, чтобы не было повторного запуска тяжёлых задач
-app.state.scheduler_started = False
-app.state.analytics_started = False
+# app.state.scheduler_started = False  # 🆕 закомментировал: больше не нужен, т.к. scheduler вынесен в отдельный worker
+# app.state.analytics_started = False  # 🆕 закомментировал: больше не нужен, т.к. scheduler вынесен в отдельный worker
 
 # ==== Обработчик ошибок (404) ====
 @app.exception_handler(StarletteHTTPException)
@@ -131,37 +131,37 @@ async def on_startup():
         print("[App] Ошибка при create_all:", e)
 
     # 🆕 не запускаем фоновые задачи в reloader-процессе
-    is_reloader = os.environ.get("WATCHFILES_RELOADER") == "true"
-    if is_reloader:
-        print("[App] Пропускаем startup фоновых задач в reloader-процессе.")
-        print("🚀 Stop Polling")
-        # start_polling()
-        return
+    # is_reloader = os.environ.get("WATCHFILES_RELOADER") == "true"  # 🆕 закомментировал: больше не нужен, т.к. фоновые задачи вынесены в отдельный worker
+    # if is_reloader:  # 🆕 закомментировал: больше не нужен, т.к. фоновые задачи вынесены в отдельный worker
+    #     print("[App] Пропускаем startup фоновых задач в reloader-процессе.")
+    #     print("🚀 Stop Polling")
+    #     # start_polling()
+    #     return
 
     # 🔹 Запускаем cleanup scheduler только один раз
-    if not app.state.scheduler_started:
-        try:
-            scheduler.add_job(
-                cleanup_old_receipts,
-                "interval",
-                hours=24,
-                id="cleanup_old_receipts",
-                replace_existing=True
-            )  # раз в сутки
-            scheduler.start()
-            app.state.scheduler_started = True
-            print("[App] Cleanup scheduler запущен.")
-        except Exception as e:
-            print("[App] Ошибка запуска cleanup scheduler:", e)
+    # if not app.state.scheduler_started:  # 🆕 закомментировал: cleanup scheduler вынесен в отдельный worker
+    #     try:
+    #         scheduler.add_job(
+    #             cleanup_old_receipts,
+    #             "interval",
+    #             hours=24,
+    #             id="cleanup_old_receipts",
+    #             replace_existing=True
+    #         )  # раз в сутки
+    #         scheduler.start()
+    #         app.state.scheduler_started = True
+    #         print("[App] Cleanup scheduler запущен.")
+    #     except Exception as e:
+    #         print("[App] Ошибка запуска cleanup scheduler:", e)
 
     # 🔹 Аналитический scheduler запускаем только один раз
-    if not app.state.analytics_started:
-        try:
-            start_analytics_scheduler()
-            app.state.analytics_started = True
-            print("[App] Планировщик запущен.")
-        except Exception as e:
-            print("[App] Ошибка запуска analytics scheduler:", e)
+    # if not app.state.analytics_started:  # 🆕 закомментировал: analytics scheduler вынесен в отдельный worker
+    #     try:
+    #         start_analytics_scheduler()
+    #         app.state.analytics_started = True
+    #         print("[App] Планировщик запущен.")
+    #     except Exception as e:
+    #         print("[App] Ошибка запуска analytics scheduler:", e)
 
     # 🔹 Тестовую отправку отключаем в проде, чтобы не тормозить startup
     if config.DEBUG:
@@ -178,9 +178,10 @@ async def on_startup():
 @app.on_event("shutdown")
 def shutdown_event():
     # 🔹 Аккуратно выключаем scheduler только если он был запущен
-    if app.state.scheduler_started:
-        try:
-            scheduler.shutdown(wait=False)  # 🆕 не блокируем остановку приложения
-            print("[App] Cleanup scheduler остановлен.")
-        except Exception as e:
-            print("[App] Ошибка при остановке cleanup scheduler:", e)
+    # if app.state.scheduler_started:  # 🆕 закомментировал: cleanup scheduler вынесен в отдельный worker
+    #     try:
+    #         scheduler.shutdown(wait=False)  # 🆕 не блокируем остановку приложения
+    #         print("[App] Cleanup scheduler остановлен.")
+    #     except Exception as e:
+    #         print("[App] Ошибка при остановке cleanup scheduler:", e)
+    pass  # 🆕 добавил: shutdown хук оставил пустым, чтобы не было ошибки пустого тела функции

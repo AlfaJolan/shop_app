@@ -121,3 +121,16 @@ def start_analytics_scheduler():
     except Exception as e:
         # 🆕 ошибка старта планировщика не должна останавливать всё приложение
         print(f"[AnalyticsScheduler] Ошибка запуска планировщика: {e}")
+
+
+# 🆕 добавил отдельную остановку планировщика для app/workers/analytics_worker.py
+def stop_analytics_scheduler():
+    """🆕 Останавливает планировщик аналитики из worker-процесса."""
+    global _scheduler
+
+    try:
+        if _scheduler and _scheduler.running:
+            _scheduler.shutdown(wait=False)
+            print("[AnalyticsScheduler] Планировщик аналитики остановлен.")
+    except Exception as e:
+        print(f"[AnalyticsScheduler] Ошибка при остановке планировщика аналитики: {e}")
