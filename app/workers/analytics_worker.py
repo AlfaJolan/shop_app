@@ -43,8 +43,8 @@ def start_worker():
         start_analytics_scheduler()
         logger.info("[AnalyticsWorker] Analytics scheduler started.")
 
-        generate_analytics_report()  # 🆕 тестовая отправка аналитики при старте worker; чтобы отключить, просто закомментируй эту строку
-        logger.info("[AnalyticsWorker] Test analytics report sent on startup.")
+        #generate_analytics_report()  # 🆕 тестовая отправка аналитики при старте worker; чтобы отключить, просто закомментируй эту строку
+        #logger.info("[AnalyticsWorker] Test analytics report sent on startup.")
     except Exception as e:
         logger.exception("[AnalyticsWorker] Failed to start analytics scheduler: %s", e)
 
