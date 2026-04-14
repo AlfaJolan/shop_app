@@ -42,6 +42,22 @@ from datetime import datetime, timedelta  # 🆕 время загрузки/и�
 from fastapi import APIRouter, Request, Depends, HTTPException, Query, UploadFile, File  # 🆕 UploadFile, File
 from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse          # 🆕 RedirectResponse
 
+# Для проверки и сохранения чеков
+import logging
+from app.utils.file_uploads import (
+    FileValidationError,
+    build_pdf_filename,
+    save_bytes_to_path,
+    validate_and_read_pdf,
+    validate_files_count,
+)
+
+from fastapi.responses import FileResponse
+
+# 🆕 логгер для ошибок/отклонённых загрузок чеков
+logger = logging.getLogger(__name__)
+
+
 def _get_invoice_checked(db: Session, invoice_id: int, pkey: str) -> Invoice:
     """Проверка pkey и получение накладной."""
     inv = db.query(Invoice).get(invoice_id)
@@ -284,14 +300,30 @@ async def upload_receipt(
 ):
     inv = _get_invoice_checked(db, invoice_id, pkey)
 
+    # 🆕 централизованно проверяем, что файлы вообще переданы и их не слишком много
+    try:
+        validate_files_count(files)
+    except FileValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     saved = []
     for f in files:
-        if not f.filename.lower().endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="Можно загрузить только PDF-файлы")
+        # 🆕 читаем файл с лимитом размера и валидируем PDF по расширению, MIME и сигнатуре
+        try:
+            data = await validate_and_read_pdf(f)
+        except FileValidationError as e:
+            # 🆕 логируем отклонённую загрузку, чтобы потом было легче разбирать проблемы
+            logger.warning(
+                "Receipt upload rejected: invoice_id=%s filename=%s content_type=%s reason=%s",
+                inv.id,
+                f.filename,
+                f.content_type,
+                str(e),
+            )
+            raise HTTPException(status_code=400, detail=str(e))
 
         # генерим уникальное имя файла
-        ext = ".pdf"
-        safe_name = f"{uuid.uuid4().hex}{ext}"
+        safe_name = build_pdf_filename()  # 🆕 генерацию имени вынесли в utils
 
         # создаём папку для инвойса
         inv_dir = UPLOAD_ROOT / str(inv.id)
@@ -299,8 +331,7 @@ async def upload_receipt(
 
         # сохраняем файл
         dst = inv_dir / safe_name
-        with dst.open("wb") as buf:
-            shutil.copyfileobj(f.file, buf)
+        save_bytes_to_path(data, dst)  # 🆕 сохраняем уже провалидированные байты через utils
 
         # запись в БД
         rec = InvoiceReceipt(
@@ -314,14 +345,20 @@ async def upload_receipt(
         db.add(rec)
         saved.append(rec)
 
+        # 🆕 логируем успешную загрузку чека
+        logger.info(
+            "Receipt uploaded: invoice_id=%s filename=%s saved_path=%s size=%s",
+            inv.id,
+            f.filename,
+            str(dst).replace("\\", "/"),
+            len(data),
+        )
+
     db.commit()
 
     # редирект обратно на страницу накладной
     invoice_url = str(request.url_for("invoice_public", invoice_id=inv.id)) + f"?pkey={inv.pkey}"
     return RedirectResponse(invoice_url, status_code=303)
-
-from fastapi.responses import FileResponse
-from app.models.invoice import Invoice, InvoiceReceipt
 
 # ---------- 🆕 Просмотр чека ----------
 @router.get("/invoice/{invoice_id}/receipts/{receipt_id}")
@@ -344,7 +381,10 @@ def view_receipt(
     if not rec:
         raise HTTPException(status_code=404, detail="Чек не найден")
 
-    if not os.path.exists(rec.file_path):
+    # 🆕 используем Path для проверки файла, чтобы не менять остальную логику хранения пути
+    rec_path = Path(rec.file_path)
+
+    if not rec_path.exists():
         raise HTTPException(status_code=410, detail="Файл удалён")
 
     return FileResponse(

@@ -46,3 +46,4 @@ app/config.py
 
 .venv/
 .env
+app/routers/invoice.py
