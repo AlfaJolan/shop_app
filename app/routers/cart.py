@@ -314,6 +314,10 @@ async def checkout(
         _flash(request, "Корзина пуста.")
         return RedirectResponse(url="/cart", status_code=303)
 
+    # 🔹 NEW: убираем пустые UploadFile, которые браузер может прислать,
+    # даже если пользователь реально не выбрал ни одного файла
+    normalized_files = [f for f in (files or []) if getattr(f, "filename", None)]
+
     # 🔹 NEW: получаем того, кто оформил заказ
     actor = get_actor(request, db)
 
@@ -344,7 +348,7 @@ async def checkout(
                 city_name=city_name,
                 comment=comment,
                 lines=checkout_lines,
-                receipt_files=files or [],
+                receipt_files=normalized_files,
             ),
             actor=actor,
         )
