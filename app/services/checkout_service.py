@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from fastapi import UploadFile
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.models.catalog import Variant
 from app.models.invoice import Invoice, InvoiceReceipt
@@ -178,7 +178,9 @@ class CheckoutService:
 
         variants = (
             self.db.query(Variant)
-            .options(joinedload(Variant.product))
+            # 🔹 NEW: здесь специально НЕ используем joinedload(Variant.product),
+            # потому что вместе с FOR UPDATE это превращается в LEFT OUTER JOIN
+            # и PostgreSQL падает с "FOR UPDATE не может применяться..."
             .filter(Variant.id.in_(variant_ids))
             .with_for_update()
             .all()
