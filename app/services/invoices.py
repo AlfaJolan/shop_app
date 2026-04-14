@@ -82,6 +82,5 @@ def create_invoice(
         total += line_total
 
     inv.total_amount_final = total
-    db.commit()
-    db.refresh(inv)
+    db.flush()
     return inv

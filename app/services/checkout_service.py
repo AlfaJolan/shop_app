@@ -92,7 +92,8 @@ class CheckoutService:
         saved_paths: list[Path] = []
 
         try:
-            variant_ids = [int(line.variant_id) for line in data.lines]
+            # 🔹 NEW: на всякий случай убираем дубли variant_id перед lock
+            variant_ids = list(dict.fromkeys(int(line.variant_id) for line in data.lines))
             variants_by_id = self._lock_variants(variant_ids)
 
             # Финальная проверка уже ПОСЛЕ lock
@@ -142,10 +143,16 @@ class CheckoutService:
                 has_receipts=bool(inv.receipts),
             )
 
-        except (CheckoutError, FileValidationError):
+        except CheckoutError:
             self.db.rollback()
             self._cleanup_saved_files(saved_paths)
             raise
+        except FileValidationError as e:
+            self.db.rollback()
+            self._cleanup_saved_files(saved_paths)
+            # 🔹 NEW: нормализуем ошибку загрузки файла в CheckoutError,
+            # чтобы роут мог показать её пользователю через flash, а не уронить 500
+            raise CheckoutError(str(e)) from e
         except Exception:
             self.db.rollback()
             self._cleanup_saved_files(saved_paths)

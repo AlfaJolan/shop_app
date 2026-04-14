@@ -6,22 +6,23 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 from app.models.salesperson import Salesperson
 
-from pathlib import Path  # 🧾 NEW
-import shutil, uuid  # 🧾 NEW
-from datetime import datetime, timedelta  # 🧾 NEW
-
 from app.db import get_db
 from app.models.catalog import Product, Variant
 # ❌ старое:
 # from app.models.order import Order, OrderItem
 # ✅ новое:
-from app.models.invoice import Invoice, InvoiceItem, InvoiceReceipt  # 🧾 NEW
 from app.telegram.telegram_notify import notifier
 
 # ⬇️ сервис создания накладной (оставляем твой вариант)
-from app.services.invoices import create_invoice
+# 🔹 NEW: checkout вынесен в отдельный сервис, чтобы накладная, склад, аудит и чеки шли одной транзакцией
+from app.services.checkout_service import (
+    CheckoutService,
+    CheckoutInput,
+    CheckoutLineInput,
+    CheckoutError,
+)
 
-from app.services.audit import write_audit, get_actor
+from app.services.audit import get_actor
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
@@ -313,163 +314,63 @@ async def checkout(
         _flash(request, "Корзина пуста.")
         return RedirectResponse(url="/cart", status_code=303)
 
-    # 🔹 Оптимизация: загружаем все варианты одной пачкой и используем дальше везде
-    variant_ids = [int(l["variant_id"]) for l in lines]
-    variants_by_id = _load_variants_map(db, variant_ids)
-
-    # финальная проверка остатков
-    problems = []
-    unavailable = []
-    for l in lines:
-        v = variants_by_id.get(int(l["variant_id"]))
-        if not v or not v.is_active or not v.product or not v.product.is_active:
-            unavailable.append(l["product_name"])
-            continue
-        if int(l["qty"]) > int(v.stock):
-            problems.append(l["product_name"])
-
-    if unavailable:
-        for l in lines:
-            v = variants_by_id.get(int(l["variant_id"]))
-            if not v or not v.is_active or not v.product or not v.product.is_active:
-                cart.pop(str(l["variant_id"]), None)
-        _set_cart(request, cart)
-        _flash(request, "Некоторые товары больше недоступны и были удалены из корзины.")
-        return RedirectResponse(url="/cart", status_code=303)
-
-    if problems:
-        _flash(request, "Недостаточно на складе по позициям: {0}. Количество скорректировано.".format(", ".join(problems)))
-        for l in lines:
-            v = variants_by_id.get(int(l["variant_id"]))
-            if v:
-                key = str(l["variant_id"])
-                cart[key]["qty"] = min(int(cart[key]["qty"]), int(v.stock))
-            else:
-                cart.pop(str(l["variant_id"]), None)
-        _set_cart(request, cart)
-        return RedirectResponse(url="/cart", status_code=303)
-
-    # создаём накладную
-    inv = create_invoice(
-        db=db,
-        lines=lines,
-        customer_name=customer_name,
-        phone=phone,
-        seller_name=seller_name,
-        salesperson_id=salesperson_id,  # 🔹 передаём выбранного продавца
-        city_name=city_name,
-        comment=comment,
-    )
-
-    # списываем остатки склада
-    for l in lines:
-        v = variants_by_id.get(int(l["variant_id"]))
-        if v:
-            v.stock = int(v.stock) - int(l["qty"])
-
-    # Получаем того, кто оформил заказ
+    # 🔹 NEW: получаем того, кто оформил заказ
     actor = get_actor(request, db)
 
-    # Формируем данные для общего аудита покупки
-    new_data = {
-        "invoice_id": inv.id,
-        "customer_name": inv.customer_name,
-        "phone": inv.phone,
-        "seller_name": inv.seller_name,
-        "salesperson_id": inv.salesperson_id,
-        "city_name": inv.city_name,
-        "comment": inv.comment,
-        "has_receipts": bool(files),
-        "items_count": len(inv.items),
-        "items": [
-            {
-                "product_name": item.product_name,
-                "variant_name": item.variant_name,
-                "qty": item.qty_original,
-                "unit_price": float(item.unit_price_original) if item.unit_price_original is not None else None,
-                "line_total": float(item.line_total_original) if item.line_total_original is not None else None,
-            }
-            for item in inv.items
-        ],
-    }
+    # 🔹 NEW: переводим строки корзины в формат нового checkout-сервиса
+    checkout_lines = [
+        CheckoutLineInput(
+            product_id=l["product_id"],
+            product_name=l["product_name"],
+            variant_id=l["variant_id"],
+            variant_name=l["variant_name"],
+            qty=l["qty"],
+            unit_price=l["unit_price"],
+            line_total=l["line_total"],
+        )
+        for l in lines
+    ]
 
-    # Пишем аудит создания заказа ДО commit,
-    # чтобы накладная и аудит сохранились одной транзакцией
-    write_audit(
-        db=db,
-        entity_type="invoice",
-        entity_id=inv.id,
-        action="purchase_created",
-        actor=actor,
-        old_data=None,
-        new_data=new_data,
-        note="Оформлен новый заказ",
+    # 🔹 NEW: теперь весь checkout выполняется внутри отдельного сервиса одной транзакцией
+    service = CheckoutService(db)
+
+    try:
+        result = await service.checkout(
+            CheckoutInput(
+                customer_name=customer_name,
+                phone=phone,
+                seller_name=seller_name,
+                salesperson_id=salesperson_id,  # 🔹 передаём выбранного продавца
+                city_name=city_name,
+                comment=comment,
+                lines=checkout_lines,
+                receipt_files=files or [],
+            ),
+            actor=actor,
+        )
+    except CheckoutError as e:
+        # 🔹 NEW: контролируемые ошибки checkout показываем пользователю
+        _flash(request, str(e))
+        return RedirectResponse(url="/cart", status_code=303)
+
+    # стандартное уведомление, если чек не прикреплён
+    items = result.items
+
+    # 🔹 Оптимизация: Telegram отправляем в фоне, чтобы не тормозить checkout
+    background_tasks.add_task(
+        notifier.notify_invoice_created,
+        invoice_id=result.invoice_id,
+        invoice_pkey=result.invoice_pkey,
+        customer_name=result.customer_name,
+        phone=result.phone,
+        comment=result.comment,
+        items=items
     )
-
-    db.commit()
-
-    # 🧾 если прикреплены файлы чеков
-    if files:
-        UPLOAD_ROOT = Path("app/static/uploads/receipts")
-        inv_dir = UPLOAD_ROOT / str(inv.id)
-        inv_dir.mkdir(parents=True, exist_ok=True)
-
-        for f in files:
-            if not f.filename or not f.filename.lower().endswith(".pdf"):
-                continue
-            safe_name = f"{uuid.uuid4().hex}.pdf"
-            dst = inv_dir / safe_name
-            with dst.open("wb") as buf:
-                shutil.copyfileobj(f.file, buf)
-            rec = InvoiceReceipt(
-                invoice_id=inv.id,
-                file_path=str(dst).replace("\\", "/"),
-                uploaded_at=datetime.utcnow(),
-                expired_at=datetime.utcnow() + timedelta(days=2),
-                status="pending",
-                amount=None,
-            )
-            db.add(rec)
-        db.commit()
-
-        # стандартное уведомление, если чек не прикреплён
-        items = [
-            {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
-            for item in inv.items
-        ]
-
-        # 🔹 Оптимизация: Telegram отправляем в фоне, чтобы не тормозить checkout
-        background_tasks.add_task(
-            notifier.notify_invoice_created,
-            invoice_id=inv.id,
-            invoice_pkey=inv.pkey,
-            customer_name=inv.customer_name,
-            phone=inv.phone,
-            comment=inv.comment,
-            items=items
-        )
-    else:
-        # стандартное уведомление, если чек не прикреплён
-        items = [
-            {"name": item.product_name + ", " + item.variant_name, "qty": item.qty_original, "price": item.unit_price_original}
-            for item in inv.items
-        ]
-
-        # 🔹 Оптимизация: Telegram отправляем в фоне, чтобы не тормозить checkout
-        background_tasks.add_task(
-            notifier.notify_invoice_created,
-            invoice_id=inv.id,
-            invoice_pkey=inv.pkey,
-            customer_name=inv.customer_name,
-            phone=inv.phone,
-            comment=inv.comment,
-            items=items
-        )
 
     _set_cart(request, {})
 
     return RedirectResponse(
-        url=f"/invoice/{inv.id}?pkey={inv.pkey}",
+        url=f"/invoice/{result.invoice_id}?pkey={result.invoice_pkey}",
         status_code=303
     )
 
